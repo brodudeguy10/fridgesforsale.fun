@@ -60,6 +60,8 @@
     #controls button {
       margin: 3px;
       cursor: pointer;
+      position: relative;
+      z-index: 10001; /* Keep buttons clickable even when viz overlaps */
     }
 
     /* ===== VISUALIZER ===== */
@@ -68,6 +70,10 @@
       height: 80px;
       background: black;
       display: block;
+      margin-top: 10px;
+      /* Anchors the bottom so it stretches UP over the controls */
+      transform-origin: bottom center; 
+      transition: transform 0.05s, filter 0.05s;
     }
 
     #vizGlow {
@@ -77,9 +83,11 @@
       width: 100%;
       height: 140px;
       pointer-events: none;
-      background: radial-gradient(circle, rgba(0,255,0,0.25), transparent);
+      /* The fart hue is dead. Replaced with crimson blood glow. */
+      background: radial-gradient(circle, rgba(200,0,0,0.35), transparent);
       filter: blur(20px);
       opacity: 0.5;
+      transition: opacity 0.1s;
     }
   </style>
 </head>
@@ -193,9 +201,8 @@ let audioCtx;
 let analyser;
 let source;
 
-// Initialize the Audio Context (Called by the play buttons now)
 function initAudio() {
-  if (audioCtx) return; // Only run once
+  if (audioCtx) return;
 
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   source = audioCtx.createMediaElementSource(audio);
@@ -222,38 +229,30 @@ function loadSong(i) {
   nowPlaying.textContent = "now playing: " + songs[current];
 }
 
-// Fixed Playback Functions: Wake up the Audio Context BEFORE playing
 function togglePlay() {
   initAudio();
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
   audio.paused ? audio.play() : audio.pause();
 }
 
 function nextSong() {
   initAudio();
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
   loadSong(current + 1);
   audio.play();
 }
 
 function prevSong() {
   initAudio();
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
   loadSong(current - 1);
   audio.play();
 }
 
-// Load the first song on startup
 loadSong(0);
 
 /* =========================
-   VISUALIZER (CHAOS MODE)
+   VISUALIZER (BLOODY CHAOS MODE)
 ========================= */
 
 const canvas = document.getElementById("viz");
@@ -262,7 +261,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = 320;
 canvas.height = 80;
 
-const dataArray = new Uint8Array(32); // Half of fftSize (64/2)
+const dataArray = new Uint8Array(32);
 
 function draw() {
   requestAnimationFrame(draw);
@@ -281,28 +280,40 @@ function draw() {
     const v = dataArray[i];
     peak = Math.max(peak, v);
 
-    ctx.fillStyle = `hsl(${v * 1.2}, 100%, 50%)`;
+    // Brutal red coloring with slight brightness variation based on volume
+    ctx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`;
+    
+    // Base height calculation + jitter
+    const barHeight = (v / 255) * canvas.height * 1.2;
+
     ctx.fillRect(
       i * barWidth,
-      canvas.height - v,
+      canvas.height - barHeight,
       barWidth + 2,
-      v + Math.random() * 6
+      barHeight + Math.random() * 5 
     );
   }
 
-  /* VISUAL BREAKOUT */
-  if (peak > 200) {
-    canvas.style.transform = `rotate(${Math.random() * 3 - 1.5}deg) scale(1.15)`;
+  /* VISUAL BREAKOUT - Popping out of the box */
+  if (peak > 180) {
+    // Dynamically stretches the canvas vertically up to 2.5x its size
+    const stretchY = 1 + ((peak - 180) / 30);
+    // Adds a chaotic sideways lean
+    const lean = (Math.random() - 0.5) * 10; 
+    
+    canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
+    canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red)`;
     document.getElementById("vizGlow").style.opacity = "1";
   } else {
     canvas.style.transform = "none";
-    document.getElementById("vizGlow").style.opacity = "0.5";
+    canvas.style.filter = "none";
+    document.getElementById("vizGlow").style.opacity = "0.3";
   }
 
   /* GLOBAL SHOCKWAVE */
-  if (peak > 240) {
+  if (peak > 230) {
     document.body.style.transform =
-      `translate(${Math.random()*4-2}px, ${Math.random()*4-2}px)`;
+      `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
   } else {
     document.body.style.transform = "none";
   }
