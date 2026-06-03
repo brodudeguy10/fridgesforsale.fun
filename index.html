@@ -3,12 +3,14 @@
 <head>
   <title>fridgesforsale.fun</title>
 
+  <!-- Matter.js physics engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
   <style>
     body {
       margin: 0;
       overflow: hidden;
       background: #0b0f14;
-      font-family: Arial, sans-serif;
     }
 
     #spawnBtn {
@@ -20,15 +22,6 @@
       font-size: 16px;
       cursor: pointer;
     }
-
-    .fridge {
-      position: absolute;
-      width: 60px;
-      height: 80px;
-      background: linear-gradient(145deg, #d9d9d9, #a9a9a9);
-      border: 2px solid #666;
-      border-radius: 6px;
-    }
   </style>
 </head>
 
@@ -37,27 +30,95 @@
 <button id="spawnBtn">spawn fridge</button>
 
 <script>
-const MAX_FRIDGES = 300;
+const {
+  Engine,
+  Render,
+  Runner,
+  Bodies,
+  World,
+  Mouse,
+  MouseConstraint
+} = Matter;
 
+// engine setup
+const engine = Engine.create();
+const world = engine.world;
+
+// renderer
+const render = Render.create({
+  element: document.body,
+  engine: engine,
+  options: {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    wireframes: false,
+    background: "#0b0f14"
+  }
+});
+
+Render.run(render);
+Runner.run(Runner.create(), engine);
+
+// ground
+const ground = Bodies.rectangle(
+  window.innerWidth / 2,
+  window.innerHeight + 50,
+  window.innerWidth,
+  100,
+  { isStatic: true }
+);
+
+World.add(world, ground);
+
+// fridge images (YOU MUST upload these)
+const fridgeImages = [
+  "fridge1.png",
+  "fridge2.png",
+  "fridge3.png"
+];
+
+// spawn fridge
+function spawnFridge() {
+  const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
+
+  const fridge = Bodies.rectangle(
+    Math.random() * window.innerWidth,
+    -50,
+    80,
+    100,
+    {
+      restitution: 0.4,
+      friction: 0.2,
+      render: {
+        sprite: {
+          texture: img,
+          xScale: 0.25,
+          yScale: 0.25
+        }
+      }
+    }
+  );
+
+  World.add(world, fridge);
+}
+
+// button
 document.getElementById("spawnBtn").addEventListener("click", spawnFridge);
 
-function spawnFridge() {
-  const current = document.querySelectorAll(".fridge").length;
-  if (current >= MAX_FRIDGES) return;
+// mouse drag
+const mouse = Mouse.create(render.canvas);
+const mouseConstraint = MouseConstraint.create(engine, {
+  mouse: mouse,
+  constraint: {
+    stiffness: 0.2,
+    render: {
+      visible: false
+    }
+  }
+});
 
-  const fridge = document.createElement("div");
-  fridge.classList.add("fridge");
-
-  fridge.style.left = Math.random() * window.innerWidth + "px";
-  fridge.style.top = Math.random() * window.innerHeight + "px";
-
-  const scale = Math.random() * 1.5 + 0.5;
-  const rot = Math.random() * 360;
-
-  fridge.style.transform = `rotate(${rot}deg) scale(${scale})`;
-
-  document.body.appendChild(fridge);
-}
+World.add(world, mouseConstraint);
+render.mouse = mouse;
 </script>
 
 </body>
