@@ -99,11 +99,6 @@
       pointer-events: none;
     }
 
-    #nowPlaying {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
 
     #controls button {
       margin: 3px;
@@ -149,7 +144,7 @@
       background-size: cover;
       z-index: 9999999;
       pointer-events: none;
-      display: none;
+      visibility: hidden;
     }
 
     #deathFade {
@@ -368,7 +363,7 @@ function playRoulette() {
       document.getElementById("sfx-shatter").play();
       document.getElementById("sfx-flesh").play();
 
-      document.getElementById("screenCrack").style.display = "block";
+      document.getElementById("screenCrack").style.visibility = "visible";
       document.getElementById("deathFade").style.opacity = "1";
 
       if (audioCtx && !audio.paused) {
@@ -398,7 +393,7 @@ function playRoulette() {
 
 /* =========================
    KONAMI CODE — GUNDHAM EASTER EGG
-   sequence: up up down down left right left right b a s t a r t
+   sequence: up up down down left right left right a b s t a r t
 ========================= */
 
 const KONAMI_SEQUENCE = [
@@ -406,7 +401,7 @@ const KONAMI_SEQUENCE = [
   'ArrowDown','ArrowDown',
   'ArrowLeft','ArrowRight',
   'ArrowLeft','ArrowRight',
-  'b','a',
+  'a','b',
   's','t','a','r','t'
 ];
 
