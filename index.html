@@ -11,6 +11,7 @@
       overflow: hidden;
       background: #0b0f14;
       font-family: Arial;
+      transition: transform 0.05s;
     }
 
     /* ===== HEADER ===== */
@@ -43,14 +44,14 @@
       cursor: pointer;
     }
 
-    /* ===== MUSIC ===== */
+    /* ===== MUSIC PLAYER ===== */
     #musicPlayer {
       position: fixed;
       bottom: 10px;
       left: 10px;
       z-index: 10000;
       width: 340px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.75);
       color: white;
       padding: 10px;
       border: 1px solid #333;
@@ -61,11 +62,24 @@
       cursor: pointer;
     }
 
+    /* ===== VISUALIZER ===== */
     #viz {
       width: 320px;
       height: 80px;
       background: black;
-      margin-top: 5px;
+      display: block;
+    }
+
+    #vizGlow {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 140px;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(0,255,0,0.25), transparent);
+      filter: blur(20px);
+      opacity: 0.5;
     }
   </style>
 </head>
@@ -77,13 +91,15 @@
   <img src="cooltext509446167575809.gif">
 </div>
 
-<!-- BUTTON -->
+<!-- SPAWN BUTTON -->
 <button id="spawnBtn">spawn fridge</button>
 
 <!-- MUSIC PLAYER -->
 <div id="musicPlayer">
 
-  <div id="title">LISTEN TO THIS TRACK, BIATCH!</div>
+  <div style="font-weight:bold; margin-bottom:5px;">
+    LISTEN TO THIS TRACK, BIATCH!
+  </div>
 
   <div id="nowPlaying">now playing: nothing</div>
 
@@ -99,21 +115,21 @@
 
 </div>
 
+<div id="vizGlow"></div>
+
 <script>
 /* =========================
-   M A T T E R
+   FRIDGE PHYSICS
 ========================= */
 
-const {
-  Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint
-} = Matter;
+const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint } = Matter;
 
 const engine = Engine.create();
 const world = engine.world;
 
 const render = Render.create({
   element: document.body,
-  engine: engine,
+  engine,
   options: {
     width: window.innerWidth,
     height: window.innerHeight,
@@ -135,11 +151,7 @@ const ground = Bodies.rectangle(
 
 World.add(world, ground);
 
-const fridgeImages = [
-  "fridge1.png",
-  "fridge2.png",
-  "fridge3.png"
-];
+const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
 
 function spawnFridge() {
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
@@ -192,7 +204,7 @@ const nowPlaying = document.getElementById("nowPlaying");
 function loadSong(i) {
   current = (i + songs.length) % songs.length;
   audio.src = songs[current];
-  nowPlaying.innerText = "now playing: " + songs[current];
+  nowPlaying.textContent = "now playing: " + songs[current];
 }
 
 function togglePlay() {
@@ -212,33 +224,44 @@ function prevSong() {
 loadSong(0);
 
 /* =========================
-   AUDIO (FIXED INIT)
+   AUDIO ENGINE (FIXED + STABLE)
 ========================= */
 
 let audioCtx;
 let analyser;
 let source;
 
-document.getElementById("spawnBtn").addEventListener("click", () => {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function initAudio() {
+  if (audioCtx) return;
 
-    source = audioCtx.createMediaElementSource(audio);
-    analyser = audioCtx.createAnalyser();
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+  source = audioCtx.createMediaElementSource(audio);
+  analyser = audioCtx.createAnalyser();
 
-    analyser.fftSize = 64;
+  analyser.fftSize = 64;
+
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+}
+
+/* unlock on ANY interaction */
+document.addEventListener("click", () => {
+  initAudio();
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
   }
 });
 
 /* =========================
-   VISUALIZER (SAFE)
+   VISUALIZER (CHAOS MODE)
 ========================= */
 
 const canvas = document.getElementById("viz");
 const ctx = canvas.getContext("2d");
+
+canvas.width = 320;
+canvas.height = 80;
 
 const dataArray = new Uint8Array(32);
 
@@ -253,10 +276,36 @@ function draw() {
 
   const barWidth = canvas.width / dataArray.length;
 
+  let peak = 0;
+
   for (let i = 0; i < dataArray.length; i++) {
     const v = dataArray[i];
-    ctx.fillStyle = "lime";
-    ctx.fillRect(i * barWidth, canvas.height - v / 2, barWidth - 2, v);
+    peak = Math.max(peak, v);
+
+    ctx.fillStyle = `hsl(${v * 1.2}, 100%, 50%)`;
+    ctx.fillRect(
+      i * barWidth,
+      canvas.height - v,
+      barWidth + 2,
+      v + Math.random() * 6
+    );
+  }
+
+  /* VISUAL BREAKOUT */
+  if (peak > 200) {
+    canvas.style.transform = `rotate(${Math.random() * 3 - 1.5}deg) scale(1.15)`;
+    document.getElementById("vizGlow").style.opacity = "1";
+  } else {
+    canvas.style.transform = "none";
+    document.getElementById("vizGlow").style.opacity = "0.5";
+  }
+
+  /* GLOBAL SHOCKWAVE */
+  if (peak > 240) {
+    document.body.style.transform =
+      `translate(${Math.random()*4-2}px, ${Math.random()*4-2}px)`;
+  } else {
+    document.body.style.transform = "none";
   }
 }
 
