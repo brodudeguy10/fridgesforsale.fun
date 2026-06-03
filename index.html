@@ -34,7 +34,7 @@
       to { transform: rotate(360deg); }
     }
 
-    /* ===== BUTTON ===== */
+    /* ===== SPAWN BUTTON ===== */
     #spawnBtn {
       position: fixed;
       top: 130px;
@@ -43,6 +43,34 @@
       padding: 12px 18px;
       cursor: pointer;
     }
+
+    /* ===== ROULETTE UI ===== */
+    #rouletteContainer {
+      position: fixed;
+      top: 130px;
+      right: 20px;
+      z-index: 10000;
+      background: rgba(0,0,0,0.85);
+      border: 1px solid #ff0000;
+      padding: 15px;
+      color: white;
+      text-align: center;
+      box-shadow: 0px 0px 15px rgba(255,0,0,0.5);
+    }
+    
+    #rouletteContainer select, #rouletteContainer button {
+      margin-top: 10px;
+      cursor: pointer;
+      padding: 5px;
+    }
+
+    #rouletteBtn {
+      background: #440000;
+      color: white;
+      border: 1px solid red;
+      font-weight: bold;
+    }
+    #rouletteBtn:hover { background: #ff0000; }
 
     /* ===== MUSIC PLAYER ===== */
     #musicPlayer {
@@ -57,7 +85,6 @@
       border: 1px solid #333;
     }
 
-    /* PROTECT THE TEXT */
     .text-layer {
       position: relative;
       z-index: 10005;
@@ -97,10 +124,44 @@
       opacity: 0.5;
       transition: opacity 0.1s;
     }
+
+    /* ===== DEATH SEQUENCE ASSETS ===== */
+    #screenCrack {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: url('screencrack.png') no-repeat center center;
+      background-size: cover;
+      z-index: 9999999;
+      pointer-events: none;
+      display: none;
+    }
+
+    #deathFade {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+      opacity: 0;
+      z-index: 9999998; /* Just under the screen crack */
+      pointer-events: none;
+      transition: opacity 7s ease-in; /* Slow fade to black */
+    }
   </style>
 </head>
 
 <body>
+
+<audio id="sfx-revolver" src="revolver.mp3" preload="auto"></audio>
+<audio id="sfx-shatter" src="glassshatter.mp3" preload="auto"></audio>
+<audio id="sfx-flesh" src="bullethitflesh.mp3" preload="auto"></audio>
+
+<div id="screenCrack"></div>
+<div id="deathFade"></div>
 
 <div id="header">
   <img src="cooltext509446167575809.gif">
@@ -108,31 +169,40 @@
 
 <button id="spawnBtn">spawn fridge</button>
 
-<div id="musicPlayer">
+<div id="rouletteContainer">
+  <div style="font-weight:bold; color:red;">RUSSIAN ROULETTE</div>
+  <label style="font-size: 12px;">Bullets in chamber:</label><br>
+  <select id="bulletCount">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+    <option value="5">5</option>
+    <option value="6">6 (Guaranteed Death)</option>
+  </select><br>
+  <button id="rouletteBtn" onclick="playRoulette()">PULL TRIGGER</button>
+  <div id="rouletteResult" style="margin-top: 10px; font-weight: bold; font-size: 14px;"></div>
+</div>
 
+<div id="musicPlayer">
   <div class="text-layer" style="font-weight:bold; margin-bottom:5px;">
     LISTEN TO THIS TRACK, BIATCH!
   </div>
-
   <div id="nowPlaying" class="text-layer">now playing: loading...</div>
-
   <audio id="audio"></audio>
-
   <div id="controls">
     <button onclick="prevSong()">prev</button>
     <button onclick="togglePlay()">play/pause</button>
     <button onclick="nextSong()">next</button>
   </div>
-
   <canvas id="viz"></canvas>
-
 </div>
 
 <div id="vizGlow"></div>
 
 <script>
 /* =========================
-   FRIDGE PHYSICS
+   FRIDGE PHYSICS (IMPROVED)
 ========================= */
 
 const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint } = Matter;
@@ -154,54 +224,32 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-const ground = Bodies.rectangle(
-  window.innerWidth / 2,
-  window.innerHeight + 50,
-  window.innerWidth,
-  100,
-  { isStatic: true }
-);
+// Added invisible walls so fridges stay in the box
+const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
+const leftWall = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
+const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
 
-World.add(world, ground);
+World.add(world, [ground, leftWall, rightWall]);
 
 const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
-
-// TRACK ALL FRIDGES IN AN ARRAY SO WE CAN MAKE THEM DANCE
 const spawnedFridges = [];
 
 function spawnFridge() {
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
-
-  const fridge = Bodies.rectangle(
-    Math.random() * window.innerWidth,
-    -50,
-    80,
-    100,
-    {
-      restitution: 0.4,
+  const fridge = Bodies.rectangle(Math.random() * window.innerWidth, -50, 80, 100, {
+      restitution: 0.6, // Bouncier!
       friction: 0.2,
-      render: {
-        sprite: {
-          texture: img,
-          xScale: 0.25,
-          yScale: 0.25
-        }
-      }
-    }
-  );
-
+      render: { sprite: { texture: img, xScale: 0.25, yScale: 0.25 } }
+  });
   World.add(world, fridge);
-  spawnedFridges.push(fridge); // Save the fridge for later
+  spawnedFridges.push(fridge); 
 }
-
 document.getElementById("spawnBtn").onclick = spawnFridge;
 
 const mouse = Mouse.create(render.canvas);
 const mouseConstraint = MouseConstraint.create(engine, {
-  mouse,
-  constraint: { stiffness: 0.2, render: { visible: false } }
+  mouse, constraint: { stiffness: 0.2, render: { visible: false } }
 });
-
 World.add(world, mouseConstraint);
 render.mouse = mouse;
 
@@ -212,21 +260,23 @@ render.mouse = mouse;
 let audioCtx;
 let analyser;
 let source;
+let masterGain; // Added for the fade out effect
 
 function initAudio() {
   if (audioCtx) return;
-
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     source = audioCtx.createMediaElementSource(audio);
     analyser = audioCtx.createAnalyser();
-
+    masterGain = audioCtx.createGain(); // Create volume control
+    
     analyser.fftSize = 64;
 
     source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    analyser.connect(masterGain); // Connect visualizer to volume control
+    masterGain.connect(audioCtx.destination); // Connect volume to speakers
   } catch (e) {
-    console.warn("Audio Context failed to start (usually a local file security block).", e);
+    console.warn("Audio Context failed to start.", e);
   }
 }
 
@@ -243,6 +293,7 @@ function loadSong(i) {
   current = (i + songs.length) % songs.length;
   audio.src = songs[current];
   nowPlaying.textContent = "now playing: " + songs[current];
+  audio.playbackRate = 1; // Reset tape speed if changed
 }
 
 function togglePlay() {
@@ -264,30 +315,79 @@ function prevSong() {
   loadSong(current - 1);
   audio.play();
 }
-
-// Load the first song instantly
 loadSong(0);
 
 /* =========================
-   VISUALIZER (BLOODY CHAOS MODE WITH DANCING FRIDGES)
+   RUSSIAN ROULETTE LOGIC
+========================= */
+let isDead = false;
+
+function playRoulette() {
+  if (isDead) return;
+
+  const bullets = parseInt(document.getElementById("bulletCount").value);
+  const chance = bullets / 6;
+  const resultDiv = document.getElementById("rouletteResult");
+
+  if (Math.random() < chance) {
+    // === YOU DIED ===
+    isDead = true;
+    document.getElementById("rouletteBtn").disabled = true;
+    resultDiv.textContent = "";
+
+    // 1. Play gun shot immediately
+    document.getElementById("sfx-revolver").play();
+
+    // 2. Exact 150ms delay for bullet travel before impact
+    setTimeout(() => {
+      // Impact Sounds
+      document.getElementById("sfx-shatter").play();
+      document.getElementById("sfx-flesh").play();
+
+      // Visuals: Screen crack appears, background slowly fades to black
+      document.getElementById("screenCrack").style.display = "block";
+      document.getElementById("deathFade").style.opacity = "1";
+
+      // Audio Distortion: Fade volume and slow down the track like a dying tape
+      if (audioCtx && !audio.paused) {
+        masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 6); // 6 second fade out
+        
+        let dropInterval = setInterval(() => {
+          if (audio.playbackRate > 0.1) {
+            audio.playbackRate -= 0.05; // Pitch down
+          } else {
+            clearInterval(dropInterval);
+            audio.pause();
+          }
+        }, 300);
+      }
+    }, 150);
+
+  } else {
+    // === YOU SURVIVED ===
+    resultDiv.style.color = "#00ff00";
+    resultDiv.textContent = "Click... you survived!";
+    setTimeout(() => { resultDiv.textContent = ""; }, 2000);
+  }
+}
+
+/* =========================
+   VISUALIZER (BLOODY CHAOS)
 ========================= */
 
 const canvas = document.getElementById("viz");
 const ctx = canvas.getContext("2d");
-
 canvas.width = 320;
 canvas.height = 80;
-
 const dataArray = new Uint8Array(32);
 
 function draw() {
   requestAnimationFrame(draw);
-
-  if (!analyser) return;
+  if (!analyser || isDead) return; // Stop rendering visualizer if dead
 
   analyser.getByteFrequencyData(dataArray);
 
-  // Motion Blur effect
   ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; 
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -297,33 +397,19 @@ function draw() {
   for (let i = 0; i < dataArray.length; i++) {
     const v = dataArray[i];
     peak = Math.max(peak, v);
-
     const barHeight = (v / 255) * canvas.height * 1.2;
 
     if (v > 200) {
       ctx.fillStyle = `rgba(255, 0, 0, 0.4)`;
-      ctx.fillRect(
-        i * barWidth - 2, 
-        canvas.height - barHeight - (Math.random() * 15), 
-        barWidth + 4, 
-        barHeight
-      );
+      ctx.fillRect(i * barWidth - 2, canvas.height - barHeight - (Math.random() * 15), barWidth + 4, barHeight);
     }
-
     ctx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`;
-    ctx.fillRect(
-      i * barWidth,
-      canvas.height - barHeight,
-      barWidth + 2,
-      barHeight + Math.random() * 5 
-    );
+    ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth + 2, barHeight + Math.random() * 5);
   }
 
-  /* VISUAL BREAKOUT */
   if (peak > 180) {
     const stretchY = 1 + ((peak - 180) / 30);
     const lean = (Math.random() - 0.5) * 10; 
-    
     canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
     canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
     document.getElementById("vizGlow").style.opacity = "1";
@@ -333,26 +419,29 @@ function draw() {
     document.getElementById("vizGlow").style.opacity = "0.3";
   }
 
-  /* GLOBAL SHOCKWAVE & DANCING FRIDGES */
+  /* GLOBAL SHOCKWAVE & PHYSICS LAUNCH */
   if (peak > 230) {
-    // 1. Shake the screen
     document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
     
-    // 2. Make the fridges jump and spin to the bass
     spawnedFridges.forEach(f => {
+      // Toned down baseline jump so they stay mostly in the box
+      let yForce = (Math.random() * 3 + 1); 
+      
+      // 5% chance for the fridge to absolutely launch out of the screen
+      if (Math.random() > 0.95) {
+        yForce = 25; 
+      }
+
       Matter.Body.setVelocity(f, {
-        x: f.velocity.x + (Math.random() - 0.5) * 8, // Violent sideways shudder
-        y: f.velocity.y - (Math.random() * 6)        // Jump upwards
+        x: f.velocity.x + (Math.random() - 0.5) * 4,
+        y: f.velocity.y - yForce
       });
-      // Add a random violent spin
       Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random() - 0.5) * 0.4);
     });
-
   } else {
     document.body.style.transform = "none";
   }
 }
-
 draw();
 </script>
 
