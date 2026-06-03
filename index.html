@@ -3,7 +3,6 @@
 <head>
   <title>fridgesforsale.fun</title>
 
-  <!-- Matter.js physics engine -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
   <style>
@@ -11,40 +10,112 @@
       margin: 0;
       overflow: hidden;
       background: #0b0f14;
+      font-family: Arial;
     }
 
+    /* ===== HEADER GIF ===== */
+    #header {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      pointer-events: none;
+    }
+
+    #header img {
+      width: 420px;
+      animation: spin 4s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ===== SPAWN BUTTON ===== */
     #spawnBtn {
       position: fixed;
-      top: 20px;
+      top: 130px;
       left: 20px;
       z-index: 9999;
       padding: 12px 18px;
-      font-size: 16px;
       cursor: pointer;
+    }
+
+    /* ===== MUSIC PLAYER ===== */
+    #musicPlayer {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 10000;
+      width: 340px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      border: 1px solid #333;
+    }
+
+    #title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    #controls button {
+      margin: 3px;
+      cursor: pointer;
+    }
+
+    #viz {
+      width: 320px;
+      height: 80px;
+      background: black;
+      margin-top: 5px;
     }
   </style>
 </head>
 
 <body>
 
+<!-- HEADER -->
+<div id="header">
+  <img src="cooltext509446167575809.gif">
+</div>
+
+<!-- SPAWN BUTTON -->
 <button id="spawnBtn">spawn fridge</button>
 
+<!-- MUSIC PLAYER -->
+<div id="musicPlayer">
+
+  <div id="title">LISTEN TO THIS TRACK, BIATCH!</div>
+
+  <div id="nowPlaying">now playing: nothing</div>
+
+  <audio id="audio"></audio>
+
+  <div id="controls">
+    <button onclick="prevSong()">prev</button>
+    <button onclick="togglePlay()">play/pause</button>
+    <button onclick="nextSong()">next</button>
+  </div>
+
+  <canvas id="viz"></canvas>
+
+</div>
+
 <script>
+/* =========================
+   M A T T E R . J S
+========================= */
+
 const {
-  Engine,
-  Render,
-  Runner,
-  Bodies,
-  World,
-  Mouse,
-  MouseConstraint
+  Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint
 } = Matter;
 
-// engine setup
 const engine = Engine.create();
 const world = engine.world;
 
-// renderer
 const render = Render.create({
   element: document.body,
   engine: engine,
@@ -70,14 +141,13 @@ const ground = Bodies.rectangle(
 
 World.add(world, ground);
 
-// fridge images (YOU MUST upload these)
+// fridges
 const fridgeImages = [
   "fridge1.png",
   "fridge2.png",
   "fridge3.png"
 ];
 
-// spawn fridge
 function spawnFridge() {
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
 
@@ -102,23 +172,91 @@ function spawnFridge() {
   World.add(world, fridge);
 }
 
-// button
-document.getElementById("spawnBtn").addEventListener("click", spawnFridge);
+document.getElementById("spawnBtn").onclick = spawnFridge;
 
-// mouse drag
+// drag
 const mouse = Mouse.create(render.canvas);
 const mouseConstraint = MouseConstraint.create(engine, {
-  mouse: mouse,
-  constraint: {
-    stiffness: 0.2,
-    render: {
-      visible: false
-    }
-  }
+  mouse,
+  constraint: { stiffness: 0.2, render: { visible: false } }
 });
 
 World.add(world, mouseConstraint);
 render.mouse = mouse;
+
+/* =========================
+   M U S I C   P L A Y E R
+========================= */
+
+const songs = [
+  "Intentional Manslaughter - Dying Fetus.flac",
+  "INTERCRANIAL LACERATION - SCENE SLUTZ SAWN IN HALF - 02 IF THATS YO BITCH THEN WHY SHE ROTTING IN MY BASEMENT (FT. PSYCHOJAVA).flac"
+];
+
+let current = 0;
+const audio = document.getElementById("audio");
+const nowPlaying = document.getElementById("nowPlaying");
+
+function loadSong(i) {
+  current = (i + songs.length) % songs.length;
+  audio.src = songs[current];
+  nowPlaying.innerText = "now playing: " + songs[current];
+}
+
+function togglePlay() {
+  audio.paused ? audio.play() : audio.pause();
+}
+
+function nextSong() {
+  loadSong(current + 1);
+  audio.play();
+}
+
+function prevSong() {
+  loadSong(current - 1);
+  audio.play();
+}
+
+loadSong(0);
+
+/* =========================
+   V I S U A L I Z E R
+========================= */
+
+const canvas = document.getElementById("viz");
+const ctx = canvas.getContext("2d");
+
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+const source = audioCtx.createMediaElementSource(audio);
+const analyser = audioCtx.createAnalyser();
+
+source.connect(analyser);
+analyser.connect(audioCtx.destination);
+
+analyser.fftSize = 64;
+
+const bufferLength = analyser.frequencyBinCount;
+const dataArray = new Uint8Array(bufferLength);
+
+function draw() {
+  requestAnimationFrame(draw);
+
+  analyser.getByteFrequencyData(dataArray);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const barWidth = canvas.width / bufferLength;
+
+  for (let i = 0; i < bufferLength; i++) {
+    const v = dataArray[i];
+    ctx.fillStyle = "lime";
+    ctx.fillRect(i * barWidth, canvas.height - v / 2, barWidth - 2, v);
+  }
+}
+
+draw();
 </script>
 
 </body>
