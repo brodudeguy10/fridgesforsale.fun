@@ -72,6 +72,13 @@
     }
     #rouletteBtn:hover { background: #ff0000; }
 
+    #streakDisplay {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #aaa;
+      min-height: 16px;
+    }
+
     /* ===== MUSIC PLAYER ===== */
     #musicPlayer {
       position: fixed;
@@ -89,14 +96,20 @@
       position: relative;
       z-index: 10005;
       text-shadow: 2px 2px 4px black, -1px -1px 4px black, 0px 0px 8px black;
-      pointer-events: none; 
+      pointer-events: none;
+    }
+
+    #nowPlaying {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
     #controls button {
       margin: 3px;
       cursor: pointer;
       position: relative;
-      z-index: 10005; 
+      z-index: 10005;
     }
 
     /* ===== VISUALIZER ===== */
@@ -106,10 +119,10 @@
       background: black;
       display: block;
       margin-top: 10px;
-      transform-origin: bottom center; 
+      transform-origin: bottom center;
       transition: transform 0.05s, filter 0.05s;
       position: relative;
-      z-index: 10001; 
+      z-index: 10001;
     }
 
     #vizGlow {
@@ -147,10 +160,12 @@
       height: 100vh;
       background: black;
       opacity: 0;
-      z-index: 9999998; /* Just under the screen crack */
+      z-index: 9999998;
       pointer-events: none;
-      transition: opacity 7s ease-in; /* Slow fade to black */
+      transition: opacity 7s ease-in;
     }
+
+
   </style>
 </head>
 
@@ -162,6 +177,7 @@
 
 <div id="screenCrack"></div>
 <div id="deathFade"></div>
+
 
 <div id="header">
   <img src="cooltext509446167575809.gif">
@@ -182,6 +198,7 @@
   </select><br>
   <button id="rouletteBtn" onclick="playRoulette()">PULL TRIGGER</button>
   <div id="rouletteResult" style="margin-top: 10px; font-weight: bold; font-size: 14px;"></div>
+  <div id="streakDisplay"></div>
 </div>
 
 <div id="musicPlayer">
@@ -202,7 +219,7 @@
 
 <script>
 /* =========================
-   FRIDGE PHYSICS (IMPROVED)
+   FRIDGE PHYSICS
 ========================= */
 
 const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint } = Matter;
@@ -224,9 +241,8 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-// Added invisible walls so fridges stay in the box
-const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
-const leftWall = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
+const ground    = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
+const leftWall  = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
 const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
 
 World.add(world, [ground, leftWall, rightWall]);
@@ -237,12 +253,12 @@ const spawnedFridges = [];
 function spawnFridge() {
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
   const fridge = Bodies.rectangle(Math.random() * window.innerWidth, -50, 80, 100, {
-      restitution: 0.6, // Bouncier!
-      friction: 0.2,
-      render: { sprite: { texture: img, xScale: 0.25, yScale: 0.25 } }
+    restitution: 0.6,
+    friction: 0.2,
+    render: { sprite: { texture: img, xScale: 0.25, yScale: 0.25 } }
   });
   World.add(world, fridge);
-  spawnedFridges.push(fridge); 
+  spawnedFridges.push(fridge);
 }
 document.getElementById("spawnBtn").onclick = spawnFridge;
 
@@ -260,7 +276,7 @@ render.mouse = mouse;
 let audioCtx;
 let analyser;
 let source;
-let masterGain; // Added for the fade out effect
+let masterGain;
 
 function initAudio() {
   if (audioCtx) return;
@@ -268,13 +284,11 @@ function initAudio() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     source = audioCtx.createMediaElementSource(audio);
     analyser = audioCtx.createAnalyser();
-    masterGain = audioCtx.createGain(); // Create volume control
-    
+    masterGain = audioCtx.createGain();
     analyser.fftSize = 64;
-
     source.connect(analyser);
-    analyser.connect(masterGain); // Connect visualizer to volume control
-    masterGain.connect(audioCtx.destination); // Connect volume to speakers
+    analyser.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
   } catch (e) {
     console.warn("Audio Context failed to start.", e);
   }
@@ -293,7 +307,7 @@ function loadSong(i) {
   current = (i + songs.length) % songs.length;
   audio.src = songs[current];
   nowPlaying.textContent = "now playing: " + songs[current];
-  audio.playbackRate = 1; // Reset tape speed if changed
+  audio.playbackRate = 1;
 }
 
 function togglePlay() {
@@ -320,7 +334,19 @@ loadSong(0);
 /* =========================
    RUSSIAN ROULETTE LOGIC
 ========================= */
+
 let isDead = false;
+let survivalStreak = 0;
+
+function updateStreak() {
+  const el = document.getElementById("streakDisplay");
+  if (survivalStreak === 0) {
+    el.textContent = "";
+  } else {
+    el.textContent = `survived ${survivalStreak} pull${survivalStreak !== 1 ? "s" : ""} in a row`;
+    el.style.color = survivalStreak >= 5 ? "#ffcc00" : "#aaa";
+  }
+}
 
 function playRoulette() {
   if (isDead) return;
@@ -332,30 +358,26 @@ function playRoulette() {
   if (Math.random() < chance) {
     // === YOU DIED ===
     isDead = true;
+    survivalStreak = 0;
     document.getElementById("rouletteBtn").disabled = true;
     resultDiv.textContent = "";
 
-    // 1. Play gun shot immediately
     document.getElementById("sfx-revolver").play();
 
-    // 2. Exact 150ms delay for bullet travel before impact
     setTimeout(() => {
-      // Impact Sounds
       document.getElementById("sfx-shatter").play();
       document.getElementById("sfx-flesh").play();
 
-      // Visuals: Screen crack appears, background slowly fades to black
       document.getElementById("screenCrack").style.display = "block";
       document.getElementById("deathFade").style.opacity = "1";
 
-      // Audio Distortion: Fade volume and slow down the track like a dying tape
       if (audioCtx && !audio.paused) {
         masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 6); // 6 second fade out
-        
+        masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 6);
+
         let dropInterval = setInterval(() => {
           if (audio.playbackRate > 0.1) {
-            audio.playbackRate -= 0.05; // Pitch down
+            audio.playbackRate -= 0.05;
           } else {
             clearInterval(dropInterval);
             audio.pause();
@@ -366,10 +388,60 @@ function playRoulette() {
 
   } else {
     // === YOU SURVIVED ===
+    survivalStreak++;
+    updateStreak();
     resultDiv.style.color = "#00ff00";
     resultDiv.textContent = "Click... you survived!";
     setTimeout(() => { resultDiv.textContent = ""; }, 2000);
   }
+}
+
+/* =========================
+   KONAMI CODE — GUNDHAM EASTER EGG
+   sequence: up up down down left right left right a b s t a r t
+========================= */
+
+const KONAMI_SEQUENCE = [
+  'ArrowUp','ArrowUp',
+  'ArrowDown','ArrowDown',
+  'ArrowLeft','ArrowRight',
+  'ArrowLeft','ArrowRight',
+  'a','b',
+  's','t','a','r','t'
+];
+
+let konamiProgress = 0;
+
+document.addEventListener('keydown', (e) => {
+  const expected = KONAMI_SEQUENCE[konamiProgress];
+
+  if (e.key === expected) {
+    konamiProgress++;
+    if (konamiProgress === KONAMI_SEQUENCE.length) {
+      triggerGundham();
+      konamiProgress = 0;
+    }
+  } else {
+    // reset, but check if this key restarts the sequence
+    konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0;
+  }
+});
+
+function triggerGundham() {
+  // kill music
+  audio.pause();
+
+  // stop physics renderer
+  Render.stop(render);
+
+  // nuke everything and replace with gundham
+  document.body.innerHTML = '';
+  document.body.style.cssText = 'margin:0; background:#000; display:flex; align-items:center; justify-content:center; width:100vw; height:100vh; overflow:hidden;';
+
+  const img = document.createElement('img');
+  img.src = 'gundlex.gif';
+  img.style.cssText = 'max-width:100vw; max-height:100vh; object-fit:contain;';
+  document.body.appendChild(img);
 }
 
 /* =========================
@@ -384,11 +456,11 @@ const dataArray = new Uint8Array(32);
 
 function draw() {
   requestAnimationFrame(draw);
-  if (!analyser || isDead) return; // Stop rendering visualizer if dead
+  if (!analyser || isDead) return;
 
   analyser.getByteFrequencyData(dataArray);
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; 
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const barWidth = canvas.width / dataArray.length;
@@ -409,7 +481,7 @@ function draw() {
 
   if (peak > 180) {
     const stretchY = 1 + ((peak - 180) / 30);
-    const lean = (Math.random() - 0.5) * 10; 
+    const lean = (Math.random() - 0.5) * 10;
     canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
     canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
     document.getElementById("vizGlow").style.opacity = "1";
@@ -419,19 +491,14 @@ function draw() {
     document.getElementById("vizGlow").style.opacity = "0.3";
   }
 
-  /* GLOBAL SHOCKWAVE & PHYSICS LAUNCH */
   if (peak > 230) {
     document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
-    
-    spawnedFridges.forEach(f => {
-      // Toned down baseline jump so they stay mostly in the box
-      let yForce = (Math.random() * 3 + 1); 
-      
-      // 5% chance for the fridge to absolutely launch out of the screen
-      if (Math.random() > 0.95) {
-        yForce = 25; 
-      }
 
+    spawnedFridges.forEach(f => {
+      let yForce = (Math.random() * 3 + 1);
+      if (Math.random() > 0.95) {
+        yForce = 25;
+      }
       Matter.Body.setVelocity(f, {
         x: f.velocity.x + (Math.random() - 0.5) * 4,
         y: f.velocity.y - yForce
