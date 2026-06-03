@@ -86,15 +86,12 @@
 
 <body>
 
-<!-- HEADER -->
 <div id="header">
   <img src="cooltext509446167575809.gif">
 </div>
 
-<!-- SPAWN BUTTON -->
 <button id="spawnBtn">spawn fridge</button>
 
-<!-- MUSIC PLAYER -->
 <div id="musicPlayer">
 
   <div style="font-weight:bold; margin-bottom:5px;">
@@ -103,7 +100,7 @@
 
   <div id="nowPlaying">now playing: nothing</div>
 
-  <audio id="audio"></audio>
+  <audio id="audio" crossorigin="anonymous"></audio>
 
   <div id="controls">
     <button onclick="prevSong()">prev</button>
@@ -189,8 +186,26 @@ World.add(world, mouseConstraint);
 render.mouse = mouse;
 
 /* =========================
-   MUSIC SYSTEM
+   AUDIO ENGINE & MUSIC SYSTEM
 ========================= */
+
+let audioCtx;
+let analyser;
+let source;
+
+// Initialize the Audio Context (Called by the play buttons now)
+function initAudio() {
+  if (audioCtx) return; // Only run once
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  source = audioCtx.createMediaElementSource(audio);
+  analyser = audioCtx.createAnalyser();
+
+  analyser.fftSize = 64;
+
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+}
 
 const songs = [
   "Intentional Manslaughter - Dying Fetus.mp3",
@@ -207,51 +222,35 @@ function loadSong(i) {
   nowPlaying.textContent = "now playing: " + songs[current];
 }
 
+// Fixed Playback Functions: Wake up the Audio Context BEFORE playing
 function togglePlay() {
+  initAudio();
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
   audio.paused ? audio.play() : audio.pause();
 }
 
 function nextSong() {
+  initAudio();
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
   loadSong(current + 1);
   audio.play();
 }
 
 function prevSong() {
-  loadSong(current - 1);
-  audio.play();
-}
-
-loadSong(0);
-
-/* =========================
-   AUDIO ENGINE (FIXED + STABLE)
-========================= */
-
-let audioCtx;
-let analyser;
-let source;
-
-function initAudio() {
-  if (audioCtx) return;
-
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  source = audioCtx.createMediaElementSource(audio);
-  analyser = audioCtx.createAnalyser();
-
-  analyser.fftSize = 64;
-
-  source.connect(analyser);
-  analyser.connect(audioCtx.destination);
-}
-
-/* unlock on ANY interaction */
-document.addEventListener("click", () => {
   initAudio();
   if (audioCtx && audioCtx.state === "suspended") {
     audioCtx.resume();
   }
-});
+  loadSong(current - 1);
+  audio.play();
+}
+
+// Load the first song on startup
+loadSong(0);
 
 /* =========================
    VISUALIZER (CHAOS MODE)
@@ -263,7 +262,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = 320;
 canvas.height = 80;
 
-const dataArray = new Uint8Array(32);
+const dataArray = new Uint8Array(32); // Half of fftSize (64/2)
 
 function draw() {
   requestAnimationFrame(draw);
