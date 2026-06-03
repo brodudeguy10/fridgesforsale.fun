@@ -57,11 +57,19 @@
       border: 1px solid #333;
     }
 
+    /* PROTECT THE TEXT: Keeps text above the visualizer with shadows for readability */
+    .text-layer {
+      position: relative;
+      z-index: 10005;
+      text-shadow: 2px 2px 4px black, -1px -1px 4px black, 0px 0px 8px black;
+      pointer-events: none; 
+    }
+
     #controls button {
       margin: 3px;
       cursor: pointer;
       position: relative;
-      z-index: 10001; /* Keep buttons clickable even when viz overlaps */
+      z-index: 10005; /* Keep buttons clickable and visible */
     }
 
     /* ===== VISUALIZER ===== */
@@ -74,6 +82,8 @@
       /* Anchors the bottom so it stretches UP over the controls */
       transform-origin: bottom center; 
       transition: transform 0.05s, filter 0.05s;
+      position: relative;
+      z-index: 10001; /* Lower than text, higher than background */
     }
 
     #vizGlow {
@@ -83,7 +93,6 @@
       width: 100%;
       height: 140px;
       pointer-events: none;
-      /* The fart hue is dead. Replaced with crimson blood glow. */
       background: radial-gradient(circle, rgba(200,0,0,0.35), transparent);
       filter: blur(20px);
       opacity: 0.5;
@@ -102,11 +111,11 @@
 
 <div id="musicPlayer">
 
-  <div style="font-weight:bold; margin-bottom:5px;">
+  <div class="text-layer" style="font-weight:bold; margin-bottom:5px;">
     LISTEN TO THIS TRACK, BIATCH!
   </div>
 
-  <div id="nowPlaying">now playing: nothing</div>
+  <div id="nowPlaying" class="text-layer">now playing: nothing</div>
 
   <audio id="audio" crossorigin="anonymous"></audio>
 
@@ -252,7 +261,7 @@ function prevSong() {
 loadSong(0);
 
 /* =========================
-   VISUALIZER (BLOODY CHAOS MODE)
+   VISUALIZER (BLOODY CHAOS MODE WITH MOTION BLUR)
 ========================= */
 
 const canvas = document.getElementById("viz");
@@ -270,57 +279,6 @@ function draw() {
 
   analyser.getByteFrequencyData(dataArray);
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const barWidth = canvas.width / dataArray.length;
-
-  let peak = 0;
-
-  for (let i = 0; i < dataArray.length; i++) {
-    const v = dataArray[i];
-    peak = Math.max(peak, v);
-
-    // Brutal red coloring with slight brightness variation based on volume
-    ctx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`;
-    
-    // Base height calculation + jitter
-    const barHeight = (v / 255) * canvas.height * 1.2;
-
-    ctx.fillRect(
-      i * barWidth,
-      canvas.height - barHeight,
-      barWidth + 2,
-      barHeight + Math.random() * 5 
-    );
-  }
-
-  /* VISUAL BREAKOUT - Popping out of the box */
-  if (peak > 180) {
-    // Dynamically stretches the canvas vertically up to 2.5x its size
-    const stretchY = 1 + ((peak - 180) / 30);
-    // Adds a chaotic sideways lean
-    const lean = (Math.random() - 0.5) * 10; 
-    
-    canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
-    canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red)`;
-    document.getElementById("vizGlow").style.opacity = "1";
-  } else {
-    canvas.style.transform = "none";
-    canvas.style.filter = "none";
-    document.getElementById("vizGlow").style.opacity = "0.3";
-  }
-
-  /* GLOBAL SHOCKWAVE */
-  if (peak > 230) {
-    document.body.style.transform =
-      `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
-  } else {
-    document.body.style.transform = "none";
-  }
-}
-
-draw();
-</script>
-
-</body>
-</html>
+  // TRUE MOTION BLUR: Instead of clearing the canvas, we paint a semi-transparent black rectangle over it.
+  // This leaves a fading "trail" of the red bars behind them as they move.
+  ctx.fillStyle = "rgba(
