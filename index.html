@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>fridgesforsale.fun</title>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #0b0f14;
+      font-family: Arial, sans-serif;
+    }
+
+    #spawnBtn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 9999;
+      padding: 12px 18px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .fridge {
+      position: absolute;
+      width: 60px;
+      height: 80px;
+      background: linear-gradient(145deg, #d9d9d9, #a9a9a9);
+      border: 2px solid #666;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+<button id="spawnBtn">spawn fridge</button>
+
+<script>
+const MAX_FRIDGES = 300;
+
+document.getElementById("spawnBtn").addEventListener("click", spawnFridge);
+
+function spawnFridge() {
+  const current = document.querySelectorAll(".fridge").length;
+  if (current >= MAX_FRIDGES) return;
+
+  const fridge = document.createElement("div");
+  fridge.classList.add("fridge");
+
+  fridge.style.left = Math.random() * window.innerWidth + "px";
+  fridge.style.top = Math.random() * window.innerHeight + "px";
+
+  const scale = Math.random() * 1.5 + 0.5;
+  const rot = Math.random() * 360;
+
+  fridge.style.transform = `rotate(${rot}deg) scale(${scale})`;
+
+  document.body.appendChild(fridge);
+}
+</script>
+
+</body>
+</html>
