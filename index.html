@@ -57,7 +57,7 @@
       border: 1px solid #333;
     }
 
-    /* PROTECT THE TEXT: Keeps text above the visualizer with shadows for readability */
+    /* PROTECT THE TEXT */
     .text-layer {
       position: relative;
       z-index: 10005;
@@ -69,7 +69,7 @@
       margin: 3px;
       cursor: pointer;
       position: relative;
-      z-index: 10005; /* Keep buttons clickable and visible */
+      z-index: 10005; 
     }
 
     /* ===== VISUALIZER ===== */
@@ -79,11 +79,10 @@
       background: black;
       display: block;
       margin-top: 10px;
-      /* Anchors the bottom so it stretches UP over the controls */
       transform-origin: bottom center; 
       transition: transform 0.05s, filter 0.05s;
       position: relative;
-      z-index: 10001; /* Lower than text, higher than background */
+      z-index: 10001; 
     }
 
     #vizGlow {
@@ -115,9 +114,9 @@
     LISTEN TO THIS TRACK, BIATCH!
   </div>
 
-  <div id="nowPlaying" class="text-layer">now playing: nothing</div>
+  <div id="nowPlaying" class="text-layer">now playing: loading...</div>
 
-  <audio id="audio" crossorigin="anonymous"></audio>
+  <audio id="audio"></audio>
 
   <div id="controls">
     <button onclick="prevSong()">prev</button>
@@ -167,6 +166,9 @@ World.add(world, ground);
 
 const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
 
+// TRACK ALL FRIDGES IN AN ARRAY SO WE CAN MAKE THEM DANCE
+const spawnedFridges = [];
+
 function spawnFridge() {
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
 
@@ -189,6 +191,7 @@ function spawnFridge() {
   );
 
   World.add(world, fridge);
+  spawnedFridges.push(fridge); // Save the fridge for later
 }
 
 document.getElementById("spawnBtn").onclick = spawnFridge;
@@ -213,14 +216,18 @@ let source;
 function initAudio() {
   if (audioCtx) return;
 
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  source = audioCtx.createMediaElementSource(audio);
-  analyser = audioCtx.createAnalyser();
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    source = audioCtx.createMediaElementSource(audio);
+    analyser = audioCtx.createAnalyser();
 
-  analyser.fftSize = 64;
+    analyser.fftSize = 64;
 
-  source.connect(analyser);
-  analyser.connect(audioCtx.destination);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  } catch (e) {
+    console.warn("Audio Context failed to start (usually a local file security block).", e);
+  }
 }
 
 const songs = [
@@ -258,10 +265,11 @@ function prevSong() {
   audio.play();
 }
 
+// Load the first song instantly
 loadSong(0);
 
 /* =========================
-   VISUALIZER (BLOODY CHAOS MODE WITH MOTION BLUR)
+   VISUALIZER (BLOODY CHAOS MODE WITH DANCING FRIDGES)
 ========================= */
 
 const canvas = document.getElementById("viz");
@@ -279,6 +287,74 @@ function draw() {
 
   analyser.getByteFrequencyData(dataArray);
 
-  // TRUE MOTION BLUR: Instead of clearing the canvas, we paint a semi-transparent black rectangle over it.
-  // This leaves a fading "trail" of the red bars behind them as they move.
-  ctx.fillStyle = "rgba(
+  // Motion Blur effect
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; 
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const barWidth = canvas.width / dataArray.length;
+  let peak = 0;
+
+  for (let i = 0; i < dataArray.length; i++) {
+    const v = dataArray[i];
+    peak = Math.max(peak, v);
+
+    const barHeight = (v / 255) * canvas.height * 1.2;
+
+    if (v > 200) {
+      ctx.fillStyle = `rgba(255, 0, 0, 0.4)`;
+      ctx.fillRect(
+        i * barWidth - 2, 
+        canvas.height - barHeight - (Math.random() * 15), 
+        barWidth + 4, 
+        barHeight
+      );
+    }
+
+    ctx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`;
+    ctx.fillRect(
+      i * barWidth,
+      canvas.height - barHeight,
+      barWidth + 2,
+      barHeight + Math.random() * 5 
+    );
+  }
+
+  /* VISUAL BREAKOUT */
+  if (peak > 180) {
+    const stretchY = 1 + ((peak - 180) / 30);
+    const lean = (Math.random() - 0.5) * 10; 
+    
+    canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
+    canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
+    document.getElementById("vizGlow").style.opacity = "1";
+  } else {
+    canvas.style.transform = "none";
+    canvas.style.filter = "none";
+    document.getElementById("vizGlow").style.opacity = "0.3";
+  }
+
+  /* GLOBAL SHOCKWAVE & DANCING FRIDGES */
+  if (peak > 230) {
+    // 1. Shake the screen
+    document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
+    
+    // 2. Make the fridges jump and spin to the bass
+    spawnedFridges.forEach(f => {
+      Matter.Body.setVelocity(f, {
+        x: f.velocity.x + (Math.random() - 0.5) * 8, // Violent sideways shudder
+        y: f.velocity.y - (Math.random() * 6)        // Jump upwards
+      });
+      // Add a random violent spin
+      Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random() - 0.5) * 0.4);
+    });
+
+  } else {
+    document.body.style.transform = "none";
+  }
+}
+
+draw();
+</script>
+
+</body>
+</html>
