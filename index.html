@@ -44,12 +44,19 @@
       cursor: pointer;
     }
 
-    /* ===== ROULETTE UI ===== */
-    #rouletteContainer {
+    /* ===== RIGHT SIDE UI WRAPPER ===== */
+    #rightUI {
       position: fixed;
       top: 130px;
       right: 20px;
       z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    /* ===== ROULETTE UI ===== */
+    #rouletteContainer {
       background: rgba(0,0,0,0.85);
       border: 1px solid #ff0000;
       padding: 15px;
@@ -79,6 +86,21 @@
       min-height: 16px;
     }
 
+    /* ===== PAINT TOOL UI ===== */
+    #paintContainer {
+      background: rgba(0,0,0,0.85);
+      border: 1px solid #ffff00;
+      padding: 15px;
+      color: white;
+      text-align: center;
+      box-shadow: 0px 0px 15px rgba(255,255,0,0.5);
+    }
+
+    #paintContainer button, #paintContainer input {
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
     /* ===== MUSIC PLAYER ===== */
     #musicPlayer {
       position: fixed;
@@ -98,7 +120,6 @@
       text-shadow: 2px 2px 4px black, -1px -1px 4px black, 0px 0px 8px black;
       pointer-events: none;
     }
-
 
     #controls button {
       margin: 3px;
@@ -133,6 +154,30 @@
       transition: opacity 0.1s;
     }
 
+    /* ===== DRAWING CANVAS ===== */
+    #paintCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9998; /* Above fridges, below UI */
+      pointer-events: none; /* Off by default so you can drag fridges */
+    }
+
+    /* ===== COCKROACH JUMPSCARE ===== */
+    #cockroachVid {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 9999998; /* Just below screen crack */
+      pointer-events: none;
+    }
+
     /* ===== DEATH SEQUENCE ASSETS ===== */
     #screenCrack {
       position: fixed;
@@ -159,8 +204,6 @@
       pointer-events: none;
       transition: opacity 7s ease-in;
     }
-
-
   </style>
 </head>
 
@@ -170,9 +213,11 @@
 <audio id="sfx-shatter" src="glassshatter.mp3" preload="auto"></audio>
 <audio id="sfx-flesh" src="bullethitflesh.mp3" preload="auto"></audio>
 
+<video id="cockroachVid" src="cockroach.webm"></video>
 <div id="screenCrack"></div>
 <div id="deathFade"></div>
 
+<canvas id="paintCanvas"></canvas>
 
 <div id="header">
   <img src="cooltext509446167575809.gif">
@@ -180,20 +225,34 @@
 
 <button id="spawnBtn">spawn fridge</button>
 
-<div id="rouletteContainer">
-  <div style="font-weight:bold; color:red;">RUSSIAN ROULETTE</div>
-  <label style="font-size: 12px;">Bullets in chamber:</label><br>
-  <select id="bulletCount">
-    <option value="1">1</option>
-    <option value="2">2</option>
-    <option value="3">3</option>
-    <option value="4">4</option>
-    <option value="5">5</option>
-    <option value="6">6 (Guaranteed Death)</option>
-  </select><br>
-  <button id="rouletteBtn" onclick="playRoulette()">PULL TRIGGER</button>
-  <div id="rouletteResult" style="margin-top: 10px; font-weight: bold; font-size: 14px;"></div>
-  <div id="streakDisplay"></div>
+<div id="rightUI">
+  <div id="rouletteContainer">
+    <div style="font-weight:bold; color:red;">RUSSIAN ROULETTE</div>
+    <label style="font-size: 12px;">Bullets in chamber:</label><br>
+    <select id="bulletCount">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6 (Guaranteed Death)</option>
+    </select><br>
+    <button id="rouletteBtn" onclick="playRoulette()">PULL TRIGGER</button>
+    <div id="rouletteResult" style="margin-top: 10px; font-weight: bold; font-size: 14px;"></div>
+    <div id="streakDisplay"></div>
+  </div>
+
+  <div id="paintContainer">
+    <div style="font-weight:bold; color:yellow;">MS PAINT MODE</div>
+    <label style="font-size: 12px;">
+      <input type="checkbox" id="drawToggle"> Enable Drawing
+    </label><br>
+    <div style="font-size: 10px; color:#aaa; margin-bottom:5px;">(Disables fridge dragging)</div>
+    <input type="color" id="drawColor" value="#ff0000">
+    <input type="range" id="drawSize" min="1" max="50" value="5" title="Brush Size"><br>
+    <button id="eraserBtn">Eraser</button>
+    <button onclick="clearCanvas()">Clear All</button>
+  </div>
 </div>
 
 <div id="musicPlayer">
@@ -264,6 +323,13 @@ const mouseConstraint = MouseConstraint.create(engine, {
 World.add(world, mouseConstraint);
 render.mouse = mouse;
 
+// Handle window resizing for Matter.js
+window.addEventListener('resize', () => {
+  render.canvas.width = window.innerWidth;
+  render.canvas.height = window.innerHeight;
+  Matter.Body.setPosition(ground, { x: window.innerWidth / 2, y: window.innerHeight + 50 });
+});
+
 /* =========================
    AUDIO ENGINE & MUSIC SYSTEM
 ========================= */
@@ -325,6 +391,77 @@ function prevSong() {
   audio.play();
 }
 loadSong(0);
+
+/* =========================
+   PAINT TOOL LOGIC
+========================= */
+
+const pCanvas = document.getElementById("paintCanvas");
+const pCtx = pCanvas.getContext("2d");
+
+function resizePaintCanvas() {
+  const tempCanvas = document.createElement('canvas');
+  const tCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = pCanvas.width;
+  tempCanvas.height = pCanvas.height;
+  tCtx.drawImage(pCanvas, 0, 0);
+
+  pCanvas.width = window.innerWidth;
+  pCanvas.height = window.innerHeight;
+  pCtx.drawImage(tempCanvas, 0, 0);
+}
+window.addEventListener('resize', resizePaintCanvas);
+pCanvas.width = window.innerWidth;
+pCanvas.height = window.innerHeight;
+
+let isDrawing = false;
+let isEraserMode = false;
+
+const drawToggle = document.getElementById("drawToggle");
+const colorPicker = document.getElementById("drawColor");
+const sizeSlider = document.getElementById("drawSize");
+const eraserBtn = document.getElementById("eraserBtn");
+
+drawToggle.addEventListener("change", (e) => {
+  // If drawing is enabled, block clicks to the physics fridges below
+  pCanvas.style.pointerEvents = e.target.checked ? "auto" : "none";
+});
+
+eraserBtn.onclick = () => {
+  isEraserMode = !isEraserMode;
+  eraserBtn.style.background = isEraserMode ? 'white' : '';
+  eraserBtn.style.color = isEraserMode ? 'black' : '';
+};
+
+window.clearCanvas = () => {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+};
+
+pCanvas.addEventListener("mousedown", (e) => {
+  isDrawing = true;
+  pCtx.beginPath();
+  pCtx.moveTo(e.clientX, e.clientY);
+});
+
+pCanvas.addEventListener("mousemove", (e) => {
+  if (!isDrawing) return;
+  pCtx.lineWidth = sizeSlider.value;
+  pCtx.lineCap = "round";
+
+  if (isEraserMode) {
+    pCtx.globalCompositeOperation = "destination-out";
+    pCtx.strokeStyle = "rgba(0,0,0,1)";
+  } else {
+    pCtx.globalCompositeOperation = "source-over";
+    pCtx.strokeStyle = colorPicker.value;
+  }
+
+  pCtx.lineTo(e.clientX, e.clientY);
+  pCtx.stroke();
+});
+
+pCanvas.addEventListener("mouseup", () => { isDrawing = false; });
+pCanvas.addEventListener("mouseout", () => { isDrawing = false; });
 
 /* =========================
    RUSSIAN ROULETTE LOGIC
@@ -392,6 +529,31 @@ function playRoulette() {
 }
 
 /* =========================
+   COCKROACH JUMPSCARE (1/100 EVERY SEC)
+========================= */
+
+const roachVid = document.getElementById('cockroachVid');
+let roachActive = false;
+
+setInterval(() => {
+  // Only roll the dice if we aren't dead and the cockroach isn't already playing
+  if (!isDead && !roachActive) {
+    // 1% Chance
+    if (Math.random() < 0.01) {
+      roachActive = true;
+      roachVid.style.display = "block";
+      roachVid.play();
+    }
+  }
+}, 1000);
+
+// Hide when finished
+roachVid.onended = () => {
+  roachVid.style.display = "none";
+  roachActive = false;
+};
+
+/* =========================
    KONAMI CODE — GUNDHAM EASTER EGG
    sequence: up up down down left right left right b a s t a r t
 ========================= */
@@ -417,19 +579,13 @@ document.addEventListener('keydown', (e) => {
       konamiProgress = 0;
     }
   } else {
-    // reset, but check if this key restarts the sequence
     konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0;
   }
 });
 
 function triggerGundham() {
-  // kill music
   audio.pause();
-
-  // stop physics renderer
   Render.stop(render);
-
-  // nuke everything and replace with gundham
   document.body.innerHTML = '';
   document.body.style.cssText = 'margin:0; background:#000; display:flex; align-items:center; justify-content:center; width:100vw; height:100vh; overflow:hidden;';
 
