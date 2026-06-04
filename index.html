@@ -158,6 +158,11 @@
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       z-index: 9999994; pointer-events: none; display: block;
     }
+    /* ===== NEW: DRIED BLOOD CANVAS ===== */
+    #driedBloodCanvas {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 9999993; pointer-events: none; display: block;
+    }
 
     /* Guy speech bubble */
     #guyPrompt {
@@ -171,6 +176,12 @@
       border: 1px solid black;
       z-index: 10001;
       pointer-events: none;
+    }
+    /* ===== NEW: GUY NAME FLOATING LABEL ===== */
+    #guyName {
+      position: fixed; top: 0; left: 0; color: white; font-family: monospace; font-size: 12px;
+      text-shadow: 1px 1px 2px black; z-index: 10001; pointer-events: none; white-space: nowrap;
+      display: block;
     }
 
     /* ---- NEW: Bass red flash overlay ---- */
@@ -186,6 +197,32 @@
       background-size: cover; background-position: center;
       z-index: 100000000; cursor: none;
     }
+
+    /* ===== NEW: AUTOPSY REPORT MODAL ===== */
+    #autopsyReport {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 400px; background: rgba(10,10,10,0.95); border: 2px solid #555; padding: 20px;
+      font-family: 'Courier New', monospace; color: #ddd; font-size: 13px; line-height: 1.5;
+      z-index: 10000001; box-shadow: 0 0 30px black; opacity: 1; transition: opacity 0.5s;
+      display: none;
+    }
+    #autopsyReport h2 { color: #ff5555; margin: 0 0 10px; font-size: 18px; text-align: center; }
+    #autopsyReport .detail { color: #aaa; }
+    #autopsyReport .limb { margin: 2px 0; }
+    #autopsyReport .personal { margin-top: 12px; font-style: italic; color: #777; }
+
+    /* Fridge Cannon button */
+    #fridgeCannonBtn {
+      position: fixed; bottom: 10px; left: 370px; z-index: 10002;
+      background: #550000; color: white; border: 2px solid red; padding: 8px 12px;
+      font-family: monospace; font-size: 14px; font-weight: bold; cursor: pointer;
+    }
+    /* Explode Guy button */
+    #explodeGuyBtn {
+      position: fixed; bottom: 190px; right: 75px; z-index: 10002;
+      background: transparent; border: none; color: red; font-size: 18px; cursor: pointer;
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -193,7 +230,6 @@
 <audio id="sfx-revolver" src="revolver.mp3" preload="auto"></audio>
 <audio id="sfx-shatter" src="glassshatter.mp3" preload="auto"></audio>
 <audio id="sfx-flesh" src="bullethitflesh.mp3" preload="auto"></audio>
-
 <video id="cockroachVid" src="cockroach.webm"></video>
 
 <div id="deathFlash"></div>
@@ -203,16 +239,19 @@
 <div id="deathFade"></div>
 <canvas id="bloodCanvas"></canvas>
 <canvas id="ragdollBloodCanvas"></canvas>
-
+<canvas id="driedBloodCanvas"></canvas>  <!-- NEW -->
 <canvas id="paintCanvas"></canvas>
 
 <div id="guyPrompt">[click me]</div>
-<div id="musicFlash"></div>          <!-- NEW: bass red flash -->
-<div id="bsodOverlay"></div>         <!-- NEW: BSOD screen -->
+<div id="guyName"></div>                 <!-- NEW -->
+<div id="musicFlash"></div>
+<div id="bsodOverlay"></div>
+<div id="autopsyReport"></div>           <!-- NEW -->
 
-<div id="header">
-  <img src="cooltext509446167575809.gif">
-</div>
+<button id="fridgeCannonBtn" onclick="fireFridgeCannon()">FRIDGE CANNON</button>
+<button id="explodeGuyBtn" onclick="explodeGuy()">💀</button>
+
+<div id="header"><img src="cooltext509446167575809.gif"></div>
 
 <div id="economyBox">
   <button onclick="spawnFridge()">spawn fridge</button>
@@ -222,7 +261,6 @@
     <b>SHOP</b><br><br>
     Autoclicker (50F)<br>
     <button onclick="buyAutoclicker()">Buy</button><br><br>
-    <!-- NEW: Autoclicker II -->
     Autoclicker II (1000F)<br>
     <button id="buyAutoclicker2" onclick="buyAutoclicker2()">Buy</button>
   </div>
@@ -230,28 +268,19 @@
 
 <div id="rightUI">
   <div id="memorialText">R.I.P. LEGACY RUSSIAN ROULLETE SYSTEM, REN IS THE KING. 38.</div>
-
   <div id="rouletteContainer">
     <div style="font-weight:bold; color:red;">RUSSIAN ROULETTE</div>
-    <label style="font-size: 12px;">Bullets in chamber:</label><br>
+    <label style="font-size:12px;">Bullets in chamber:</label><br>
     <select id="bulletCount" onchange="reloadRevolver()">
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4">4</option>
-      <option value="5">5</option>
-      <option value="6">6 (Guaranteed Death)</option>
+      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6 (Guaranteed Death)</option>
     </select><br>
     <button id="rouletteBtn" onclick="playRoulette()">PULL TRIGGER</button>
-    <div id="rouletteResult" style="margin-top: 10px; font-weight: bold; font-size: 14px;"></div>
+    <div id="rouletteResult" style="margin-top:10px; font-weight:bold; font-size:14px;"></div>
     <div id="streakDisplay"></div>
   </div>
-
   <div id="paintContainer">
     <div style="font-weight:bold; color:yellow;">MS PAINT MODE</div>
-    <label style="font-size: 12px;">
-      <input type="checkbox" id="drawToggle"> Enable Drawing
-    </label>
+    <label style="font-size:12px;"><input type="checkbox" id="drawToggle"> Enable Drawing</label>
     <input type="color" id="drawColor" value="#ff0000">
     <input type="range" id="drawSize" min="1" max="50" value="5" title="Brush Size"><br>
     <button onclick="document.getElementById('eraserBtn').click()" id="eraserBtn">Eraser</button>
@@ -263,37 +292,25 @@
   <div class="text-layer" style="font-weight:bold; margin-bottom:5px;">LISTEN TO THIS TRACK, BIATCH!</div>
   <div id="nowPlaying" class="text-layer">now playing: loading...</div>
   <audio id="audio"></audio>
-  <div id="controls">
-    <button onclick="prevSong()">prev</button>
-    <button onclick="togglePlay()">play/pause</button>
-    <button onclick="nextSong()">next</button>
-  </div>
+  <div id="controls"><button onclick="prevSong()">prev</button><button onclick="togglePlay()">play/pause</button><button onclick="nextSong()">next</button></div>
   <canvas id="viz"></canvas>
 </div>
 <div id="vizGlow"></div>
 
 <script>
 /* =========================
-   SCREEN CRACK CACHE‑BUSTING
+   SCREEN CRACK & BSOD CACHE‑BUSTING
 ========================= */
 (function() {
   const crackDiv = document.getElementById('screenCrack');
   const img = new Image();
-  img.onload = function() {
-    crackDiv.style.backgroundImage = `url(${img.src})`;
-  };
+  img.onload = function() { crackDiv.style.backgroundImage = `url(${img.src})`; };
   img.src = 'screencrack.png?t=' + Date.now();
 })();
-
-/* =========================
-   NEW: BSOD CACHE‑BUSTING
-========================= */
 (function() {
   const bsodDiv = document.getElementById('bsodOverlay');
   const img = new Image();
-  img.onload = function() {
-    bsodDiv.style.backgroundImage = `url(${img.src})`;
-  };
+  img.onload = function() { bsodDiv.style.backgroundImage = `url(${img.src})`; };
   img.src = 'BSOD.png?t=' + Date.now();
 })();
 
@@ -303,46 +320,32 @@
 let audioCtx = null;
 function ensureAudioContext() {
   if (audioCtx) return;
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  } catch (e) {
-    console.warn("AudioContext not supported.");
-  }
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { console.warn("AudioContext not supported."); }
 }
 
 /* =========================
-   ECONOMY
+   ECONOMY & FRIDGE PHYSICS
 ========================= */
 let fridgesOwned = 0;
 const spawnedFridges = [];
-/* NEW: autoclicker II flag */
 let autoclicker2Active = false;
 
-function updateCounter() {
-  document.getElementById("fridgeCounter").innerText = `Fridges: ${fridgesOwned}`;
-}
-
-function toggleShop() {
-  const shop = document.getElementById("shopMenu");
-  shop.style.display = (shop.style.display === "block") ? "none" : "block";
-}
+function updateCounter() { document.getElementById("fridgeCounter").innerText = `Fridges: ${fridgesOwned}`; }
+function toggleShop() { const s=document.getElementById("shopMenu"); s.style.display = (s.style.display==="block") ? "none" : "block"; }
 
 function buyAutoclicker() {
-  if (fridgesOwned >= 50) {
+  if (fridgesOwned>=50) {
     const removed = spawnedFridges.splice(-50);
-    removed.forEach(fridge => Matter.World.remove(world, fridge));
+    removed.forEach(f => Matter.World.remove(world, f));
     fridgesOwned -= 50;
     updateCounter();
-    setInterval(spawnFridge, 1000);
-  } else {
-    alert("NOT ENOUGH FRIDGES. YOU NEED 50.");
-  }
+    setInterval(spawnFridge,1000);
+    event.target.disabled = true;
+  } else alert("NOT ENOUGH FRIDGES. YOU NEED 50.");
 }
 
-/* NEW: buyAutoclicker2 function */
 function buyAutoclicker2() {
   if (fridgesOwned >= 1000 && !autoclicker2Active) {
-    // Remove up to 1000 physical fridges
     const count = Math.min(1000, spawnedFridges.length);
     const removed = spawnedFridges.splice(-count);
     removed.forEach(f => Matter.World.remove(world, f));
@@ -359,64 +362,58 @@ function buyAutoclicker2() {
   }
 }
 
-/* =========================
-   FRIDGE PHYSICS
-========================= */
 const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint, Constraint, Events } = Matter;
-
 const engine = Engine.create();
 const world = engine.world;
-
-const render = Render.create({
-  element: document.body,
-  engine,
-  options: {
-    width: window.innerWidth,
-    height: window.innerHeight,
-    wireframes: false,
-    background: "#0b0f14"
-  }
-});
-
+const render = Render.create({ element: document.body, engine, options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: "#0b0f14" } });
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-// Walls tagged for collision detection
-const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true, label: 'wall' });
-const leftWall = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true, label: 'wall' });
-const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true, label: 'wall' });
-const ceiling = Bodies.rectangle(window.innerWidth / 2, -100, window.innerWidth, 100, { isStatic: true, label: 'wall' });
+const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight+50, window.innerWidth, 100, { isStatic:true, label:'wall' });
+const leftWall = Bodies.rectangle(-25, window.innerHeight/2, 50, window.innerHeight*2, { isStatic:true, label:'wall' });
+const rightWall = Bodies.rectangle(window.innerWidth+25, window.innerHeight/2, 50, window.innerHeight*2, { isStatic:true, label:'wall' });
+const ceiling = Bodies.rectangle(window.innerWidth/2, -100, window.innerWidth, 100, { isStatic:true, label:'wall' });
 World.add(world, [ground, leftWall, rightWall, ceiling]);
 
-const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
-
+const fridgeImages = ["fridge1.png","fridge2.png","fridge3.png"];
 function spawnFridge() {
-  fridgesOwned++;
-  updateCounter();
-
-  const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
-  const fridge = Bodies.rectangle(Math.random() * window.innerWidth, 50, 100, 150, {
-    restitution: 0.6,
-    friction: 0.2,
-    render: { sprite: { texture: img, xScale: 0.35, yScale: 0.35 } }
+  fridgesOwned++; updateCounter();
+  const img = fridgeImages[Math.floor(Math.random()*fridgeImages.length)];
+  const fridge = Bodies.rectangle(Math.random()*window.innerWidth, 50, 100, 150, {
+    restitution:0.6, friction:0.2,
+    render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } }
   });
   World.add(world, fridge);
   spawnedFridges.push(fridge);
 }
 
 const mouse = Mouse.create(render.canvas);
-const mouseConstraint = MouseConstraint.create(engine, {
-  mouse,
-  constraint: { stiffness: 0.2, render: { visible: false } }
-});
+const mouseConstraint = MouseConstraint.create(engine, { mouse, constraint: { stiffness:0.2, render:{visible:false} } });
 World.add(world, mouseConstraint);
 render.mouse = mouse;
-
 window.addEventListener('resize', () => {
   render.canvas.width = window.innerWidth;
   render.canvas.height = window.innerHeight;
-  Matter.Body.setPosition(ground, { x: window.innerWidth / 2, y: window.innerHeight + 50 });
+  Matter.Body.setPosition(ground, { x: window.innerWidth/2, y: window.innerHeight+50 });
 });
+
+/* =========================
+   FRIDGE CANNON
+========================= */
+function fireFridgeCannon() {
+  const img = fridgeImages[Math.floor(Math.random()*fridgeImages.length)];
+  const startX = 0, startY = window.innerHeight * 0.5 + (Math.random()-0.5)*200;
+  const cannonFridge = Bodies.rectangle(startX, startY, 100, 150, {
+    restitution:0.4, friction:0.1,
+    render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } }
+  });
+  const forceMagnitude = 0.08 * (window.innerWidth / 20);
+  Matter.Body.applyForce(cannonFridge, cannonFridge.position, { x: forceMagnitude, y: (Math.random()-0.5)*0.03 });
+  fridgesOwned++;
+  updateCounter();
+  World.add(world, cannonFridge);
+  spawnedFridges.push(cannonFridge);
+}
 
 /* =========================
    MUSIC
@@ -424,503 +421,221 @@ window.addEventListener('resize', () => {
 let analyser, source, masterGain, biquadFilter;
 const audio = document.getElementById("audio");
 const nowPlaying = document.getElementById("nowPlaying");
-
 function initAudio() {
-  if (!audioCtx) {
-    ensureAudioContext();
-    if (!audioCtx) return;
-  }
+  if (!audioCtx) { ensureAudioContext(); if(!audioCtx) return; }
   if (source) return;
   source = audioCtx.createMediaElementSource(audio);
   analyser = audioCtx.createAnalyser();
   masterGain = audioCtx.createGain();
   biquadFilter = audioCtx.createBiquadFilter();
-  biquadFilter.type = "lowpass";
-  biquadFilter.frequency.value = 24000;
+  biquadFilter.type = "lowpass"; biquadFilter.frequency.value = 24000;
   analyser.fftSize = 64;
-  source.connect(analyser);
-  analyser.connect(biquadFilter);
-  biquadFilter.connect(masterGain);
-  masterGain.connect(audioCtx.destination);
+  source.connect(analyser); analyser.connect(biquadFilter); biquadFilter.connect(masterGain); masterGain.connect(audioCtx.destination);
 }
-
-const songs = [
-  "Intentional Manslaughter - Dying Fetus.mp3",
-  "INTERCRANIAL LACERATION - SCENE SLUTZ SAWN IN HALF - 02 IF THATS YO BITCH THEN WHY SHE ROTTING IN MY BASEMENT (FT. PSYCHOJAVA).mp3"
-];
-let current = 0;
-
-function loadSong(i) {
-  current = (i + songs.length) % songs.length;
-  audio.src = songs[current];
-  nowPlaying.textContent = "now playing: " + songs[current];
-  audio.playbackRate = 1;
-}
-
-function togglePlay() {
-  initAudio();
-  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  if (audio.paused) audio.play();
-  else audio.pause();
-}
-function nextSong() {
-  initAudio();
-  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  loadSong(current + 1);
-  audio.play();
-}
-function prevSong() {
-  initAudio();
-  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  loadSong(current - 1);
-  audio.play();
-}
+const songs = ["Intentional Manslaughter - Dying Fetus.mp3","INTERCRANIAL LACERATION - SCENE SLUTZ SAWN IN HALF - 02 IF THATS YO BITCH THEN WHY SHE ROTTING IN MY BASEMENT (FT. PSYCHOJAVA).mp3"];
+let current=0;
+function loadSong(i) { current = (i+songs.length)%songs.length; audio.src = songs[current]; nowPlaying.textContent = "now playing: "+songs[current]; audio.playbackRate=1; }
+function togglePlay() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); if(audio.paused) audio.play(); else audio.pause(); }
+function nextSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current+1); audio.play(); }
+function prevSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current-1); audio.play(); }
 loadSong(0);
 
 /* =========================
-   HEARTBEAT (breathing removed)
+   HEARTBEAT
 ========================= */
 function playHeartbeat() {
-  if (!audioCtx) return;
-  let beatTime = audioCtx.currentTime;
-  let interval = 0.8;
-  for (let i = 0; i < 12; i++) {
-    const t = beatTime;
-    // Lub
-    const osc1 = audioCtx.createOscillator();
-    const gain1 = audioCtx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(80, t);
-    osc1.frequency.exponentialRampToValueAtTime(20, t + 0.3);
-    gain1.gain.setValueAtTime(0, t);
-    gain1.gain.linearRampToValueAtTime(2.5, t + 0.1);
-    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-    osc1.connect(gain1);
-    gain1.connect(audioCtx.destination);
-    osc1.start(t);
-    osc1.stop(t + 0.5);
-    // Dub
-    const osc2 = audioCtx.createOscillator();
-    const gain2 = audioCtx.createGain();
-    osc2.type = "triangle";
-    osc2.frequency.setValueAtTime(50, t + 0.25);
-    osc2.frequency.exponentialRampToValueAtTime(15, t + 0.6);
-    gain2.gain.setValueAtTime(0, t + 0.25);
-    gain2.gain.linearRampToValueAtTime(2.2, t + 0.35);
-    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
-    osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
-    osc2.start(t + 0.25);
-    osc2.stop(t + 0.8);
-    beatTime += interval;
-    interval *= 1.12;
+  if(!audioCtx) return;
+  let beatTime = audioCtx.currentTime, interval = 0.8;
+  for(let i=0;i<12;i++) {
+    const t=beatTime;
+    const o1=audioCtx.createOscillator(),g1=audioCtx.createGain();
+    o1.type="sine"; o1.frequency.setValueAtTime(80,t); o1.frequency.exponentialRampToValueAtTime(20,t+0.3);
+    g1.gain.setValueAtTime(0,t); g1.gain.linearRampToValueAtTime(2.5,t+0.1); g1.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+    o1.connect(g1); g1.connect(audioCtx.destination); o1.start(t); o1.stop(t+0.5);
+    const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
+    o2.type="triangle"; o2.frequency.setValueAtTime(50,t+0.25); o2.frequency.exponentialRampToValueAtTime(15,t+0.6);
+    g2.gain.setValueAtTime(0,t+0.25); g2.gain.linearRampToValueAtTime(2.2,t+0.35); g2.gain.exponentialRampToValueAtTime(0.001,t+0.7);
+    o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t+0.25); o2.stop(t+0.8);
+    beatTime += interval; interval *= 1.12;
   }
 }
 
 /* =========================
    RUSSIAN ROULETTE
 ========================= */
-let isDead = false;
-let survivalStreak = 0;
-let cylinder = [];
-let currentChamber = 0;
-
+let isDead=false, survivalStreak=0, cylinder=[], currentChamber=0;
 function reloadRevolver() {
-  if (isDead) return;
+  if(isDead) return;
   const bullets = parseInt(document.getElementById("bulletCount").value);
-  cylinder = [];
-  for (let i = 0; i < 6; i++) cylinder.push(i < bullets);
-  for (let i = cylinder.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [cylinder[i], cylinder[j]] = [cylinder[j], cylinder[i]];
-  }
-  currentChamber = 0;
-  survivalStreak = 0;
-  updateStreak();
-  const resultDiv = document.getElementById("rouletteResult");
-  resultDiv.style.color = "yellow";
-  resultDiv.textContent = "*Cylinder spun*";
-  setTimeout(() => { if (!isDead && currentChamber === 0) resultDiv.textContent = ""; }, 1500);
+  cylinder=[]; for(let i=0;i<6;i++) cylinder.push(i<bullets);
+  for(let i=cylinder.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [cylinder[i],cylinder[j]]=[cylinder[j],cylinder[i]]; }
+  currentChamber=0; survivalStreak=0; updateStreak();
+  const d=document.getElementById("rouletteResult"); d.style.color="yellow"; d.textContent="*Cylinder spun*";
+  setTimeout(()=>{ if(!isDead&&currentChamber===0) d.textContent=""; },1500);
 }
-
 function updateStreak() {
-  const el = document.getElementById("streakDisplay");
-  if (survivalStreak === 0) el.textContent = "";
-  else {
-    el.textContent = `survived ${survivalStreak} pull${survivalStreak !== 1 ? "s" : ""} in a row`;
-    el.style.color = survivalStreak >= 5 ? "#ffcc00" : "#aaa";
-  }
+  const el=document.getElementById("streakDisplay");
+  if(survivalStreak===0) el.textContent="";
+  else { el.textContent=`survived ${survivalStreak} pull${survivalStreak!==1?"s":""} in a row`; el.style.color = survivalStreak>=5 ? "#ffcc00" : "#aaa"; }
 }
-
 function playRoulette() {
-  if (isDead) return;
+  if(isDead) return;
   ensureAudioContext();
-  if (cylinder.length === 0 || currentChamber >= 6) reloadRevolver();
-
-  const hasBullet = cylinder[currentChamber];
-  currentChamber++;
-  const resultDiv = document.getElementById("rouletteResult");
-
-  if (hasBullet) {
-    isDead = true;
-    survivalStreak = 0;
-    document.getElementById("rouletteBtn").disabled = true;
-    resultDiv.textContent = "";
-
-    // t = 0
+  if(cylinder.length===0||currentChamber>=6) reloadRevolver();
+  const hasBullet=cylinder[currentChamber]; currentChamber++;
+  const resultDiv=document.getElementById("rouletteResult");
+  if(hasBullet) {
+    isDead=true; survivalStreak=0; document.getElementById("rouletteBtn").disabled=true; resultDiv.textContent="";
     document.getElementById("sfx-revolver").play();
     document.body.classList.add("shaking");
-    const flash = document.getElementById("deathFlash");
-    flash.style.opacity = 1;
-    setTimeout(() => {
-      flash.style.opacity = 0;
-      document.body.classList.remove("shaking");
-    }, 150);
-
-    // t = 150 ms: bullet hits, crack + initial blood burst
-    setTimeout(() => {
-      document.getElementById("sfx-shatter").play();
-      document.getElementById("sfx-flesh").play();
-      document.getElementById("screenCrack").style.visibility = "visible";
-
-      const bloodCanvas = document.getElementById("bloodCanvas");
-      bloodCanvas.style.display = "block";
-      startBloodAnimation(bloodCanvas);
-
-      // Add the tear drop after burst settles
-      setTimeout(() => {
-        addTearDrop();
-      }, 600);
-
-      // Secondary burst
-      setTimeout(() => {
-        secondaryBloodBurst();
-      }, 150);
-
-      // Tunnel & blur
-      setTimeout(() => {
-        document.getElementById("tunnelVision").style.opacity = "1";
-        document.getElementById("deathBlur").style.opacity = "1";
-      }, 450);
-
-      // Colour drain
-      setTimeout(() => {
-        document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
-      }, 1050);
-
-      // Heartbeat
-      setTimeout(() => {
-        playHeartbeat();
-      }, 2250);
-
-      // Fade to black
-      setTimeout(() => {
-        document.getElementById("deathFade").style.opacity = "1";
-      }, 4850);
-
-      // Music trauma & tinnitus
-      setTimeout(() => {
-        if (audioCtx && !audio.paused && analyser) {
-          biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
-          biquadFilter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 2);
-          masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
-          masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4);
-
-          let smoothPitch = audio.playbackRate;
-          const dropInterval = setInterval(() => {
-            smoothPitch -= 0.015;
-            if (smoothPitch > 0.05) audio.playbackRate = smoothPitch;
-            else { clearInterval(dropInterval); audio.pause(); }
-          }, 50);
+    const flash=document.getElementById("deathFlash"); flash.style.opacity=1;
+    setTimeout(()=>{ flash.style.opacity=0; document.body.classList.remove("shaking"); },150);
+    setTimeout(()=>{
+      document.getElementById("sfx-shatter").play(); document.getElementById("sfx-flesh").play();
+      document.getElementById("screenCrack").style.visibility="visible";
+      const bloodCanvas=document.getElementById("bloodCanvas"); bloodCanvas.style.display="block"; startBloodAnimation(bloodCanvas);
+      setTimeout(()=>{ addTearDrop(); },600);
+      setTimeout(()=>{ secondaryBloodBurst(); },150);
+      setTimeout(()=>{ document.getElementById("tunnelVision").style.opacity="1"; document.getElementById("deathBlur").style.opacity="1"; },450);
+      setTimeout(()=>{ document.body.style.filter="grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)"; },1050);
+      setTimeout(()=>{ playHeartbeat(); },2250);
+      setTimeout(()=>{ document.getElementById("deathFade").style.opacity="1"; },4850);
+      setTimeout(()=>{
+        if(audioCtx&&!audio.paused&&analyser) {
+          biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value,audioCtx.currentTime);
+          biquadFilter.frequency.exponentialRampToValueAtTime(100,audioCtx.currentTime+2);
+          masterGain.gain.setValueAtTime(masterGain.gain.value,audioCtx.currentTime);
+          masterGain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+4);
+          let smoothPitch=audio.playbackRate;
+          const dropInterval=setInterval(()=>{ smoothPitch-=0.015; if(smoothPitch>0.05) audio.playbackRate=smoothPitch; else { clearInterval(dropInterval); audio.pause(); } },50);
         }
-
-        if (audioCtx) {
-          const tinnitusOsc = audioCtx.createOscillator();
-          const tinnitusGain = audioCtx.createGain();
-          tinnitusOsc.type = 'sine';
-          tinnitusOsc.frequency.value = 7500;
-          tinnitusGain.gain.setValueAtTime(0, audioCtx.currentTime);
-          tinnitusGain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-          tinnitusGain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 10);
-          tinnitusOsc.connect(tinnitusGain);
-          tinnitusGain.connect(audioCtx.destination);
-          tinnitusOsc.start();
-          tinnitusOsc.stop(audioCtx.currentTime + 10);
+        if(audioCtx) {
+          const tO=audioCtx.createOscillator(),tG=audioCtx.createGain();
+          tO.type='sine'; tO.frequency.value=7500;
+          tG.gain.setValueAtTime(0,audioCtx.currentTime); tG.gain.linearRampToValueAtTime(0.3,audioCtx.currentTime+0.05); tG.gain.exponentialRampToValueAtTime(0.00001,audioCtx.currentTime+10);
+          tO.connect(tG); tG.connect(audioCtx.destination); tO.start(); tO.stop(audioCtx.currentTime+10);
         }
-      }, 600);
-
-    }, 150);
-
+      },600);
+    },150);
   } else {
-    survivalStreak++;
-    updateStreak();
-    resultDiv.style.color = "#00ff00";
-    resultDiv.textContent = `Click... (Chamber ${currentChamber}/6 empty)`;
-    if (currentChamber >= 6) setTimeout(() => { reloadRevolver(); }, 1500);
+    survivalStreak++; updateStreak();
+    resultDiv.style.color="#00ff00"; resultDiv.textContent=`Click... (Chamber ${currentChamber}/6 empty)`;
+    if(currentChamber>=6) setTimeout(()=>{ reloadRevolver(); },1500);
   }
 }
 window.onload = () => { reloadRevolver(); };
 
 /* =========================
-   TEAR DROP (from bullet hole)
+   TEAR DROP
 ========================= */
 function addTearDrop() {
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
-  if (typeof dripsGlobal !== 'undefined' && dripsGlobal) {
-    dripsGlobal.push({
-      sx: cx, sy: cy,
-      ex: cx, ey: cy,
-      speed: 0.15,
-      color: 'rgba(100,0,0,0.95)',
-      alive: true,
-      thickness: 3,
-      branches: []
-    });
+  if(typeof dripsGlobal!=='undefined'&&dripsGlobal) {
+    dripsGlobal.push({ sx:window.innerWidth/2, sy:window.innerHeight/2, ex:window.innerWidth/2, ey:window.innerHeight/2, speed:0.15, color:'rgba(100,0,0,0.95)', alive:true, thickness:3, branches:[] });
   }
 }
 
 /* =========================
-   BLOOD SYSTEM (global variables accessible)
+   BLOOD SYSTEM (death)
 ========================= */
-let bloodAnimationId = null;
-let particles = [];
-let settledStains = [];
-let dripsGlobal = [];
-let edgeDrips = [];
-let poolLevel = 0;
-
-function burstParticles(cx, cy, count, minSpeed, maxSpeed, minSize, maxSize) {
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
-    const vx = Math.cos(angle) * speed;
-    const vy = Math.sin(angle) * speed;
-    const life = 8 + Math.random() * 25;
-    const size = minSize + Math.random() * (maxSize - minSize);
-    const r = 40 + Math.floor(Math.random() * 60);
-    const g = Math.floor(Math.random() * 10);
-    const b = Math.floor(Math.random() * 10);
-    const alpha = 0.6 + Math.random() * 0.4;
-    particles.push({
-      x: cx, y: cy,
-      vx: vx, vy: vy,
-      life: life,
-      maxLife: life,
-      size: size,
-      color: `rgba(${r}, ${g}, ${b}, ${alpha})`,
-      trail: []
-    });
+let bloodAnimationId=null, particles=[], settledStains=[], dripsGlobal=[], edgeDrips=[], poolLevel=0;
+function burstParticles(cx,cy,count,minSpeed,maxSpeed,minSize,maxSize) {
+  for(let i=0;i<count;i++) {
+    const angle=Math.random()*Math.PI*2, speed=minSpeed+Math.random()*(maxSpeed-minSpeed);
+    const vx=Math.cos(angle)*speed, vy=Math.sin(angle)*speed;
+    particles.push({ x:cx,y:cy, vx,vy, life:8+Math.random()*25, maxLife:8+Math.random()*25, size:minSize+Math.random()*(maxSize-minSize), color:`rgba(${40+Math.floor(Math.random()*60)},${Math.floor(Math.random()*10)},${Math.floor(Math.random()*10)},${0.6+Math.random()*0.4})`, trail:[] });
   }
 }
-
 function startBloodAnimation(canvas) {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  particles = [];
-  settledStains = [];
-  dripsGlobal = [];
-  edgeDrips = [];
-  poolLevel = 0;
-
-  burstParticles(canvas.width / 2, canvas.height / 2, 400, 4, 15, 1, 8);
-  if (bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
-  bloodAnimationId = requestAnimationFrame(animateBlood);
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles=[]; settledStains=[]; dripsGlobal=[]; edgeDrips=[]; poolLevel=0;
+  burstParticles(canvas.width/2,canvas.height/2,400,4,15,1,8);
+  if(bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
+  bloodAnimationId=requestAnimationFrame(animateBlood);
 }
-
-function secondaryBloodBurst() {
-  burstParticles(window.innerWidth / 2, window.innerHeight / 2, 200, 2, 10, 0.5, 4);
-}
-
+function secondaryBloodBurst() { burstParticles(window.innerWidth/2,window.innerHeight/2,200,2,10,0.5,4); }
 function animateBlood(timestamp) {
-  const canvas = document.getElementById('bloodCanvas');
-  if (canvas.style.display === 'none') return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Update & draw burst particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vx *= 0.93;
-    p.vy *= 0.93 + 0.02;
-    p.life--;
-
-    p.trail.push({x: p.x, y: p.y});
-    if (p.trail.length > 4) p.trail.shift();
-
-    if (p.trail.length > 1) {
-      ctx.beginPath();
-      ctx.moveTo(p.trail[0].x, p.trail[0].y);
-      for (let t = 1; t < p.trail.length; t++) ctx.lineTo(p.trail[t].x, p.trail[t].y);
-      ctx.strokeStyle = p.color.replace(/[\d\.]+\)$/g, '0.3)');
-      ctx.lineWidth = p.size * 0.6;
-      ctx.stroke();
-    }
-
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fillStyle = p.color;
-    ctx.fill();
-
-    if (p.y <= 0 || p.x <= 0 || p.x >= canvas.width) {
-      settledStains.push({ x: Math.max(0, Math.min(canvas.width, p.x)), y: Math.max(0, p.y), size: p.size * 0.7, color: p.color });
-      particles.splice(i, 1);
-      continue;
-    }
-
-    if (p.life <= 0 || (Math.abs(p.vx) < 0.2 && Math.abs(p.vy) < 0.2)) {
-      settledStains.push({ x: p.x, y: p.y, size: p.size * 0.8, color: p.color });
-      particles.splice(i, 1);
-    }
+  const canvas=document.getElementById('bloodCanvas');
+  if(canvas.style.display==='none') return;
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let i=particles.length-1;i>=0;i--) {
+    const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.93; p.vy*=0.93+0.02; p.life--;
+    p.trail.push({x:p.x,y:p.y}); if(p.trail.length>4) p.trail.shift();
+    if(p.trail.length>1) { ctx.beginPath(); ctx.moveTo(p.trail[0].x,p.trail[0].y); for(let t=1;t<p.trail.length;t++) ctx.lineTo(p.trail[t].x,p.trail[t].y); ctx.strokeStyle=p.color.replace(/[\d\.]+\)$/g,'0.3)'); ctx.lineWidth=p.size*0.6; ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+    if(p.y<=0||p.x<=0||p.x>=canvas.width) { settledStains.push({ x:Math.max(0,Math.min(canvas.width,p.x)), y:Math.max(0,p.y), size:p.size*0.7, color:p.color }); particles.splice(i,1); continue; }
+    if(p.life<=0||(Math.abs(p.vx)<0.2&&Math.abs(p.vy)<0.2)) { settledStains.push({x:p.x,y:p.y,size:p.size*0.8,color:p.color}); particles.splice(i,1); }
   }
-
-  // Draw settled stains
-  for (const stain of settledStains) {
-    ctx.beginPath();
-    ctx.arc(stain.x, stain.y, stain.size, 0, Math.PI * 2);
-    ctx.fillStyle = stain.color;
-    ctx.fill();
+  for(const stain of settledStains) { ctx.beginPath(); ctx.arc(stain.x,stain.y,stain.size,0,Math.PI*2); ctx.fillStyle=stain.color; ctx.fill(); }
+  if(edgeDrips.length===0&&particles.length===0&&settledStains.length>0) {
+    for(let i=0;i<25;i++) { const x=Math.random()*canvas.width; edgeDrips.push({sx:x,sy:0,ex:x,ey:0,speed:0.5+Math.random()*1.5,color:'rgba(70,0,0,0.8)',alive:true,thickness:1+Math.random()*2}); }
+    for(let i=0;i<15;i++) { const y=Math.random()*canvas.height; edgeDrips.push({sx:0,sy:y,ex:0,ey:y,speed:0.5+Math.random()*1.2,color:'rgba(70,0,0,0.8)',alive:true,thickness:1+Math.random()*2}); edgeDrips.push({sx:canvas.width,sy:y,ex:canvas.width,ey:y,speed:0.5+Math.random()*1.2,color:'rgba(70,0,0,0.8)',alive:true,thickness:1+Math.random()*2}); }
   }
-
-  // Generate edge drips
-  if (edgeDrips.length === 0 && particles.length === 0 && settledStains.length > 0) {
-    for (let i = 0; i < 25; i++) {
-      const x = Math.random() * canvas.width;
-      edgeDrips.push({ sx: x, sy: 0, ex: x, ey: 0, speed: 0.5 + Math.random() * 1.5, color: 'rgba(70,0,0,0.8)', alive: true, thickness: 1 + Math.random() * 2 });
-    }
-    for (let i = 0; i < 15; i++) {
-      const y = Math.random() * canvas.height;
-      edgeDrips.push({ sx: 0, sy: y, ex: 0, ey: y, speed: 0.5 + Math.random() * 1.2, color: 'rgba(70,0,0,0.8)', alive: true, thickness: 1 + Math.random() * 2 });
-      edgeDrips.push({ sx: canvas.width, sy: y, ex: canvas.width, ey: y, speed: 0.5 + Math.random() * 1.2, color: 'rgba(70,0,0,0.8)', alive: true, thickness: 1 + Math.random() * 2 });
-    }
+  if(dripsGlobal.length===0&&particles.length===0&&settledStains.length>0) {
+    for(const stain of settledStains) { if(Math.random()<0.4) dripsGlobal.push({sx:stain.x,sy:stain.y,ex:stain.x,ey:stain.y,speed:0.2+Math.random()*1.0,color:stain.color,alive:true,thickness:stain.size*0.5,branches:[]}); }
   }
-
-  // Generate regular drips from settled stains
-  if (dripsGlobal.length === 0 && particles.length === 0 && settledStains.length > 0) {
-    for (const stain of settledStains) {
-      if (Math.random() < 0.4) {
-        dripsGlobal.push({ sx: stain.x, sy: stain.y, ex: stain.x, ey: stain.y, speed: 0.2 + Math.random() * 1.0, color: stain.color, alive: true, thickness: stain.size * 0.5, branches: [] });
-      }
-    }
+  for(const drip of dripsGlobal) {
+    if(!drip.alive) continue; drip.ey+=drip.speed; drip.ex+=(Math.random()-0.5)*0.6;
+    const grad=ctx.createLinearGradient(drip.sx,drip.sy,drip.ex,drip.ey); grad.addColorStop(0,drip.color); grad.addColorStop(1,drip.color.replace(/[\d\.]+\)$/g,'0.2)'));
+    ctx.beginPath(); ctx.moveTo(drip.sx,drip.sy); ctx.lineTo(drip.ex,drip.ey); ctx.strokeStyle=grad; ctx.lineWidth=drip.thickness; ctx.stroke();
+    if(Math.random()<0.01) drip.branches.push({ex:drip.ex,ey:drip.ey,speed:drip.speed*0.7,color:drip.color});
+    for(const b of drip.branches) { b.ey+=b.speed; b.ex+=(Math.random()-0.5)*0.5; ctx.beginPath(); ctx.moveTo(drip.ex,drip.ey); ctx.lineTo(b.ex,b.ey); ctx.strokeStyle=b.color; ctx.lineWidth=0.8; ctx.stroke(); }
+    if(drip.ey>=canvas.height) { drip.alive=false; poolLevel+=0.2; }
   }
-
-  // Update & draw drips (including the teardrop added later)
-  for (const drip of dripsGlobal) {
-    if (!drip.alive) continue;
-    drip.ey += drip.speed;
-    drip.ex += (Math.random() - 0.5) * 0.6;
-
-    const gradient = ctx.createLinearGradient(drip.sx, drip.sy, drip.ex, drip.ey);
-    gradient.addColorStop(0, drip.color);
-    gradient.addColorStop(1, drip.color.replace(/[\d\.]+\)$/g, '0.2)'));
-    ctx.beginPath();
-    ctx.moveTo(drip.sx, drip.sy);
-    ctx.lineTo(drip.ex, drip.ey);
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = drip.thickness;
-    ctx.stroke();
-
-    if (Math.random() < 0.01) {
-      drip.branches.push({ ex: drip.ex, ey: drip.ey, speed: drip.speed * 0.7, color: drip.color });
-    }
-    for (const branch of drip.branches) {
-      branch.ey += branch.speed;
-      branch.ex += (Math.random() - 0.5) * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(drip.ex, drip.ey);
-      ctx.lineTo(branch.ex, branch.ey);
-      ctx.strokeStyle = branch.color;
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-    }
-
-    if (drip.ey >= canvas.height) {
-      drip.alive = false;
-      poolLevel += 0.2;
-    }
+  for(const drip of edgeDrips) {
+    if(!drip.alive) continue; drip.ey+=drip.speed; drip.ex+=(Math.random()-0.5)*0.5;
+    ctx.beginPath(); ctx.moveTo(drip.sx,drip.sy); ctx.lineTo(drip.ex,drip.ey); ctx.strokeStyle=drip.color; ctx.lineWidth=drip.thickness; ctx.stroke();
+    if(drip.ey>=canvas.height) { drip.alive=false; poolLevel+=0.15; }
   }
-
-  // Edge drips
-  for (const drip of edgeDrips) {
-    if (!drip.alive) continue;
-    drip.ey += drip.speed;
-    drip.ex += (Math.random() - 0.5) * 0.5;
-    ctx.beginPath();
-    ctx.moveTo(drip.sx, drip.sy);
-    ctx.lineTo(drip.ex, drip.ey);
-    ctx.strokeStyle = drip.color;
-    ctx.lineWidth = drip.thickness;
-    ctx.stroke();
-    if (drip.ey >= canvas.height) {
-      drip.alive = false;
-      poolLevel += 0.15;
-    }
-  }
-
-  // Pool
-  poolLevel = Math.min(poolLevel, 60);
-  if (poolLevel > 0) {
-    ctx.fillStyle = `rgba(50,0,0,${0.6 + poolLevel/200})`;
-    ctx.fillRect(0, canvas.height - poolLevel, canvas.width, poolLevel);
-  }
-
-  bloodAnimationId = requestAnimationFrame(animateBlood);
+  poolLevel=Math.min(poolLevel,60);
+  if(poolLevel>0) { ctx.fillStyle=`rgba(50,0,0,${0.6+poolLevel/200})`; ctx.fillRect(0,canvas.height-poolLevel,canvas.width,poolLevel); }
+  bloodAnimationId=requestAnimationFrame(animateBlood);
 }
 
 /* =========================
-   RAGDOLL GUY (NOW WITH DEATH/RESURRECTION, BLEEDING, MUSIC REACT)
-   =========================
-   This replaces the old static ragdoll. The guy now:
-   - Can be killed after enough wall impacts
-   - Explodes into blood and respawns after 3 seconds
-   - Bleeds on every hard collision
-   - Bounces to music
+   RAGDOLL GUY – FULLY EXTENDED
 ========================= */
 let ragdollParts = [];
 let ragdollConstraints = [];
 let guyActivated = false;
 let ragdollDamage = 0;
-const RAGDOLL_DAMAGE_THRESHOLD = 10;
+const RAGDOLL_DAMAGE_THRESHOLD = 30;
 let respawnTimer = null;
+let activationStartTime = null;        // NEW
+let currentGuyName = '';               // NEW
+let currentGuyColors = { skin: '#ffccaa', shirt: '#3366cc', pants: '#333' }; // NEW
+const partNames = ['Head','Torso','Left Upper Arm','Right Upper Arm','Left Lower Arm','Right Lower Arm','Left Upper Leg','Right Upper Leg','Left Lower Leg','Right Lower Leg']; // NEW
+let partDamageCounts = new Array(10).fill(0); // NEW
 
 const BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
+const nameList = ['Frank','Blurst','Theodore','Rustbucket','Gregory','Mortimer','Bartholomew','Cletus','Jebediah','Hank','Lenny','Stumpy'];
+const personalEffects = ['one (1) fridge magnet','a receipt for 50 fridges','a bloodied note reading "I am sorry"','a tiny photograph of a child','an expired warranty card','a bottle cap'];
 
-/* Builds a fresh static guy (used on spawn and respawn) */
+function randomColor(baseHue, range) {
+  return `hsl(${baseHue + Math.random()*range}, 70%, 60%)`;
+}
+
 function buildGuy() {
-  const head = Bodies.circle(BASE_X, BASE_Y - 62, 10, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const torso = Bodies.rectangle(BASE_X, BASE_Y - 28, 14, 30, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#3366cc', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const leftUpperArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 42, 20, 6, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const rightUpperArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 42, 20, 6, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const leftLowerArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 20, 18, 5, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const rightLowerArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 20, 18, 5, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const leftUpperLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 10, 22, 7, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const rightUpperLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 10, 22, 7, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const leftLowerLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 34, 22, 6, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-  });
-  const rightLowerLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 34, 22, 6, {
-    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-  });
+  currentGuyColors.skin = randomColor(25, 20);
+  currentGuyColors.shirt = randomColor(200, 60);
+  currentGuyColors.pants = `hsl(0, 0%, ${20 + Math.random()*20}%)`;
+  currentGuyName = nameList[Math.floor(Math.random()*nameList.length)];
+
+  const ragdollCategory = 0x0002;
+  const mask = 0xFFFF & ~ragdollCategory;
+  const opts = { isStatic: true, collisionFilter: { category: ragdollCategory, mask: mask }, render: { strokeStyle: '#000', lineWidth: 1.5 } };
+
+  const head = Bodies.circle(BASE_X, BASE_Y - 62, 10, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
+  const torso = Bodies.rectangle(BASE_X, BASE_Y - 28, 14, 30, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.shirt } });
+  const leftUpperArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 42, 20, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
+  const rightUpperArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 42, 20, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
+  const leftLowerArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 20, 18, 5, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
+  const rightLowerArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 20, 18, 5, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
+  const leftUpperLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 10, 22, 7, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
+  const rightUpperLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 10, 22, 7, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
+  const leftLowerLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 34, 22, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
+  const rightLowerLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 34, 22, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
+
   return [head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg];
 }
 
@@ -929,25 +644,34 @@ function spawnGuy() {
   World.add(world, ragdollParts);
   guyActivated = false;
   ragdollDamage = 0;
+  partDamageCounts = new Array(10).fill(0); // NEW
   document.getElementById('guyPrompt').style.display = 'block';
+  document.getElementById('explodeGuyBtn').style.display = 'block';
+  document.getElementById('guyName').style.display = 'block';       // NEW
+  document.getElementById('guyName').textContent = currentGuyName;  // NEW
+  updateNamePosition();                                             // NEW
 }
 
-/* Initial spawn */
 spawnGuy();
 
-/* Called when ragdoll takes enough damage */
+function updateNamePosition() {
+  const nameDiv = document.getElementById('guyName');
+  if (ragdollParts.length > 0) {
+    const headPos = ragdollParts[0].position;
+    nameDiv.style.left = (headPos.x - 20) + 'px';
+    nameDiv.style.top = (headPos.y - 25) + 'px';
+  }
+}
+
 function killRagdoll() {
   if (!guyActivated) return;
-  guyActivated = false; // freeze further damage
-  // Explode limbs
+  guyActivated = false;
   ragdollParts.forEach(p => {
     Matter.Body.setVelocity(p, { x: (Math.random()-0.5)*15, y: -Math.random()*10 - 5 });
     Matter.Body.setAngularVelocity(p, (Math.random()-0.5)*2);
   });
-  // Remove constraints
   ragdollConstraints.forEach(c => Matter.World.remove(world, c));
   ragdollConstraints = [];
-  // Big blood burst at torso position
   const center = ragdollParts[1].position;
   for (let i=0; i<80; i++) {
     ragdollBloodParticles.push({
@@ -958,7 +682,9 @@ function killRagdoll() {
       color: 'rgba(140,0,0,0.9)'
     });
   }
-  // After 3 seconds, remove body parts and respawn
+  document.getElementById('explodeGuyBtn').style.display = 'none';
+  document.getElementById('guyName').style.display = 'none';       // NEW
+  showAutopsyReport();                                             // NEW
   clearTimeout(respawnTimer);
   respawnTimer = setTimeout(() => {
     ragdollParts.forEach(p => Matter.World.remove(world, p));
@@ -966,11 +692,42 @@ function killRagdoll() {
   }, 3000);
 }
 
-/* Activation on click */
+function showAutopsyReport() {
+  const reportDiv = document.getElementById('autopsyReport');
+  const elapsed = activationStartTime ? Math.floor((Date.now() - activationStartTime)/1000) : 'unknown';
+  let reportHTML = `<h2>AUTOPSY REPORT</h2>`;
+  reportHTML += `<div class="detail">Subject: <strong>${currentGuyName}</strong></div>`;
+  reportHTML += `<div class="detail">Time of death: ${elapsed}s after activation</div>`;
+  reportHTML += `<div class="detail">Cause: Blunt force trauma, multiple impacts</div>`;
+  reportHTML += `<div style="margin:10px 0;">Limb damage assessment:</div>`;
+  for (let i=0; i<partNames.length; i++) {
+    const dmg = partDamageCounts[i];
+    let severity = 'intact';
+    if (dmg > 5) severity = 'fractured';
+    if (dmg > 10) severity = 'shattered';
+    if (dmg > 15) severity = 'comminuted';
+    reportHTML += `<div class="limb">${partNames[i]}: ${severity} (${dmg} impacts)</div>`;
+  }
+  const effect = personalEffects[Math.floor(Math.random()*personalEffects.length)];
+  reportHTML += `<div class="personal">Found in pocket: ${effect}</div>`;
+  reportDiv.innerHTML = reportHTML;
+  reportDiv.style.display = 'block';
+  reportDiv.style.opacity = '1';
+  setTimeout(() => {
+    reportDiv.style.opacity = '0';
+    setTimeout(() => { reportDiv.style.display = 'none'; }, 500);
+  }, 8000);
+  reportDiv.onclick = () => {
+    reportDiv.style.opacity = '0';
+    setTimeout(() => { reportDiv.style.display = 'none'; }, 500);
+  };
+}
+
 render.canvas.addEventListener('mousedown', (e) => {
   if (guyActivated || ragdollParts.length === 0) return;
   const pos = { x: e.clientX, y: e.clientY };
   if (Matter.Query.point(ragdollParts, pos).length > 0) {
+    activationStartTime = Date.now();  // NEW
     activateGuy();
   }
 });
@@ -979,28 +736,67 @@ function activateGuy() {
   if (guyActivated) return;
   guyActivated = true;
   ragdollParts.forEach(p => Matter.Body.setStatic(p, false));
-
   const stiff = 0.9, damp = 0.2;
-  const cOpts = (a, b, pa, pb) => Constraint.create({
-    bodyA: a, bodyB: b, pointA: pa, pointB: pb, stiffness: stiff, damping: damp, render: { visible: false }
-  });
+  const cOpts = (a, b, pa, pb) => Constraint.create({ bodyA:a, bodyB:b, pointA:pa, pointB:pb, stiffness:stiff, damping:damp, render:{visible:false} });
   ragdollConstraints = [
-    cOpts(ragdollParts[0], ragdollParts[1], { x: 0, y: 10 }, { x: 0, y: -15 }),
-    cOpts(ragdollParts[1], ragdollParts[2], { x: -7, y: -13 }, { x: 10, y: 0 }),
-    cOpts(ragdollParts[1], ragdollParts[3], { x: 7, y: -13 }, { x: -10, y: 0 }),
-    cOpts(ragdollParts[2], ragdollParts[4], { x: -10, y: 0 }, { x: 9, y: 0 }),
-    cOpts(ragdollParts[3], ragdollParts[5], { x: 10, y: 0 }, { x: -9, y: 0 }),
-    cOpts(ragdollParts[1], ragdollParts[6], { x: -5, y: 15 }, { x: 0, y: -11 }),
-    cOpts(ragdollParts[1], ragdollParts[7], { x: 5, y: 15 }, { x: 0, y: -11 }),
-    cOpts(ragdollParts[6], ragdollParts[8], { x: 0, y: 11 }, { x: 0, y: -11 }),
-    cOpts(ragdollParts[7], ragdollParts[9], { x: 0, y: 11 }, { x: 0, y: -11 })
+    cOpts(ragdollParts[0], ragdollParts[1], {x:0,y:10}, {x:0,y:-15}),
+    cOpts(ragdollParts[1], ragdollParts[2], {x:-7,y:-13}, {x:10,y:0}),
+    cOpts(ragdollParts[1], ragdollParts[3], {x:7,y:-13}, {x:-10,y:0}),
+    cOpts(ragdollParts[2], ragdollParts[4], {x:-10,y:0}, {x:9,y:0}),
+    cOpts(ragdollParts[3], ragdollParts[5], {x:10,y:0}, {x:-9,y:0}),
+    cOpts(ragdollParts[1], ragdollParts[6], {x:-5,y:15}, {x:0,y:-11}),
+    cOpts(ragdollParts[1], ragdollParts[7], {x:5,y:15}, {x:0,y:-11}),
+    cOpts(ragdollParts[6], ragdollParts[8], {x:0,y:11}, {x:0,y:-11}),
+    cOpts(ragdollParts[7], ragdollParts[9], {x:0,y:11}, {x:0,y:-11})
   ];
   World.add(world, ragdollConstraints);
   document.getElementById('guyPrompt').style.display = 'none';
 }
 
+function explodeGuy() {
+  if (guyActivated) return;
+  if (ragdollParts.length > 0) {
+    activationStartTime = Date.now();  // NEW
+    activateGuy();
+    setTimeout(() => { killRagdoll(); }, 50);
+  }
+}
+
+function playScream() {
+  if (!audioCtx) ensureAudioContext();
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(300 + Math.random() * 600, now);
+  osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.2, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.5);
+}
+
 /* =========================
-   RAGDOLL BLEEDING & DAMAGE (with death check)
+   PERMANENT DRIED BLOOD CANVAS
+========================= */
+const driedBloodCanvas = document.getElementById('driedBloodCanvas');
+const driedCtx = driedBloodCanvas.getContext('2d');
+driedBloodCanvas.width = window.innerWidth;
+driedBloodCanvas.height = window.innerHeight;
+
+function stampDriedBlood(x, y, size) {
+  driedCtx.beginPath();
+  driedCtx.arc(x, y, size, 0, Math.PI*2);
+  driedCtx.fillStyle = 'rgba(60, 20, 0, 0.8)';
+  driedCtx.fill();
+}
+
+/* =========================
+   RAGDOLL BLEEDING & DAMAGE
 ========================= */
 const ragdollBloodCanvas = document.getElementById('ragdollBloodCanvas');
 const ragdollCtx = ragdollBloodCanvas.getContext('2d');
@@ -1018,11 +814,14 @@ Events.on(engine, 'collisionStart', (event) => {
       x: ragdollPart.velocity.x - (otherBody.isStatic ? 0 : otherBody.velocity.x),
       y: ragdollPart.velocity.y - (otherBody.isStatic ? 0 : otherBody.velocity.y)
     };
-    const speed = Math.sqrt(relVel.x ** 2 + relVel.y ** 2);
-    if (speed > 2) {
+    const speed = Math.sqrt(relVel.x**2 + relVel.y**2);
+    if (speed > 3.5) {
       ragdollDamage++;
+      const idx = ragdollParts.indexOf(ragdollPart);     // NEW
+      if (idx !== -1) partDamageCounts[idx]++;           // NEW
+
       const contact = pair.collision.supports ? pair.collision.supports[0] : ragdollPart.position;
-      for (let i=0; i<12; i++) {
+      for (let i=0; i<15; i++) {
         ragdollBloodParticles.push({
           x: contact.x, y: contact.y,
           vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8 - 2,
@@ -1031,96 +830,56 @@ Events.on(engine, 'collisionStart', (event) => {
           color: 'rgba(140,0,0,0.9)'
         });
       }
-      if (ragdollDamage >= RAGDOLL_DAMAGE_THRESHOLD) {
-        killRagdoll();
-      }
+      if (speed > 6) playScream();
+      if (ragdollDamage >= RAGDOLL_DAMAGE_THRESHOLD) killRagdoll();
     }
   }
 });
 
 /* =========================
-   PAINT TOOL (COEXISTS WITH FRIDGE DRAGGING)
+   PAINT TOOL (unchanged)
 ========================= */
 const pCanvas = document.getElementById("paintCanvas");
 const pCtx = pCanvas.getContext("2d");
 function resizePaintCanvas() {
-  const tempCanvas = document.createElement('canvas');
-  const tCtx = tempCanvas.getContext('2d');
-  tempCanvas.width = pCanvas.width;
-  tempCanvas.height = pCanvas.height;
-  tCtx.drawImage(pCanvas, 0, 0);
-  pCanvas.width = window.innerWidth;
-  pCanvas.height = window.innerHeight;
-  pCtx.drawImage(tempCanvas, 0, 0);
+  const tempCanvas = document.createElement('canvas'); const tCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = pCanvas.width; tempCanvas.height = pCanvas.height; tCtx.drawImage(pCanvas,0,0);
+  pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; pCtx.drawImage(tempCanvas,0,0);
 }
 window.addEventListener('resize', resizePaintCanvas);
-pCanvas.width = window.innerWidth;
-pCanvas.height = window.innerHeight;
-
+pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
 let drawingActive = false;
 const drawToggle = document.getElementById("drawToggle");
 const colorPicker = document.getElementById("drawColor");
 const sizeSlider = document.getElementById("drawSize");
 const eraserBtn = document.getElementById("eraserBtn");
 let isEraserMode = false;
-
-eraserBtn.onclick = () => {
-  isEraserMode = !isEraserMode;
-  eraserBtn.style.background = isEraserMode ? 'white' : '';
-  eraserBtn.style.color = isEraserMode ? 'black' : '';
-};
-window.clearCanvas = () => {
-  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
-};
-
+eraserBtn.onclick = () => { isEraserMode = !isEraserMode; eraserBtn.style.background = isEraserMode ? 'white' : ''; eraserBtn.style.color = isEraserMode ? 'black' : ''; };
+window.clearCanvas = () => { pCtx.clearRect(0,0,pCanvas.width,pCanvas.height); };
 const renderCanvas = render.canvas;
-
 renderCanvas.addEventListener('mousedown', (e) => {
   if (!drawToggle.checked) return;
   if (mouseConstraint.constraint.bodyB) return;
-  drawingActive = true;
-  pCtx.beginPath();
-  pCtx.moveTo(e.clientX, e.clientY);
+  drawingActive = true; pCtx.beginPath(); pCtx.moveTo(e.clientX, e.clientY);
 });
-
 renderCanvas.addEventListener('mousemove', (e) => {
   if (!drawingActive || !drawToggle.checked) return;
-  if (mouseConstraint.constraint.bodyB) {
-    drawingActive = false;
-    return;
-  }
-  pCtx.lineWidth = sizeSlider.value;
-  pCtx.lineCap = "round";
-  if (isEraserMode) {
-    pCtx.globalCompositeOperation = "destination-out";
-    pCtx.strokeStyle = "rgba(0,0,0,1)";
-  } else {
-    pCtx.globalCompositeOperation = "source-over";
-    pCtx.strokeStyle = colorPicker.value;
-  }
-  pCtx.lineTo(e.clientX, e.clientY);
-  pCtx.stroke();
+  if (mouseConstraint.constraint.bodyB) { drawingActive = false; return; }
+  pCtx.lineWidth = sizeSlider.value; pCtx.lineCap = "round";
+  if (isEraserMode) { pCtx.globalCompositeOperation = "destination-out"; pCtx.strokeStyle = "rgba(0,0,0,1)"; }
+  else { pCtx.globalCompositeOperation = "source-over"; pCtx.strokeStyle = colorPicker.value; }
+  pCtx.lineTo(e.clientX, e.clientY); pCtx.stroke();
 });
-
 renderCanvas.addEventListener('mouseup', () => { drawingActive = false; });
 renderCanvas.addEventListener('mouseout', () => { drawingActive = false; });
 
 /* =========================
-   COCKROACH JUMPSCARE
+   COCKROACH
 ========================= */
 const roachVid = document.getElementById('cockroachVid');
 let roachActive = false;
-setInterval(() => {
-  if (!isDead && !roachActive && Math.random() < 0.01) {
-    roachActive = true;
-    roachVid.style.display = "block";
-    roachVid.play();
-  }
-}, 1000);
-roachVid.onended = () => {
-  roachVid.style.display = "none";
-  roachActive = false;
-};
+setInterval(() => { if (!isDead && !roachActive && Math.random() < 0.01) { roachActive = true; roachVid.style.display = "block"; roachVid.play(); } }, 1000);
+roachVid.onended = () => { roachVid.style.display = "none"; roachActive = false; };
 
 /* =========================
    KONAMI CODE
@@ -1128,227 +887,146 @@ roachVid.onended = () => {
 const KONAMI_SEQUENCE = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a','s','t','a','r','t'];
 let konamiProgress = 0;
 document.addEventListener('keydown', (e) => {
-  if (e.key === KONAMI_SEQUENCE[konamiProgress]) {
-    konamiProgress++;
-    if (konamiProgress === KONAMI_SEQUENCE.length) {
-      triggerGundham();
-      konamiProgress = 0;
-    }
-  } else {
-    konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0;
-  }
+  if (e.key === KONAMI_SEQUENCE[konamiProgress]) { konamiProgress++; if (konamiProgress === KONAMI_SEQUENCE.length) { triggerGundham(); konamiProgress = 0; } }
+  else { konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0; }
 });
 function triggerGundham() {
-  audio.pause();
-  Render.stop(render);
-  document.body.innerHTML = '';
+  audio.pause(); Render.stop(render); document.body.innerHTML = '';
   document.body.style.cssText = 'margin:0; background:#000; display:flex; align-items:center; justify-content:center; width:100vw; height:100vh; overflow:hidden;';
-  const img = document.createElement('img');
-  img.src = 'gundlex.gif';
-  img.style.cssText = 'max-width:100vw; max-height:100vh; object-fit:contain;';
+  const img = document.createElement('img'); img.src = 'gundlex.gif'; img.style.cssText = 'max-width:100vw; max-height:100vh; object-fit:contain;';
   document.body.appendChild(img);
 }
 
 /* =========================
-   NEW: BSOD RANDOM EVENT + DEBUG TRIGGER
-   =========================
-   - Every 10 seconds, 0.5% chance to queue a BSOD.
-   - The next click or keypress triggers it.
-   - Forces fullscreen, hides everything else, shows BSOD.png.
-   - After 5 seconds, restores the page.
-   - Debug: type "BSOD" at any time to activate instantly.
+   BSOD RANDOM EVENT + DEBUG TRIGGER
 ========================= */
 let bsodQueued = false;
 let bsodActive = false;
-
 function triggerBSOD() {
   if (bsodActive) return;
   bsodActive = true;
-  // Attempt fullscreen (requires user gesture – we're inside one)
   try {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-    } else if (document.documentElement.webkitRequestFullscreen) {
-      document.documentElement.webkitRequestFullscreen();
-    }
+    if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen(); }
+    else if (document.documentElement.webkitRequestFullscreen) { document.documentElement.webkitRequestFullscreen(); }
   } catch(e) {}
-
-  // Hide everything except BSOD overlay
   const allChildren = document.body.children;
   for (let i = 0; i < allChildren.length; i++) {
-    if (allChildren[i].id !== 'bsodOverlay') {
-      allChildren[i].style.display = 'none';
-    }
+    if (allChildren[i].id !== 'bsodOverlay') allChildren[i].style.display = 'none';
   }
   document.getElementById('bsodOverlay').style.display = 'block';
-
-  // Pause music and physics
   if (audio) audio.pause();
   Runner.stop(engine);
-
-  // Restore after 5 seconds
   setTimeout(() => {
     document.getElementById('bsodOverlay').style.display = 'none';
-    for (let i = 0; i < allChildren.length; i++) {
-      allChildren[i].style.display = '';
-    }
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    }
+    for (let i = 0; i < allChildren.length; i++) allChildren[i].style.display = '';
+    if (document.fullscreenElement) document.exitFullscreen();
     Runner.run(engine);
     bsodActive = false;
     bsodQueued = false;
   }, 5000);
 }
-
-/* Random queue every 10 seconds (0.5% chance) */
 setInterval(() => {
-  if (!bsodActive && !isDead && Math.random() < 0.005) {
-    bsodQueued = true;
-  }
+  if (!bsodActive && !isDead && Math.random() < 0.005) bsodQueued = true;
 }, 10000);
-
-/* Catch next user interaction to trigger BSOD */
 document.addEventListener('click', (e) => {
-  if (bsodQueued && !bsodActive) {
-    e.preventDefault();
-    e.stopPropagation();
-    triggerBSOD();
-  }
+  if (bsodQueued && !bsodActive) { e.preventDefault(); e.stopPropagation(); triggerBSOD(); }
 }, true);
-
 document.addEventListener('keydown', (e) => {
-  if (bsodQueued && !bsodActive) {
-    e.preventDefault();
-    e.stopPropagation();
-    triggerBSOD();
-  }
+  if (bsodQueued && !bsodActive) { e.preventDefault(); e.stopPropagation(); triggerBSOD(); }
 }, true);
-
-/* Debug trigger: type "BSOD" */
 let bsodSequence = 0;
 document.addEventListener('keydown', (e) => {
   const keys = ['b','s','o','d'];
   if (e.key.toLowerCase() === keys[bsodSequence]) {
     bsodSequence++;
-    if (bsodSequence === keys.length) {
-      bsodSequence = 0;
-      bsodQueued = false; // cancel any pending queue
-      triggerBSOD();
-    }
+    if (bsodSequence === keys.length) { bsodSequence = 0; bsodQueued = false; triggerBSOD(); }
   } else {
     bsodSequence = (e.key.toLowerCase() === 'b') ? 1 : 0;
   }
 });
 
 /* =========================
-   NEW: MUSIC FLASH (red overlay)
-   =========================
-   A semi‑transparent red flash synced to bass.
-   The element is already in HTML (#musicFlash).
+   MUSIC FLASH + VISUALIZER (extended)
 ========================= */
 const musicFlash = document.getElementById('musicFlash');
-
-/* =========================
-   VISUALIZER + RAGDOLL BLOOD DRAWING + RAGDOLL MUSIC REACT + FLASH
-========================= */
 const vizCanvas = document.getElementById("viz");
 const vizCtx = vizCanvas.getContext("2d");
-vizCanvas.width = 320;
-vizCanvas.height = 80;
+vizCanvas.width = 320; vizCanvas.height = 80;
 const dataArray = new Uint8Array(32);
 
 function drawVisualizer() {
   requestAnimationFrame(drawVisualizer);
   if (!analyser || isDead) return;
   analyser.getByteFrequencyData(dataArray);
-  vizCtx.fillStyle = "rgba(0, 0, 0, 0.35)";
-  vizCtx.fillRect(0, 0, vizCanvas.width, vizCanvas.height);
+  vizCtx.fillStyle = "rgba(0,0,0,0.35)"; vizCtx.fillRect(0,0,vizCanvas.width,vizCanvas.height);
   const barWidth = vizCanvas.width / dataArray.length;
   let peak = 0;
-
-  for (let i = 0; i < dataArray.length; i++) {
-    const v = dataArray[i];
-    peak = Math.max(peak, v);
-    const barHeight = (v / 255) * vizCanvas.height * 1.2;
-    if (v > 200) {
-      vizCtx.fillStyle = `rgba(255, 0, 0, 0.4)`;
-      vizCtx.fillRect(i * barWidth - 2, vizCanvas.height - barHeight - (Math.random() * 15), barWidth + 4, barHeight);
-    }
-    vizCtx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`;
-    vizCtx.fillRect(i * barWidth, vizCanvas.height - barHeight, barWidth + 2, barHeight + Math.random() * 5);
+  for (let i=0; i<dataArray.length; i++) {
+    const v = dataArray[i]; peak = Math.max(peak, v);
+    const barHeight = (v/255)*vizCanvas.height*1.2;
+    if (v>200) { vizCtx.fillStyle = `rgba(255,0,0,0.4)`; vizCtx.fillRect(i*barWidth-2, vizCanvas.height-barHeight-(Math.random()*15), barWidth+4, barHeight); }
+    vizCtx.fillStyle = `rgb(${200+(v/5)},0,0)`; vizCtx.fillRect(i*barWidth, vizCanvas.height-barHeight, barWidth+2, barHeight+Math.random()*5);
   }
-
   if (peak > 180) {
-    const stretchY = 1 + ((peak - 180) / 30);
-    const lean = (Math.random() - 0.5) * 10;
+    const stretchY = 1 + ((peak-180)/30); const lean = (Math.random()-0.5)*10;
     vizCanvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
     vizCanvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
     document.getElementById("vizGlow").style.opacity = "1";
   } else {
-    vizCanvas.style.transform = "none";
-    vizCanvas.style.filter = "none";
-    document.getElementById("vizGlow").style.opacity = "0.3";
+    vizCanvas.style.transform = "none"; vizCanvas.style.filter = "none"; document.getElementById("vizGlow").style.opacity = "0.3";
   }
 
   if (peak > 230 && !isDead) {
     document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
     spawnedFridges.forEach(f => {
-      let yForce = (Math.random() * 3 + 1);
-      if (Math.random() > 0.95) yForce = 25;
-      Matter.Body.setVelocity(f, {
-        x: f.velocity.x + (Math.random() - 0.5) * 4,
-        y: f.velocity.y - yForce
-      });
-      Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random() - 0.5) * 0.4);
+      let yForce = (Math.random()*3+1); if (Math.random()>0.95) yForce=25;
+      Matter.Body.setVelocity(f, { x: f.velocity.x + (Math.random()-0.5)*4, y: f.velocity.y - yForce });
+      Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random()-0.5)*0.4);
     });
-    /* NEW: Ragdoll also bounces to music */
     if (guyActivated) {
       ragdollParts.forEach(part => {
-        const yForce = (Math.random() * 3 + 1);
-        Matter.Body.setVelocity(part, {
-          x: part.velocity.x + (Math.random() - 0.5) * 4,
-          y: part.velocity.y - yForce
-        });
-        Matter.Body.setAngularVelocity(part, part.angularVelocity + (Math.random() - 0.5) * 0.4);
+        const yForce = (Math.random()*3+1);
+        Matter.Body.setVelocity(part, { x: part.velocity.x + (Math.random()-0.5)*4, y: part.velocity.y - yForce });
+        Matter.Body.setAngularVelocity(part, part.angularVelocity + (Math.random()-0.5)*0.4);
       });
     }
-    /* NEW: red flash on bass */
     musicFlash.style.opacity = '1';
     setTimeout(() => { musicFlash.style.opacity = '0'; }, 150);
   } else if (!isDead) {
     document.body.style.transform = "none";
   }
 
-  // -- Draw ragdoll blood --
-  ragdollCtx.clearRect(0, 0, ragdollBloodCanvas.width, ragdollBloodCanvas.height);
-  for (let i = ragdollBloodParticles.length - 1; i >= 0; i--) {
+  // NEW: update floating name
+  if (guyActivated && ragdollParts.length > 0) {
+    updateNamePosition();
+  }
+
+  // Draw ragdoll blood & transfer to permanent dried stains
+  ragdollCtx.clearRect(0,0,ragdollBloodCanvas.width,ragdollBloodCanvas.height);
+  for (let i=ragdollBloodParticles.length-1; i>=0; i--) {
     const p = ragdollBloodParticles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vx *= 0.95;
-    p.vy *= 0.95 + 0.03;
-    p.life--;
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95+0.03; p.life--;
     if (p.life <= 0) {
-      ragdollBloodParticles.splice(i, 1);
+      stampDriedBlood(p.x, p.y, p.size);   // NEW
+      ragdollBloodParticles.splice(i,1);
       continue;
     }
-    ragdollCtx.beginPath();
-    ragdollCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ragdollCtx.fillStyle = p.color;
-    ragdollCtx.fill();
+    ragdollCtx.beginPath(); ragdollCtx.arc(p.x,p.y,p.size,0,Math.PI*2); ragdollCtx.fillStyle = p.color; ragdollCtx.fill();
   }
 }
-
 drawVisualizer();
 
-// Resize ragdoll blood canvas on window resize
 window.addEventListener('resize', () => {
   ragdollBloodCanvas.width = window.innerWidth;
   ragdollBloodCanvas.height = window.innerHeight;
+  driedBloodCanvas.width = window.innerWidth;   // NEW
+  driedBloodCanvas.height = window.innerHeight;  // NEW
+  resizePaintCanvas();
 });
 ragdollBloodCanvas.width = window.innerWidth;
 ragdollBloodCanvas.height = window.innerHeight;
+driedBloodCanvas.width = window.innerWidth;   // NEW
+driedBloodCanvas.height = window.innerHeight;  // NEW
 </script>
 </body>
 </html>
