@@ -143,11 +143,13 @@
     #screenCrack {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background-size: cover;
+      background-position: center;
       z-index: 9999999; pointer-events: none; visibility: hidden;
     }
     #deathFade {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: black; opacity: 0; z-index: 9999998; pointer-events: none; transition: opacity 10s;
+      background: black; opacity: 0; z-index: 9999998; pointer-events: none;
+      transition: opacity 12s ease-in;   /* slower fade to black */
     }
     #bloodCanvas {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -502,7 +504,7 @@ function playDeathBreathing() {
 }
 
 /* =========================
-   RUSSIAN ROULETTE
+   RUSSIAN ROULETTE (NOW WITH SPACED‑OUT DEATH SEQUENCE)
 ========================= */
 let isDead = false;
 let survivalStreak = 0;
@@ -551,6 +553,7 @@ function playRoulette() {
     document.getElementById("rouletteBtn").disabled = true;
     resultDiv.textContent = "";
 
+    // ---- t = 0 : instant impact ----
     document.getElementById("sfx-revolver").play();
     document.body.classList.add("shaking");
     const flash = document.getElementById("deathFlash");
@@ -560,51 +563,78 @@ function playRoulette() {
       document.body.classList.remove("shaking");
     }, 150);
 
+    // ---- t = 150 ms : bullet hits glass, crack appears ----
     setTimeout(() => {
       document.getElementById("sfx-shatter").play();
       document.getElementById("sfx-flesh").play();
 
+      // Show screen crack immediately – it stays on top of everything else
       document.getElementById("screenCrack").style.visibility = "visible";
-      document.getElementById("tunnelVision").style.opacity = "1";
-      document.getElementById("deathBlur").style.opacity = "1";
-      document.getElementById("deathFade").style.opacity = "1";
 
-      document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
+      // ---- t = 600 ms : tunnel vision & blur begin (they fade in) ----
+      setTimeout(() => {
+        document.getElementById("tunnelVision").style.opacity = "1";
+        document.getElementById("deathBlur").style.opacity = "1";
+      }, 450);  // 600 ms after shot
 
-      const bloodCanvas = document.getElementById("bloodCanvas");
-      bloodCanvas.style.display = "block";
-      startBloodAnimation(bloodCanvas);
+      // ---- t = 1200 ms : blood animation starts ----
+      setTimeout(() => {
+        const bloodCanvas = document.getElementById("bloodCanvas");
+        bloodCanvas.style.display = "block";
+        startBloodAnimation(bloodCanvas);
+      }, 1050); // 1200 ms after shot
 
-      if (audioCtx && !audio.paused && analyser) {
-        biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
-        biquadFilter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 2);
-        masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4);
+      // ---- t = 1800 ms : colour drain ----
+      setTimeout(() => {
+        document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
+      }, 1650); // 1800 ms
 
-        let smoothPitch = audio.playbackRate;
-        const dropInterval = setInterval(() => {
-          smoothPitch -= 0.015;
-          if (smoothPitch > 0.05) audio.playbackRate = smoothPitch;
-          else { clearInterval(dropInterval); audio.pause(); }
-        }, 50);
-      }
+      // ---- t = 2400 ms : heartbeat ----
+      setTimeout(() => {
+        playHeartbeat();
+      }, 2250); // 2400 ms
 
-      if (audioCtx) {
-        const tinnitusOsc = audioCtx.createOscillator();
-        const tinnitusGain = audioCtx.createGain();
-        tinnitusOsc.type = 'sine';
-        tinnitusOsc.frequency.value = 7500;
-        tinnitusGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        tinnitusGain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-        tinnitusGain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 10);
-        tinnitusOsc.connect(tinnitusGain);
-        tinnitusGain.connect(audioCtx.destination);
-        tinnitusOsc.start();
-        tinnitusOsc.stop(audioCtx.currentTime + 10);
-      }
+      // ---- t = 4000 ms : death rattle breathing ----
+      setTimeout(() => {
+        playDeathBreathing();
+      }, 3850); // 4000 ms
 
-      playHeartbeat();
-      setTimeout(() => { playDeathBreathing(); }, 4000);
+      // ---- t = 5000 ms : slow fade to black (covers crack at the end) ----
+      setTimeout(() => {
+        document.getElementById("deathFade").style.opacity = "1";  // transition 12s
+      }, 4850); // 5000 ms
+
+      // Music trauma & tinnitus (starts a little later too, to not overwhelm)
+      setTimeout(() => {
+        if (audioCtx && !audio.paused && analyser) {
+          biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
+          biquadFilter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 2);
+          masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
+          masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4);
+
+          let smoothPitch = audio.playbackRate;
+          const dropInterval = setInterval(() => {
+            smoothPitch -= 0.015;
+            if (smoothPitch > 0.05) audio.playbackRate = smoothPitch;
+            else { clearInterval(dropInterval); audio.pause(); }
+          }, 50);
+        }
+
+        if (audioCtx) {
+          const tinnitusOsc = audioCtx.createOscillator();
+          const tinnitusGain = audioCtx.createGain();
+          tinnitusOsc.type = 'sine';
+          tinnitusOsc.frequency.value = 7500;
+          tinnitusGain.gain.setValueAtTime(0, audioCtx.currentTime);
+          tinnitusGain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+          tinnitusGain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 10);
+          tinnitusOsc.connect(tinnitusGain);
+          tinnitusGain.connect(audioCtx.destination);
+          tinnitusOsc.start();
+          tinnitusOsc.stop(audioCtx.currentTime + 10);
+        }
+      }, 600);  // music/tinnitus start at 600ms, not immediately
+
     }, 150);
   } else {
     survivalStreak++;
