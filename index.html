@@ -154,6 +154,24 @@
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       z-index: 9999995; pointer-events: none; display: none;
     }
+    #ragdollBloodCanvas {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 9999994; pointer-events: none; display: block;
+    }
+
+    /* Guy speech bubble */
+    #guyPrompt {
+      position: fixed;
+      bottom: 180px; right: 70px;
+      background: white;
+      color: black;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 2px 6px;
+      border: 1px solid black;
+      z-index: 10001;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -170,8 +188,11 @@
 <div id="screenCrack"></div>
 <div id="deathFade"></div>
 <canvas id="bloodCanvas"></canvas>
+<canvas id="ragdollBloodCanvas"></canvas>
 
 <canvas id="paintCanvas"></canvas>
+
+<div id="guyPrompt">[click me]</div>
 
 <div id="header">
   <img src="cooltext509446167575809.gif">
@@ -288,7 +309,7 @@ function buyAutoclicker() {
 /* =========================
    FRIDGE PHYSICS
 ========================= */
-const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint } = Matter;
+const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint, Constraint, Events } = Matter;
 
 const engine = Engine.create();
 const world = engine.world;
@@ -307,10 +328,11 @@ const render = Render.create({
 Render.run(render);
 Runner.run(Runner.create(), engine);
 
-const ground    = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
-const leftWall  = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
-const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
-const ceiling   = Bodies.rectangle(window.innerWidth / 2, -100, window.innerWidth, 100, { isStatic: true });
+// Walls tagged for collision detection
+const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true, label: 'wall' });
+const leftWall = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true, label: 'wall' });
+const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true, label: 'wall' });
+const ceiling = Bodies.rectangle(window.innerWidth / 2, -100, window.innerWidth, 100, { isStatic: true, label: 'wall' });
 World.add(world, [ground, leftWall, rightWall, ceiling]);
 
 const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
@@ -403,7 +425,7 @@ function prevSong() {
 loadSong(0);
 
 /* =========================
-   HEARTBEAT & DEATH BREATHING
+   HEARTBEAT (breathing removed)
 ========================= */
 function playHeartbeat() {
   if (!audioCtx) return;
@@ -440,66 +462,6 @@ function playHeartbeat() {
     beatTime += interval;
     interval *= 1.12;
   }
-}
-
-function playDeathBreathing() {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime;
-  const masterBreathGain = audioCtx.createGain();
-  masterBreathGain.gain.setValueAtTime(0, now);
-  masterBreathGain.gain.linearRampToValueAtTime(0.12, now + 2);
-  masterBreathGain.gain.linearRampToValueAtTime(0.12, now + 8);
-  masterBreathGain.gain.exponentialRampToValueAtTime(0.001, now + 12);
-  masterBreathGain.connect(audioCtx.destination);
-
-  const bufferSize = audioCtx.sampleRate * 2;
-  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const data = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-  const noise = audioCtx.createBufferSource();
-  noise.buffer = noiseBuffer;
-  noise.loop = true;
-
-  const bandPass = audioCtx.createBiquadFilter();
-  bandPass.type = "bandpass";
-  bandPass.frequency.value = 400;
-  bandPass.Q.value = 0.8;
-
-  const bandPass2 = audioCtx.createBiquadFilter();
-  bandPass2.type = "bandpass";
-  bandPass2.frequency.value = 600;
-  bandPass2.Q.value = 1.2;
-
-  const gainNoise = audioCtx.createGain();
-  gainNoise.gain.value = 0.8;
-  noise.connect(bandPass);
-  bandPass.connect(gainNoise);
-  gainNoise.connect(masterBreathGain);
-
-  const noise2 = audioCtx.createBufferSource();
-  noise2.buffer = noiseBuffer;
-  noise2.loop = true;
-  const gainNoise2 = audioCtx.createGain();
-  gainNoise2.gain.value = 0.6;
-  noise2.connect(bandPass2);
-  bandPass2.connect(gainNoise2);
-  gainNoise2.connect(masterBreathGain);
-
-  const lfo = audioCtx.createOscillator();
-  lfo.frequency.value = 0.3;
-  lfo.type = 'sine';
-  const lfoGain = audioCtx.createGain();
-  lfoGain.gain.value = 0.5;
-  lfo.connect(lfoGain);
-  lfoGain.connect(gainNoise.gain);
-
-  noise.start(now);
-  noise2.start(now);
-  lfo.start(now);
-  noise.stop(now + 14);
-  noise2.stop(now + 14);
-  lfo.stop(now + 14);
 }
 
 /* =========================
@@ -568,43 +530,42 @@ function playRoulette() {
       document.getElementById("sfx-flesh").play();
       document.getElementById("screenCrack").style.visibility = "visible";
 
-      // Start blood system with immediate first burst
       const bloodCanvas = document.getElementById("bloodCanvas");
       bloodCanvas.style.display = "block";
       startBloodAnimation(bloodCanvas);
 
-      // t = 300 ms: secondary burst (bounced blood)
+      // Add the tear drop after burst settles
+      setTimeout(() => {
+        addTearDrop();
+      }, 600);
+
+      // Secondary burst
       setTimeout(() => {
         secondaryBloodBurst();
       }, 150);
 
-      // t = 600 ms: tunnel & blur
+      // Tunnel & blur
       setTimeout(() => {
         document.getElementById("tunnelVision").style.opacity = "1";
         document.getElementById("deathBlur").style.opacity = "1";
       }, 450);
 
-      // t = 1200 ms: colour drain
+      // Colour drain
       setTimeout(() => {
         document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
       }, 1050);
 
-      // t = 2400 ms: heartbeat
+      // Heartbeat
       setTimeout(() => {
         playHeartbeat();
       }, 2250);
 
-      // t = 4000 ms: death rattle
-      setTimeout(() => {
-        playDeathBreathing();
-      }, 3850);
-
-      // t = 5000 ms: slow fade to black
+      // Fade to black
       setTimeout(() => {
         document.getElementById("deathFade").style.opacity = "1";
       }, 4850);
 
-      // Music trauma & tinnitus (starts later)
+      // Music trauma & tinnitus
       setTimeout(() => {
         if (audioCtx && !audio.paused && analyser) {
           biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
@@ -648,46 +609,44 @@ function playRoulette() {
 window.onload = () => { reloadRevolver(); };
 
 /* =========================
-   MEGA EXTENDED DYNAMIC BLOOD SYSTEM
+   TEAR DROP (from bullet hole)
+========================= */
+function addTearDrop() {
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  // Add a special drip object to the main death blood system
+  // The main blood drips array is in scope of startBloodAnimation, but we need to access it globally.
+  // We'll use a global reference.
+  if (typeof dripsGlobal !== 'undefined' && dripsGlobal) {
+    dripsGlobal.push({
+      sx: cx, sy: cy,
+      ex: cx, ey: cy,
+      speed: 0.15,
+      color: 'rgba(100,0,0,0.95)',
+      alive: true,
+      thickness: 3,
+      branches: []
+    });
+  }
+}
+
+/* =========================
+   BLOOD SYSTEM (global variables accessible)
 ========================= */
 let bloodAnimationId = null;
 let particles = [];
 let settledStains = [];
-let drips = [];
-let edgeDrips = [];   // drips from top/side edges
-let poolLevel = 0;    // thickness of bottom pool
-let lastTimestamp = 0;
+let dripsGlobal = [];   // renamed to avoid conflict with ragdoll
+let edgeDrips = [];
+let poolLevel = 0;
 
-function startBloodAnimation(canvas) {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const ctx = canvas.getContext('2d');
-
-  // Reset all state
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  particles = [];
-  settledStains = [];
-  drips = [];
-  edgeDrips = [];
-  poolLevel = 0;
-
-  // ===== FIRST BURST: primary impact (400 particles) =====
-  burstParticles(canvas.width / 2, canvas.height / 2, 400, 4, 15, 1, 8);
-}
-
-// Secondary burst (called after a short delay)
-function secondaryBloodBurst() {
-  burstParticles(window.innerWidth / 2, window.innerHeight / 2, 200, 2, 10, 0.5, 4);
-}
-
-// Particle burst generator
 function burstParticles(cx, cy, count, minSpeed, maxSpeed, minSize, maxSize) {
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
     const vx = Math.cos(angle) * speed;
-    const vy = Math.sin(angle) * speed - 1; // slight upward bias initially? removed for realism: just natural spread
-    const life = 8 + Math.random() * 25;   // frames
+    const vy = Math.sin(angle) * speed;
+    const life = 8 + Math.random() * 25;
     const size = minSize + Math.random() * (maxSize - minSize);
     const r = 40 + Math.floor(Math.random() * 60);
     const g = Math.floor(Math.random() * 10);
@@ -700,76 +659,76 @@ function burstParticles(cx, cy, count, minSpeed, maxSpeed, minSize, maxSize) {
       maxLife: life,
       size: size,
       color: `rgba(${r}, ${g}, ${b}, ${alpha})`,
-      trail: [] // store previous positions for trail effect
+      trail: []
     });
   }
 }
 
-function animateBlood(timestamp) {
-  if (!lastTimestamp) lastTimestamp = timestamp;
-  // We still run at ~60fps; no delta-time scaling for simplicity.
+function startBloodAnimation(canvas) {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = [];
+  settledStains = [];
+  dripsGlobal = [];
+  edgeDrips = [];
+  poolLevel = 0;
 
+  burstParticles(canvas.width / 2, canvas.height / 2, 400, 4, 15, 1, 8);
+  if (bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
+  bloodAnimationId = requestAnimationFrame(animateBlood);
+}
+
+function secondaryBloodBurst() {
+  burstParticles(window.innerWidth / 2, window.innerHeight / 2, 200, 2, 10, 0.5, 4);
+}
+
+function animateBlood(timestamp) {
   const canvas = document.getElementById('bloodCanvas');
+  if (canvas.style.display === 'none') return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ---- Update & draw burst particles ----
+  // Update & draw burst particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
-    p.vx *= 0.93;          // friction
-    p.vy *= 0.93 + 0.02;   // slight gravity (adds downward arc)
+    p.vx *= 0.93;
+    p.vy *= 0.93 + 0.02;
     p.life--;
 
-    // Add to trail
     p.trail.push({x: p.x, y: p.y});
     if (p.trail.length > 4) p.trail.shift();
 
-    // Draw trail
     if (p.trail.length > 1) {
       ctx.beginPath();
       ctx.moveTo(p.trail[0].x, p.trail[0].y);
-      for (let t = 1; t < p.trail.length; t++) {
-        ctx.lineTo(p.trail[t].x, p.trail[t].y);
-      }
-      ctx.strokeStyle = p.color.replace(/[\d\.]+\)$/g, '0.3)'); // fade trail
+      for (let t = 1; t < p.trail.length; t++) ctx.lineTo(p.trail[t].x, p.trail[t].y);
+      ctx.strokeStyle = p.color.replace(/[\d\.]+\)$/g, '0.3)');
       ctx.lineWidth = p.size * 0.6;
       ctx.stroke();
     }
 
-    // Draw particle
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fillStyle = p.color;
     ctx.fill();
 
-    // Edge collision: if particle hits top or sides, it can stick and become edge drip source
     if (p.y <= 0 || p.x <= 0 || p.x >= canvas.width) {
-      // stick to edge, add to edge stains
-      settledStains.push({
-        x: Math.max(0, Math.min(canvas.width, p.x)),
-        y: Math.max(0, p.y),
-        size: p.size * 0.7,
-        color: p.color
-      });
+      settledStains.push({ x: Math.max(0, Math.min(canvas.width, p.x)), y: Math.max(0, p.y), size: p.size * 0.7, color: p.color });
       particles.splice(i, 1);
       continue;
     }
 
-    // Settle condition
     if (p.life <= 0 || (Math.abs(p.vx) < 0.2 && Math.abs(p.vy) < 0.2)) {
-      settledStains.push({
-        x: p.x,
-        y: p.y,
-        size: p.size * 0.8,
-        color: p.color
-      });
+      settledStains.push({ x: p.x, y: p.y, size: p.size * 0.8, color: p.color });
       particles.splice(i, 1);
     }
   }
 
-  // ---- Draw settled stains ----
+  // Draw settled stains
   for (const stain of settledStains) {
     ctx.beginPath();
     ctx.arc(stain.x, stain.y, stain.size, 0, Math.PI * 2);
@@ -777,66 +736,34 @@ function animateBlood(timestamp) {
     ctx.fill();
   }
 
-  // ---- Generate edge drips from top/sides if not yet started ----
+  // Generate edge drips
   if (edgeDrips.length === 0 && particles.length === 0 && settledStains.length > 0) {
-    // Create drips from top edge
     for (let i = 0; i < 25; i++) {
       const x = Math.random() * canvas.width;
-      edgeDrips.push({
-        sx: x, sy: 0,
-        ex: x, ey: 0,
-        speed: 0.5 + Math.random() * 1.5,
-        color: 'rgba(70, 0, 0, 0.8)',
-        alive: true,
-        thickness: 1 + Math.random() * 2
-      });
+      edgeDrips.push({ sx: x, sy: 0, ex: x, ey: 0, speed: 0.5 + Math.random() * 1.5, color: 'rgba(70,0,0,0.8)', alive: true, thickness: 1 + Math.random() * 2 });
     }
-    // Create drips from left and right edges
     for (let i = 0; i < 15; i++) {
       const y = Math.random() * canvas.height;
-      edgeDrips.push({
-        sx: 0, sy: y,
-        ex: 0, ey: y,
-        speed: 0.5 + Math.random() * 1.2,
-        color: 'rgba(70, 0, 0, 0.8)',
-        alive: true,
-        thickness: 1 + Math.random() * 2
-      });
-      edgeDrips.push({
-        sx: canvas.width, sy: y,
-        ex: canvas.width, ey: y,
-        speed: 0.5 + Math.random() * 1.2,
-        color: 'rgba(70, 0, 0, 0.8)',
-        alive: true,
-        thickness: 1 + Math.random() * 2
-      });
+      edgeDrips.push({ sx: 0, sy: y, ex: 0, ey: y, speed: 0.5 + Math.random() * 1.2, color: 'rgba(70,0,0,0.8)', alive: true, thickness: 1 + Math.random() * 2 });
+      edgeDrips.push({ sx: canvas.width, sy: y, ex: canvas.width, ey: y, speed: 0.5 + Math.random() * 1.2, color: 'rgba(70,0,0,0.8)', alive: true, thickness: 1 + Math.random() * 2 });
     }
   }
 
-  // ---- Generate regular drips from settled stains (after particles settled) ----
-  if (drips.length === 0 && particles.length === 0 && settledStains.length > 0) {
+  // Generate regular drips from settled stains
+  if (dripsGlobal.length === 0 && particles.length === 0 && settledStains.length > 0) {
     for (const stain of settledStains) {
-      if (Math.random() < 0.4) {  // 40% of stains become drip sources
-        drips.push({
-          sx: stain.x, sy: stain.y,
-          ex: stain.x, ey: stain.y,
-          speed: 0.2 + Math.random() * 1.0,
-          color: stain.color,
-          alive: true,
-          thickness: stain.size * 0.5,
-          branches: []
-        });
+      if (Math.random() < 0.4) {
+        dripsGlobal.push({ sx: stain.x, sy: stain.y, ex: stain.x, ey: stain.y, speed: 0.2 + Math.random() * 1.0, color: stain.color, alive: true, thickness: stain.size * 0.5, branches: [] });
       }
     }
   }
 
-  // ---- Update & draw regular drips ----
-  for (const drip of drips) {
+  // Update & draw drips (including the teardrop added later)
+  for (const drip of dripsGlobal) {
     if (!drip.alive) continue;
     drip.ey += drip.speed;
-    drip.ex += (Math.random() - 0.5) * 0.6; // wobble
+    drip.ex += (Math.random() - 0.5) * 0.6;
 
-    // Draw drip line (tapered)
     const gradient = ctx.createLinearGradient(drip.sx, drip.sy, drip.ex, drip.ey);
     gradient.addColorStop(0, drip.color);
     gradient.addColorStop(1, drip.color.replace(/[\d\.]+\)$/g, '0.2)'));
@@ -847,13 +774,8 @@ function animateBlood(timestamp) {
     ctx.lineWidth = drip.thickness;
     ctx.stroke();
 
-    // Branching (random)
     if (Math.random() < 0.01) {
-      drip.branches.push({
-        ex: drip.ex, ey: drip.ey,
-        speed: drip.speed * 0.7,
-        color: drip.color
-      });
+      drip.branches.push({ ex: drip.ex, ey: drip.ey, speed: drip.speed * 0.7, color: drip.color });
     }
     for (const branch of drip.branches) {
       branch.ey += branch.speed;
@@ -866,70 +788,185 @@ function animateBlood(timestamp) {
       ctx.stroke();
     }
 
-    // Check if drip reaches bottom
     if (drip.ey >= canvas.height) {
       drip.alive = false;
-      poolLevel += 0.2; // increase pooling
+      poolLevel += 0.2;
     }
   }
 
-  // ---- Update & draw edge drips ----
+  // Edge drips
   for (const drip of edgeDrips) {
     if (!drip.alive) continue;
     drip.ey += drip.speed;
-    // side drips move horizontally? actually they are already at x=0 or x=width, so they just go down
     drip.ex += (Math.random() - 0.5) * 0.5;
-
     ctx.beginPath();
     ctx.moveTo(drip.sx, drip.sy);
     ctx.lineTo(drip.ex, drip.ey);
     ctx.strokeStyle = drip.color;
     ctx.lineWidth = drip.thickness;
     ctx.stroke();
-
     if (drip.ey >= canvas.height) {
       drip.alive = false;
       poolLevel += 0.15;
     }
   }
 
-  // ---- Pool at bottom (dynamic thickness) ----
-  poolLevel = Math.min(poolLevel, 60); // max thickness
+  // Pool
+  poolLevel = Math.min(poolLevel, 60);
   if (poolLevel > 0) {
-    ctx.fillStyle = `rgba(50, 0, 0, ${0.6 + poolLevel/200})`;
+    ctx.fillStyle = `rgba(50,0,0,${0.6 + poolLevel/200})`;
     ctx.fillRect(0, canvas.height - poolLevel, canvas.width, poolLevel);
   }
 
   bloodAnimationId = requestAnimationFrame(animateBlood);
 }
 
-// Start the loop when animation begins
-function startBloodAnimation(canvas) {
-  // Reset & initial burst
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  particles = [];
-  settledStains = [];
-  drips = [];
-  edgeDrips = [];
-  poolLevel = 0;
+/* =========================
+   RAGDOLL GUY & RAGDOLL BLOOD
+========================= */
+const ragdollParts = [];
+let guyActivated = false;
 
-  burstParticles(canvas.width / 2, canvas.height / 2, 400, 4, 15, 1, 8);
-  // Start the animation loop
-  if (bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
-  bloodAnimationId = requestAnimationFrame(animateBlood);
+// Positioning at bottom right corner
+const guyBaseX = window.innerWidth - 100;
+const guyBaseY = window.innerHeight - 200;
+
+// Create ragdoll parts (initially static)
+const head = Bodies.circle(guyBaseX, guyBaseY - 70, 12, {
+  isStatic: true,
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+});
+const torso = Bodies.rectangle(guyBaseX, guyBaseY - 30, 20, 35, {
+  isStatic: true,
+  render: { fillStyle: '#3366cc', strokeStyle: '#000', lineWidth: 1 }
+});
+const leftUpperArm = Bodies.rectangle(guyBaseX - 18, guyBaseY - 45, 25, 8, {
+  isStatic: true,
+  angle: Math.PI/2,
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+});
+const rightUpperArm = Bodies.rectangle(guyBaseX + 18, guyBaseY - 45, 25, 8, {
+  isStatic: true,
+  angle: -Math.PI/2,
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+});
+const leftLowerArm = Bodies.rectangle(guyBaseX - 18, guyBaseY - 15, 25, 7, {
+  isStatic: true,
+  angle: Math.PI/2,
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+});
+const rightLowerArm = Bodies.rectangle(guyBaseX + 18, guyBaseY - 15, 25, 7, {
+  isStatic: true,
+  angle: -Math.PI/2,
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+});
+const leftUpperLeg = Bodies.rectangle(guyBaseX - 6, guyBaseY + 10, 30, 9, {
+  isStatic: true,
+  angle: 0,
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+});
+const rightUpperLeg = Bodies.rectangle(guyBaseX + 6, guyBaseY + 10, 30, 9, {
+  isStatic: true,
+  angle: 0,
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+});
+const leftLowerLeg = Bodies.rectangle(guyBaseX - 6, guyBaseY + 35, 30, 8, {
+  isStatic: true,
+  angle: 0,
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+});
+const rightLowerLeg = Bodies.rectangle(guyBaseX + 6, guyBaseY + 35, 30, 8, {
+  isStatic: true,
+  angle: 0,
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+});
+
+ragdollParts.push(head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg);
+World.add(world, ragdollParts);
+
+// Constraints will be added upon activation
+const ragdollConstraints = [];
+
+function activateGuy() {
+  if (guyActivated) return;
+  guyActivated = true;
+
+  // Remove static flag
+  ragdollParts.forEach(part => Matter.Body.setStatic(part, false));
+
+  // Add constraints
+  ragdollConstraints.push(
+    Constraint.create({ bodyA: head, bodyB: torso, pointA: { x: 0, y: 12 }, pointB: { x: 0, y: -17 }, stiffness: 0.6, damping: 0.1 }),
+    Constraint.create({ bodyA: torso, bodyB: leftUpperArm, pointA: { x: -10, y: -15 }, pointB: { x: 12, y: 0 }, stiffness: 0.5, damping: 0.1 }),
+    Constraint.create({ bodyA: torso, bodyB: rightUpperArm, pointA: { x: 10, y: -15 }, pointB: { x: -12, y: 0 }, stiffness: 0.5, damping: 0.1 }),
+    Constraint.create({ bodyA: leftUpperArm, bodyB: leftLowerArm, pointA: { x: -12, y: 0 }, pointB: { x: 12, y: 0 }, stiffness: 0.4, damping: 0.1 }),
+    Constraint.create({ bodyA: rightUpperArm, bodyB: rightLowerArm, pointA: { x: 12, y: 0 }, pointB: { x: -12, y: 0 }, stiffness: 0.4, damping: 0.1 }),
+    Constraint.create({ bodyA: torso, bodyB: leftUpperLeg, pointA: { x: -5, y: 17 }, pointB: { x: 0, y: -15 }, stiffness: 0.6, damping: 0.1 }),
+    Constraint.create({ bodyA: torso, bodyB: rightUpperLeg, pointA: { x: 5, y: 17 }, pointB: { x: 0, y: -15 }, stiffness: 0.6, damping: 0.1 }),
+    Constraint.create({ bodyA: leftUpperLeg, bodyB: leftLowerLeg, pointA: { x: 0, y: 15 }, pointB: { x: 0, y: -15 }, stiffness: 0.5, damping: 0.1 }),
+    Constraint.create({ bodyA: rightUpperLeg, bodyB: rightLowerLeg, pointA: { x: 0, y: 15 }, pointB: { x: 0, y: -15 }, stiffness: 0.5, damping: 0.1 })
+  );
+  World.add(world, ragdollConstraints);
+
+  // Hide prompt
+  document.getElementById('guyPrompt').style.display = 'none';
 }
 
-// Resize handling
-window.addEventListener('resize', () => {
-  const bloodCanvas = document.getElementById('bloodCanvas');
-  if (bloodCanvas.style.display !== 'none') {
-    bloodCanvas.width = window.innerWidth;
-    bloodCanvas.height = window.innerHeight;
+// Detect click on the guy (using mousedown on render canvas)
+render.canvas.addEventListener('mousedown', (e) => {
+  if (guyActivated) return; // already activated, can be dragged normally
+  const mousePos = { x: e.clientX, y: e.clientY };
+  const bodiesUnder = Matter.Query.point(ragdollParts, mousePos);
+  if (bodiesUnder.length > 0) {
+    activateGuy();
+    // Prevent immediate drag? The mouse constraint will grab the body under cursor, that's fine.
   }
 });
+
+// Ragdoll bleeding
+const ragdollBloodCanvas = document.getElementById('ragdollBloodCanvas');
+const ragdollCtx = ragdollBloodCanvas.getContext('2d');
+let ragdollBloodParticles = [];
+
+function spawnRagdollBlood(x, y, intensity = 1) {
+  const count = Math.floor(20 * intensity);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 4;
+    ragdollBloodParticles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 5 + Math.random() * 10,
+      size: 0.5 + Math.random() * 2,
+      color: `rgba(80,0,0,${0.6 + Math.random() * 0.4})`
+    });
+  }
+}
+
+Events.on(engine, 'collisionStart', (event) => {
+  if (!guyActivated) return;
+  for (const pair of event.pairs) {
+    const bodyA = pair.bodyA;
+    const bodyB = pair.bodyB;
+    const ragdollPart = ragdollParts.includes(bodyA) ? bodyA : (ragdollParts.includes(bodyB) ? bodyB : null);
+    const otherBody = ragdollPart === bodyA ? bodyB : bodyA;
+    if (!ragdollPart || !otherBody || otherBody.label !== 'wall') continue;
+
+    const relativeVelocity = {
+      x: (ragdollPart.velocity.x - (otherBody.isStatic ? 0 : otherBody.velocity.x)),
+      y: (ragdollPart.velocity.y - (otherBody.isStatic ? 0 : otherBody.velocity.y))
+    };
+    const speed = Math.sqrt(relativeVelocity.x ** 2 + relativeVelocity.y ** 2);
+    if (speed > 3) {
+      const contactPoint = pair.collision.supports[0] || ragdollPart.position;
+      spawnRagdollBlood(contactPoint.x, contactPoint.y, Math.min(speed / 5, 1));
+    }
+  }
+});
+
+// Draw ragdoll blood in the visualizer loop (we'll extend the existing draw function)
+const originalDraw = draw; // 'draw' is the visualizer's function, but we haven't defined it yet? It's defined later. We'll modify it after definition.
 
 /* =========================
    PAINT TOOL (COEXISTS WITH FRIDGE DRAGGING)
@@ -1043,7 +1080,7 @@ function triggerGundham() {
 }
 
 /* =========================
-   VISUALIZER
+   VISUALIZER + RAGDOLL BLOOD DRAWING
 ========================= */
 const vizCanvas = document.getElementById("viz");
 const vizCtx = vizCanvas.getContext("2d");
@@ -1051,8 +1088,8 @@ vizCanvas.width = 320;
 vizCanvas.height = 80;
 const dataArray = new Uint8Array(32);
 
-function draw() {
-  requestAnimationFrame(draw);
+function drawVisualizer() {
+  requestAnimationFrame(drawVisualizer);
   if (!analyser || isDead) return;
   analyser.getByteFrequencyData(dataArray);
   vizCtx.fillStyle = "rgba(0, 0, 0, 0.35)";
@@ -1098,8 +1135,36 @@ function draw() {
   } else if (!isDead) {
     document.body.style.transform = "none";
   }
+
+  // -- Draw ragdoll blood --
+  ragdollCtx.clearRect(0, 0, ragdollBloodCanvas.width, ragdollBloodCanvas.height);
+  for (let i = ragdollBloodParticles.length - 1; i >= 0; i--) {
+    const p = ragdollBloodParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.95;
+    p.vy *= 0.95 + 0.03;
+    p.life--;
+    if (p.life <= 0) {
+      ragdollBloodParticles.splice(i, 1);
+      continue;
+    }
+    ragdollCtx.beginPath();
+    ragdollCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ragdollCtx.fillStyle = p.color;
+    ragdollCtx.fill();
+  }
 }
-draw();
+
+drawVisualizer();
+
+// Resize ragdoll blood canvas on window resize
+window.addEventListener('resize', () => {
+  ragdollBloodCanvas.width = window.innerWidth;
+  ragdollBloodCanvas.height = window.innerHeight;
+});
+ragdollBloodCanvas.width = window.innerWidth;
+ragdollBloodCanvas.height = window.innerHeight;
 </script>
 </body>
 </html>
