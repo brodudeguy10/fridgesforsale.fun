@@ -34,14 +34,48 @@
       to { transform: rotate(360deg); }
     }
 
-    /* ===== SPAWN BUTTON ===== */
-    #spawnBtn {
+    /* ===== BAREBONES ECONOMY UI ===== */
+    #economyBox {
       position: fixed;
       top: 130px;
       left: 20px;
       z-index: 9999;
-      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 150px;
+    }
+
+    /* Intentionally ugly default buttons */
+    .bareBtn {
+      background: #e0e0e0;
+      border: 2px outset #fff;
+      color: black;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 5px;
       cursor: pointer;
+    }
+    .bareBtn:active { border: 2px inset #fff; }
+
+    #fridgeCounter {
+      background: #ccc;
+      color: black;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 5px;
+      border: 1px solid #999;
+      text-align: center;
+    }
+
+    #shopMenu {
+      display: none;
+      background: #bbb;
+      border: 1px solid #555;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: black;
     }
 
     /* ===== RIGHT SIDE UI WRAPPER ===== */
@@ -56,7 +90,6 @@
       width: 250px;
     }
 
-    /* ===== MEMORIAL TEXT ===== */
     #memorialText {
       font-size: 10px;
       color: rgba(255, 255, 255, 0.3);
@@ -76,27 +109,10 @@
       box-shadow: 0px 0px 15px rgba(255,0,0,0.5);
     }
     
-    #rouletteContainer select, #rouletteContainer button {
-      margin-top: 10px;
-      cursor: pointer;
-      padding: 5px;
-    }
-
-    #rouletteBtn {
-      background: #440000;
-      color: white;
-      border: 1px solid red;
-      font-weight: bold;
-      width: 100%;
-    }
+    #rouletteContainer select, #rouletteContainer button { margin-top: 10px; cursor: pointer; padding: 5px; }
+    #rouletteBtn { background: #440000; color: white; border: 1px solid red; font-weight: bold; width: 100%; }
     #rouletteBtn:hover { background: #ff0000; }
-
-    #streakDisplay {
-      margin-top: 8px;
-      font-size: 11px;
-      color: #aaa;
-      min-height: 16px;
-    }
+    #streakDisplay { margin-top: 8px; font-size: 11px; color: #aaa; min-height: 16px; }
 
     /* ===== PAINT TOOL UI ===== */
     #paintContainer {
@@ -108,126 +124,57 @@
       box-shadow: 0px 0px 15px rgba(255,255,0,0.5);
     }
 
-    #paintContainer button, #paintContainer input {
-      margin-top: 8px;
-      cursor: pointer;
-    }
-
     /* ===== MUSIC PLAYER ===== */
     #musicPlayer {
       position: fixed;
-      bottom: 10px;
-      left: 10px;
-      z-index: 10000;
-      width: 340px;
-      background: rgba(0,0,0,0.75);
-      color: white;
-      padding: 10px;
-      border: 1px solid #333;
+      bottom: 10px; left: 10px; z-index: 10000; width: 340px;
+      background: rgba(0,0,0,0.75); color: white; padding: 10px; border: 1px solid #333;
     }
-
-    .text-layer {
-      position: relative;
-      z-index: 10005;
-      text-shadow: 2px 2px 4px black, -1px -1px 4px black, 0px 0px 8px black;
-      pointer-events: none;
-    }
-
-    #controls button {
-      margin: 3px;
-      cursor: pointer;
-      position: relative;
-      z-index: 10005;
-    }
+    .text-layer { position: relative; z-index: 10005; text-shadow: 2px 2px 4px black, -1px -1px 4px black, 0px 0px 8px black; pointer-events: none; }
+    #controls button { margin: 3px; cursor: pointer; position: relative; z-index: 10005; }
 
     /* ===== VISUALIZER ===== */
-    #viz {
-      width: 320px;
-      height: 80px;
-      background: black;
-      display: block;
-      margin-top: 10px;
-      transform-origin: bottom center;
-      transition: transform 0.05s, filter 0.05s;
-      position: relative;
-      z-index: 10001;
+    #viz { width: 320px; height: 80px; background: black; display: block; margin-top: 10px; transform-origin: bottom center; transition: transform 0.05s, filter 0.05s; position: relative; z-index: 10001; }
+    #vizGlow { position: fixed; bottom: 0; left: 0; width: 100%; height: 140px; pointer-events: none; background: radial-gradient(circle, rgba(200,0,0,0.35), transparent); filter: blur(20px); opacity: 0.5; transition: opacity 0.1s; }
+    #paintCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9998; pointer-events: none; }
+    #cockroachVid { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 9999996; pointer-events: none; }
+
+    /* ===== DEATHMAX SEQUENCE ASSETS ===== */
+    @keyframes deathShake {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      20% { transform: translate(-15px, 15px) rotate(-2deg); }
+      40% { transform: translate(15px, -15px) rotate(2deg); }
+      60% { transform: translate(-15px, -15px) rotate(-2deg); }
+      80% { transform: translate(15px, 15px) rotate(2deg); }
+      100% { transform: translate(0, 0) rotate(0deg); }
     }
 
-    #vizGlow {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 140px;
-      pointer-events: none;
-      background: radial-gradient(circle, rgba(200,0,0,0.35), transparent);
-      filter: blur(20px);
-      opacity: 0.5;
-      transition: opacity 0.1s;
-    }
+    .shaking { animation: deathShake 0.1s infinite; }
 
-    /* ===== DRAWING CANVAS ===== */
-    #paintCanvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: 9998; 
-      pointer-events: none; 
-    }
-
-    /* ===== COCKROACH JUMPSCARE ===== */
-    #cockroachVid {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      z-index: 9999996; 
-      pointer-events: none;
-    }
-
-    /* ===== REALISTIC DEATH SEQUENCE ASSETS ===== */
-    #deathFlash {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: white;
-      z-index: 99999999;
-      pointer-events: none;
-      opacity: 0;
+    #deathFlash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; z-index: 99999999; pointer-events: none; opacity: 0; }
+    
+    #tunnelVision {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: radial-gradient(circle, transparent 20%, rgba(0,0,0,1) 100%);
+      z-index: 9999996; pointer-events: none; opacity: 0;
+      transition: opacity 6s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     #deathBlur {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      backdrop-filter: blur(8px) grayscale(100%);
-      z-index: 9999997; /* Behind the screen crack */
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 4s ease-in;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      backdrop-filter: blur(15px) grayscale(100%);
+      z-index: 9999997; pointer-events: none; opacity: 0; transition: opacity 4s ease-in;
     }
 
     #screenCrack {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: url('screencrack.png') no-repeat center center;
-      background-size: cover;
-      z-index: 9999999;
-      pointer-events: none;
-      visibility: hidden;
+      background-size: cover; z-index: 9999999; pointer-events: none; visibility: hidden;
     }
 
     #deathFade {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: black;
-      opacity: 0;
-      z-index: 9999998;
-      pointer-events: none;
-      transition: opacity 7s ease-in;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: black; opacity: 0; z-index: 9999998; pointer-events: none; transition: opacity 10s ease-in;
     }
   </style>
 </head>
@@ -240,6 +187,7 @@
 
 <video id="cockroachVid" src="cockroach.webm"></video>
 <div id="deathFlash"></div>
+<div id="tunnelVision"></div>
 <div id="deathBlur"></div>
 <div id="screenCrack"></div>
 <div id="deathFade"></div>
@@ -250,10 +198,18 @@
   <img src="cooltext509446167575809.gif">
 </div>
 
-<button id="spawnBtn">spawn fridge</button>
+<div id="economyBox">
+  <button class="bareBtn" onclick="spawnFridge()">spawn fridge</button>
+  <div id="fridgeCounter">Fridges: 0</div>
+  <button class="bareBtn" onclick="toggleShop()">fridge shop</button>
+  <div id="shopMenu">
+    <b>SHOP</b><br><br>
+    Autoclicker (50F)<br>
+    <button class="bareBtn" onclick="buyAutoclicker()">Buy</button>
+  </div>
+</div>
 
 <div id="rightUI">
-
   <div id="memorialText">R.I.P. LEGACY RUSSIAN ROULLETE SYSTEM, REN IS THE KING. 38.</div>
 
   <div id="rouletteContainer">
@@ -280,15 +236,13 @@
     <div style="font-size: 10px; color:#aaa; margin-bottom:5px;">(Disables fridge dragging)</div>
     <input type="color" id="drawColor" value="#ff0000">
     <input type="range" id="drawSize" min="1" max="50" value="5" title="Brush Size"><br>
-    <button id="eraserBtn">Eraser</button>
+    <button onclick="document.getElementById('eraserBtn').click()" id="eraserBtn">Eraser</button>
     <button onclick="clearCanvas()">Clear All</button>
   </div>
 </div>
 
 <div id="musicPlayer">
-  <div class="text-layer" style="font-weight:bold; margin-bottom:5px;">
-    LISTEN TO THIS TRACK, BIATCH!
-  </div>
+  <div class="text-layer" style="font-weight:bold; margin-bottom:5px;">LISTEN TO THIS TRACK, BIATCH!</div>
   <div id="nowPlaying" class="text-layer">now playing: loading...</div>
   <audio id="audio"></audio>
   <div id="controls">
@@ -298,12 +252,35 @@
   </div>
   <canvas id="viz"></canvas>
 </div>
-
 <div id="vizGlow"></div>
 
 <script>
 /* =========================
-   FRIDGE PHYSICS
+   ECONOMY & AUTO-CLICKER
+========================= */
+let fridgesOwned = 0;
+
+function updateCounter() {
+  document.getElementById("fridgeCounter").innerText = `Fridges: ${fridgesOwned}`;
+}
+
+function toggleShop() {
+  const shop = document.getElementById("shopMenu");
+  shop.style.display = (shop.style.display === "block") ? "none" : "block";
+}
+
+function buyAutoclicker() {
+  if (fridgesOwned >= 50) {
+    fridgesOwned -= 50;
+    updateCounter();
+    setInterval(spawnFridge, 1000); // Stacks if bought multiple times
+  } else {
+    alert("NOT ENOUGH FRIDGES. YOU NEED 50.");
+  }
+}
+
+/* =========================
+   FRIDGE PHYSICS (HITBOX FIXED)
 ========================= */
 const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint } = Matter;
 
@@ -325,7 +302,7 @@ Runner.run(Runner.create(), engine);
 const ground    = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
 const leftWall  = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
 const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
-const ceiling   = Bodies.rectangle(window.innerWidth / 2, -100, window.innerWidth, 100, { isStatic: true }); // added ceiling so they don't get permanently lost
+const ceiling   = Bodies.rectangle(window.innerWidth / 2, -100, window.innerWidth, 100, { isStatic: true }); 
 
 World.add(world, [ground, leftWall, rightWall, ceiling]);
 
@@ -333,15 +310,19 @@ const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
 const spawnedFridges = [];
 
 function spawnFridge() {
+  fridgesOwned++;
+  updateCounter();
+
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
-  const fridge = Bodies.rectangle(Math.random() * window.innerWidth, 50, 80, 100, {
+  
+  // INCREASED HITBOX SIZE TO MATCH SPRITE Better dragging coverage
+  const fridge = Bodies.rectangle(Math.random() * window.innerWidth, 50, 100, 150, {
     restitution: 0.6, friction: 0.2,
-    render: { sprite: { texture: img, xScale: 0.25, yScale: 0.25 } }
+    render: { sprite: { texture: img, xScale: 0.35, yScale: 0.35 } }
   });
   World.add(world, fridge);
   spawnedFridges.push(fridge);
 }
-document.getElementById("spawnBtn").onclick = spawnFridge;
 
 const mouse = Mouse.create(render.canvas);
 const mouseConstraint = MouseConstraint.create(engine, {
@@ -368,11 +349,10 @@ function initAudio() {
     source = audioCtx.createMediaElementSource(audio);
     analyser = audioCtx.createAnalyser();
     
-    // Death Filters
     masterGain = audioCtx.createGain();
     biquadFilter = audioCtx.createBiquadFilter();
     biquadFilter.type = "lowpass";
-    biquadFilter.frequency.value = 24000; // Open by default
+    biquadFilter.frequency.value = 24000; 
 
     analyser.fftSize = 64;
     
@@ -380,9 +360,7 @@ function initAudio() {
     analyser.connect(biquadFilter);
     biquadFilter.connect(masterGain);
     masterGain.connect(audioCtx.destination);
-  } catch (e) {
-    console.warn("Audio Context failed.", e);
-  }
+  } catch (e) { console.warn("Audio Context failed.", e); }
 }
 
 const songs = [
@@ -401,17 +379,48 @@ function loadSong(i) {
   audio.playbackRate = 1;
 }
 
-function togglePlay() {
-  initAudio();
-  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  audio.paused ? audio.play() : audio.pause();
-}
+function togglePlay() { initAudio(); if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); audio.paused ? audio.play() : audio.pause(); }
 function nextSong() { initAudio(); if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); loadSong(current + 1); audio.play(); }
 function prevSong() { initAudio(); if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); loadSong(current - 1); audio.play(); }
 loadSong(0);
 
 /* =========================
-   AUTHENTIC REVOLVER LOGIC
+   HEARTBEAT SYNTHESIZER
+========================= */
+function playHeartbeat() {
+  if (!audioCtx) return;
+  let beatTime = audioCtx.currentTime;
+  let interval = 0.8; // Initial speed
+  
+  for (let i = 0; i < 15; i++) {
+    // Generate two quick deep pulses (Lub-Dub)
+    const createPulse = (time, duration, freq) => {
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, time);
+      osc.frequency.exponentialRampToValueAtTime(10, time + duration);
+      
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(2.0, time + duration * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(time);
+      osc.stop(time + duration);
+    };
+
+    createPulse(beatTime, 0.3, 60);         // Lub
+    createPulse(beatTime + 0.25, 0.4, 50);  // Dub
+    
+    beatTime += interval;
+    interval *= 1.15; // Slow down exponentially
+  }
+}
+
+/* =========================
+   REVOLVER LOGIC (DEATHMAX)
 ========================= */
 let isDead = false;
 let survivalStreak = 0;
@@ -421,61 +430,45 @@ let currentChamber = 0;
 function reloadRevolver() {
   if (isDead) return;
   const bullets = parseInt(document.getElementById("bulletCount").value);
-  
-  // Load chamber
   cylinder = [];
-  for (let i = 0; i < 6; i++) {
-    cylinder.push(i < bullets); // true = bullet, false = blank
-  }
-
-  // Spin cylinder (Shuffle array)
+  for (let i = 0; i < 6; i++) { cylinder.push(i < bullets); }
   for (let i = cylinder.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [cylinder[i], cylinder[j]] = [cylinder[j], cylinder[i]];
   }
-
-  currentChamber = 0;
-  survivalStreak = 0;
-  updateStreak();
-  
+  currentChamber = 0; survivalStreak = 0; updateStreak();
   const resultDiv = document.getElementById("rouletteResult");
-  resultDiv.style.color = "yellow";
-  resultDiv.textContent = "*Cylinder spun*";
+  resultDiv.style.color = "yellow"; resultDiv.textContent = "*Cylinder spun*";
   setTimeout(() => { if (!isDead && currentChamber === 0) resultDiv.textContent = ""; }, 1500);
 }
 
 function updateStreak() {
   const el = document.getElementById("streakDisplay");
-  if (survivalStreak === 0) { el.textContent = ""; } 
-  else {
-    el.textContent = `survived ${survivalStreak} pull${survivalStreak !== 1 ? "s" : ""} in a row`;
-    el.style.color = survivalStreak >= 5 ? "#ffcc00" : "#aaa";
-  }
+  if (survivalStreak === 0) el.textContent = ""; 
+  else { el.textContent = `survived ${survivalStreak} pull${survivalStreak !== 1 ? "s" : ""} in a row`; el.style.color = survivalStreak >= 5 ? "#ffcc00" : "#aaa"; }
 }
 
 function playRoulette() {
   if (isDead) return;
-  
-  // Auto-reload if empty (should never trigger unless code breaks)
   if (cylinder.length === 0 || currentChamber >= 6) reloadRevolver();
 
   const hasBullet = cylinder[currentChamber];
   currentChamber++; 
-
   const resultDiv = document.getElementById("rouletteResult");
 
   if (hasBullet) {
-    // === REALISTIC DEATH SEQUENCE ===
+    // === DEATHMAX SEQUENCE ===
     isDead = true;
     survivalStreak = 0;
     document.getElementById("rouletteBtn").disabled = true;
     resultDiv.textContent = "";
 
-    // Muzzle Flash & Bang instantly
+    // Instant Impact
     document.getElementById("sfx-revolver").play();
+    document.body.classList.add("shaking"); // VIOLENT CAMERA SHAKE
     const flash = document.getElementById("deathFlash");
     flash.style.opacity = 1;
-    setTimeout(() => { flash.style.opacity = 0; }, 80);
+    setTimeout(() => { flash.style.opacity = 0; document.body.classList.remove("shaking"); }, 150);
 
     setTimeout(() => {
       document.getElementById("sfx-shatter").play();
@@ -483,88 +476,65 @@ function playRoulette() {
 
       // Visual Trauma
       document.getElementById("screenCrack").style.visibility = "visible";
+      document.getElementById("tunnelVision").style.opacity = "1";
       document.getElementById("deathBlur").style.opacity = "1";
       document.getElementById("deathFade").style.opacity = "1";
 
       // Audio Trauma
       if (audioCtx && !audio.paused) {
-        
-        // Muffle the music (simulate losing hearing/consciousness)
         biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
-        biquadFilter.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 3);
-
-        // Fade music out
+        biquadFilter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 2);
         masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 6);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4);
 
-        // Extremely smooth tape-stop pitch drop
         let smoothPitch = audio.playbackRate;
         let dropInterval = setInterval(() => {
           smoothPitch -= 0.015;
-          if (smoothPitch > 0.05) {
-            audio.playbackRate = smoothPitch;
-          } else {
-            clearInterval(dropInterval);
-            audio.pause();
-          }
+          if (smoothPitch > 0.05) { audio.playbackRate = smoothPitch; } 
+          else { clearInterval(dropInterval); audio.pause(); }
         }, 50);
 
-        // Tinnitus Ringing Generator
+        // Tinnitus
         tinnitusOsc = audioCtx.createOscillator();
         tinnitusGain = audioCtx.createGain();
         tinnitusOsc.type = 'sine';
-        tinnitusOsc.frequency.value = 6500; // High pitch ring
-        
+        tinnitusOsc.frequency.value = 7500;
         tinnitusGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        tinnitusGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1); // Quick spike
-        tinnitusGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 8); // Long fade
-
+        tinnitusGain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); 
+        tinnitusGain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 10);
         tinnitusOsc.connect(tinnitusGain);
         tinnitusGain.connect(audioCtx.destination);
         tinnitusOsc.start();
-        tinnitusOsc.stop(audioCtx.currentTime + 8);
+        tinnitusOsc.stop(audioCtx.currentTime + 10);
+
+        // Slowing Heartbeat
+        playHeartbeat();
       }
     }, 150);
 
   } else {
-    // === SURVIVAL ===
-    survivalStreak++;
-    updateStreak();
+    survivalStreak++; updateStreak();
     resultDiv.style.color = "#00ff00";
     resultDiv.textContent = `Click... (Chamber ${currentChamber}/6 empty)`;
-    
-    // If they magically survived to the end of a cylinder (only possible if 0 bullets, but dropdown limits to 1 min)
-    if (currentChamber >= 6) {
-      setTimeout(() => { reloadRevolver(); }, 1500);
-    }
+    if (currentChamber >= 6) setTimeout(() => { reloadRevolver(); }, 1500);
   }
 }
-
-// Load gun on startup
 window.onload = () => { reloadRevolver(); };
 
 /* =========================
    PAINT TOOL LOGIC
 ========================= */
-const pCanvas = document.getElementById("paintCanvas");
-const pCtx = pCanvas.getContext("2d");
-
+const pCanvas = document.getElementById("paintCanvas"); const pCtx = pCanvas.getContext("2d");
 function resizePaintCanvas() {
-  const tempCanvas = document.createElement('canvas');
-  const tCtx = tempCanvas.getContext('2d');
-  tempCanvas.width = pCanvas.width; tempCanvas.height = pCanvas.height;
-  tCtx.drawImage(pCanvas, 0, 0);
-  pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
-  pCtx.drawImage(tempCanvas, 0, 0);
+  const tempCanvas = document.createElement('canvas'); const tCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = pCanvas.width; tempCanvas.height = pCanvas.height; tCtx.drawImage(pCanvas, 0, 0);
+  pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; pCtx.drawImage(tempCanvas, 0, 0);
 }
 window.addEventListener('resize', resizePaintCanvas);
 pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
-
 let isDrawing = false; let isEraserMode = false;
-const drawToggle = document.getElementById("drawToggle");
-const colorPicker = document.getElementById("drawColor");
-const sizeSlider = document.getElementById("drawSize");
-const eraserBtn = document.getElementById("eraserBtn");
+const drawToggle = document.getElementById("drawToggle"); const colorPicker = document.getElementById("drawColor");
+const sizeSlider = document.getElementById("drawSize"); const eraserBtn = document.getElementById("eraserBtn");
 
 drawToggle.addEventListener("change", (e) => { pCanvas.style.pointerEvents = e.target.checked ? "auto" : "none"; });
 eraserBtn.onclick = () => { isEraserMode = !isEraserMode; eraserBtn.style.background = isEraserMode ? 'white' : ''; eraserBtn.style.color = isEraserMode ? 'black' : ''; };
@@ -593,7 +563,7 @@ setInterval(() => {
 roachVid.onended = () => { roachVid.style.display = "none"; roachActive = false; };
 
 /* =========================
-   KONAMI CODE — GUNDHAM EASTER EGG
+   KONAMI CODE
 ========================= */
 const KONAMI_SEQUENCE = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a','s','t','a','r','t'];
 let konamiProgress = 0;
@@ -618,10 +588,8 @@ canvas.width = 320; canvas.height = 80; const dataArray = new Uint8Array(32);
 function draw() {
   requestAnimationFrame(draw);
   if (!analyser || isDead) return;
-
   analyser.getByteFrequencyData(dataArray);
   ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   const barWidth = canvas.width / dataArray.length; let peak = 0;
 
   for (let i = 0; i < dataArray.length; i++) {
@@ -636,11 +604,9 @@ function draw() {
     canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
     canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
     document.getElementById("vizGlow").style.opacity = "1";
-  } else {
-    canvas.style.transform = "none"; canvas.style.filter = "none"; document.getElementById("vizGlow").style.opacity = "0.3";
-  }
+  } else { canvas.style.transform = "none"; canvas.style.filter = "none"; document.getElementById("vizGlow").style.opacity = "0.3"; }
 
-  if (peak > 230) {
+  if (peak > 230 && !isDead) {
     document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
     spawnedFridges.forEach(f => {
       let yForce = (Math.random() * 3 + 1);
@@ -648,10 +614,9 @@ function draw() {
       Matter.Body.setVelocity(f, { x: f.velocity.x + (Math.random() - 0.5) * 4, y: f.velocity.y - yForce });
       Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random() - 0.5) * 0.4);
     });
-  } else { document.body.style.transform = "none"; }
+  } else if (!isDead) { document.body.style.transform = "none"; }
 }
 draw();
 </script>
-
 </body>
 </html>
