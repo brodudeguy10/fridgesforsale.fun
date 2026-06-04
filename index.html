@@ -62,7 +62,6 @@
       color: black;
     }
 
-    /* right side UI unchanged */
     #rightUI {
       position: fixed;
       top: 110px;
@@ -149,7 +148,7 @@
     #deathFade {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: black; opacity: 0; z-index: 9999998; pointer-events: none;
-      transition: opacity 12s ease-in;   /* slower fade to black */
+      transition: opacity 12s ease-in;
     }
     #bloodCanvas {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -504,7 +503,7 @@ function playDeathBreathing() {
 }
 
 /* =========================
-   RUSSIAN ROULETTE (NOW WITH SPACED‑OUT DEATH SEQUENCE)
+   RUSSIAN ROULETTE
 ========================= */
 let isDead = false;
 let survivalStreak = 0;
@@ -553,7 +552,7 @@ function playRoulette() {
     document.getElementById("rouletteBtn").disabled = true;
     resultDiv.textContent = "";
 
-    // ---- t = 0 : instant impact ----
+    // t = 0
     document.getElementById("sfx-revolver").play();
     document.body.classList.add("shaking");
     const flash = document.getElementById("deathFlash");
@@ -563,48 +562,49 @@ function playRoulette() {
       document.body.classList.remove("shaking");
     }, 150);
 
-    // ---- t = 150 ms : bullet hits glass, crack appears ----
+    // t = 150 ms: bullet hits, crack + initial blood burst
     setTimeout(() => {
       document.getElementById("sfx-shatter").play();
       document.getElementById("sfx-flesh").play();
-
-      // Show screen crack immediately – it stays on top of everything else
       document.getElementById("screenCrack").style.visibility = "visible";
 
-      // ---- t = 600 ms : tunnel vision & blur begin (they fade in) ----
+      // Start blood system with immediate first burst
+      const bloodCanvas = document.getElementById("bloodCanvas");
+      bloodCanvas.style.display = "block";
+      startBloodAnimation(bloodCanvas);
+
+      // t = 300 ms: secondary burst (bounced blood)
+      setTimeout(() => {
+        secondaryBloodBurst();
+      }, 150);
+
+      // t = 600 ms: tunnel & blur
       setTimeout(() => {
         document.getElementById("tunnelVision").style.opacity = "1";
         document.getElementById("deathBlur").style.opacity = "1";
-      }, 450);  // 600 ms after shot
+      }, 450);
 
-      // ---- t = 1200 ms : blood animation starts ----
-      setTimeout(() => {
-        const bloodCanvas = document.getElementById("bloodCanvas");
-        bloodCanvas.style.display = "block";
-        startBloodAnimation(bloodCanvas);
-      }, 1050); // 1200 ms after shot
-
-      // ---- t = 1800 ms : colour drain ----
+      // t = 1200 ms: colour drain
       setTimeout(() => {
         document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
-      }, 1650); // 1800 ms
+      }, 1050);
 
-      // ---- t = 2400 ms : heartbeat ----
+      // t = 2400 ms: heartbeat
       setTimeout(() => {
         playHeartbeat();
-      }, 2250); // 2400 ms
+      }, 2250);
 
-      // ---- t = 4000 ms : death rattle breathing ----
+      // t = 4000 ms: death rattle
       setTimeout(() => {
         playDeathBreathing();
-      }, 3850); // 4000 ms
+      }, 3850);
 
-      // ---- t = 5000 ms : slow fade to black (covers crack at the end) ----
+      // t = 5000 ms: slow fade to black
       setTimeout(() => {
-        document.getElementById("deathFade").style.opacity = "1";  // transition 12s
-      }, 4850); // 5000 ms
+        document.getElementById("deathFade").style.opacity = "1";
+      }, 4850);
 
-      // Music trauma & tinnitus (starts a little later too, to not overwhelm)
+      // Music trauma & tinnitus (starts later)
       setTimeout(() => {
         if (audioCtx && !audio.paused && analyser) {
           biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
@@ -633,9 +633,10 @@ function playRoulette() {
           tinnitusOsc.start();
           tinnitusOsc.stop(audioCtx.currentTime + 10);
         }
-      }, 600);  // music/tinnitus start at 600ms, not immediately
+      }, 600);
 
     }, 150);
+
   } else {
     survivalStreak++;
     updateStreak();
@@ -647,76 +648,287 @@ function playRoulette() {
 window.onload = () => { reloadRevolver(); };
 
 /* =========================
-   REALISTIC BLOOD ANIMATION
+   MEGA EXTENDED DYNAMIC BLOOD SYSTEM
 ========================= */
 let bloodAnimationId = null;
-const bloodDrops = [];
+let particles = [];
+let settledStains = [];
+let drips = [];
+let edgeDrips = [];   // drips from top/side edges
+let poolLevel = 0;    // thickness of bottom pool
+let lastTimestamp = 0;
 
 function startBloodAnimation(canvas) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   const ctx = canvas.getContext('2d');
 
-  bloodDrops.length = 0;
-  for (let i = 0; i < 40; i++) {
-    bloodDrops.push({
-      x: Math.random() * canvas.width,
-      y: -20 - Math.random() * 200,
-      speed: 0.5 + Math.random() * 2,
-      size: 2 + Math.random() * 8,
-      opacity: 0.5 + Math.random() * 0.5,
-      trail: []
+  // Reset all state
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = [];
+  settledStains = [];
+  drips = [];
+  edgeDrips = [];
+  poolLevel = 0;
+
+  // ===== FIRST BURST: primary impact (400 particles) =====
+  burstParticles(canvas.width / 2, canvas.height / 2, 400, 4, 15, 1, 8);
+}
+
+// Secondary burst (called after a short delay)
+function secondaryBloodBurst() {
+  burstParticles(window.innerWidth / 2, window.innerHeight / 2, 200, 2, 10, 0.5, 4);
+}
+
+// Particle burst generator
+function burstParticles(cx, cy, count, minSpeed, maxSpeed, minSize, maxSize) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed - 1; // slight upward bias initially? removed for realism: just natural spread
+    const life = 8 + Math.random() * 25;   // frames
+    const size = minSize + Math.random() * (maxSize - minSize);
+    const r = 40 + Math.floor(Math.random() * 60);
+    const g = Math.floor(Math.random() * 10);
+    const b = Math.floor(Math.random() * 10);
+    const alpha = 0.6 + Math.random() * 0.4;
+    particles.push({
+      x: cx, y: cy,
+      vx: vx, vy: vy,
+      life: life,
+      maxLife: life,
+      size: size,
+      color: `rgba(${r}, ${g}, ${b}, ${alpha})`,
+      trail: [] // store previous positions for trail effect
     });
   }
+}
 
-  ctx.fillStyle = '#4a0000';
-  for (let i = 0; i < 150; i++) {
+function animateBlood(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  // We still run at ~60fps; no delta-time scaling for simplicity.
+
+  const canvas = document.getElementById('bloodCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // ---- Update & draw burst particles ----
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.93;          // friction
+    p.vy *= 0.93 + 0.02;   // slight gravity (adds downward arc)
+    p.life--;
+
+    // Add to trail
+    p.trail.push({x: p.x, y: p.y});
+    if (p.trail.length > 4) p.trail.shift();
+
+    // Draw trail
+    if (p.trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(p.trail[0].x, p.trail[0].y);
+      for (let t = 1; t < p.trail.length; t++) {
+        ctx.lineTo(p.trail[t].x, p.trail[t].y);
+      }
+      ctx.strokeStyle = p.color.replace(/[\d\.]+\)$/g, '0.3)'); // fade trail
+      ctx.lineWidth = p.size * 0.6;
+      ctx.stroke();
+    }
+
+    // Draw particle
     ctx.beginPath();
-    ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1 + Math.random() * 25, 0, Math.PI*2);
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+
+    // Edge collision: if particle hits top or sides, it can stick and become edge drip source
+    if (p.y <= 0 || p.x <= 0 || p.x >= canvas.width) {
+      // stick to edge, add to edge stains
+      settledStains.push({
+        x: Math.max(0, Math.min(canvas.width, p.x)),
+        y: Math.max(0, p.y),
+        size: p.size * 0.7,
+        color: p.color
+      });
+      particles.splice(i, 1);
+      continue;
+    }
+
+    // Settle condition
+    if (p.life <= 0 || (Math.abs(p.vx) < 0.2 && Math.abs(p.vy) < 0.2)) {
+      settledStains.push({
+        x: p.x,
+        y: p.y,
+        size: p.size * 0.8,
+        color: p.color
+      });
+      particles.splice(i, 1);
+    }
+  }
+
+  // ---- Draw settled stains ----
+  for (const stain of settledStains) {
+    ctx.beginPath();
+    ctx.arc(stain.x, stain.y, stain.size, 0, Math.PI * 2);
+    ctx.fillStyle = stain.color;
     ctx.fill();
   }
 
-  function animate() {
-    ctx.fillStyle = 'rgba(0,0,0,0.02)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // ---- Generate edge drips from top/sides if not yet started ----
+  if (edgeDrips.length === 0 && particles.length === 0 && settledStains.length > 0) {
+    // Create drips from top edge
+    for (let i = 0; i < 25; i++) {
+      const x = Math.random() * canvas.width;
+      edgeDrips.push({
+        sx: x, sy: 0,
+        ex: x, ey: 0,
+        speed: 0.5 + Math.random() * 1.5,
+        color: 'rgba(70, 0, 0, 0.8)',
+        alive: true,
+        thickness: 1 + Math.random() * 2
+      });
+    }
+    // Create drips from left and right edges
+    for (let i = 0; i < 15; i++) {
+      const y = Math.random() * canvas.height;
+      edgeDrips.push({
+        sx: 0, sy: y,
+        ex: 0, ey: y,
+        speed: 0.5 + Math.random() * 1.2,
+        color: 'rgba(70, 0, 0, 0.8)',
+        alive: true,
+        thickness: 1 + Math.random() * 2
+      });
+      edgeDrips.push({
+        sx: canvas.width, sy: y,
+        ex: canvas.width, ey: y,
+        speed: 0.5 + Math.random() * 1.2,
+        color: 'rgba(70, 0, 0, 0.8)',
+        alive: true,
+        thickness: 1 + Math.random() * 2
+      });
+    }
+  }
 
-    for (let drop of bloodDrops) {
-      drop.y += drop.speed;
-      if (drop.y > canvas.height + 50) {
-        drop.y = -20 - Math.random() * 200;
-        drop.x = Math.random() * canvas.width;
-        drop.trail = [];
+  // ---- Generate regular drips from settled stains (after particles settled) ----
+  if (drips.length === 0 && particles.length === 0 && settledStains.length > 0) {
+    for (const stain of settledStains) {
+      if (Math.random() < 0.4) {  // 40% of stains become drip sources
+        drips.push({
+          sx: stain.x, sy: stain.y,
+          ex: stain.x, ey: stain.y,
+          speed: 0.2 + Math.random() * 1.0,
+          color: stain.color,
+          alive: true,
+          thickness: stain.size * 0.5,
+          branches: []
+        });
       }
-      drop.trail.push({x: drop.x, y: drop.y});
-      if (drop.trail.length > 15) drop.trail.shift();
+    }
+  }
 
-      if (drop.trail.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(drop.trail[0].x, drop.trail[0].y);
-        for (let i = 1; i < drop.trail.length; i++) ctx.lineTo(drop.trail[i].x, drop.trail[i].y);
-        ctx.strokeStyle = `rgba(139, 0, 0, ${drop.opacity * 0.8})`;
-        ctx.lineWidth = drop.size * 0.5;
-        ctx.stroke();
-      }
+  // ---- Update & draw regular drips ----
+  for (const drip of drips) {
+    if (!drip.alive) continue;
+    drip.ey += drip.speed;
+    drip.ex += (Math.random() - 0.5) * 0.6; // wobble
 
+    // Draw drip line (tapered)
+    const gradient = ctx.createLinearGradient(drip.sx, drip.sy, drip.ex, drip.ey);
+    gradient.addColorStop(0, drip.color);
+    gradient.addColorStop(1, drip.color.replace(/[\d\.]+\)$/g, '0.2)'));
+    ctx.beginPath();
+    ctx.moveTo(drip.sx, drip.sy);
+    ctx.lineTo(drip.ex, drip.ey);
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = drip.thickness;
+    ctx.stroke();
+
+    // Branching (random)
+    if (Math.random() < 0.01) {
+      drip.branches.push({
+        ex: drip.ex, ey: drip.ey,
+        speed: drip.speed * 0.7,
+        color: drip.color
+      });
+    }
+    for (const branch of drip.branches) {
+      branch.ey += branch.speed;
+      branch.ex += (Math.random() - 0.5) * 0.5;
       ctx.beginPath();
-      ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(139, 0, 0, ${drop.opacity})`;
-      ctx.fill();
-
-      drop.x += (Math.random() - 0.5) * 0.8;
+      ctx.moveTo(drip.ex, drip.ey);
+      ctx.lineTo(branch.ex, branch.ey);
+      ctx.strokeStyle = branch.color;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
     }
 
-    ctx.fillStyle = 'rgba(80, 0, 0, 0.7)';
-    ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-
-    bloodAnimationId = requestAnimationFrame(animate);
+    // Check if drip reaches bottom
+    if (drip.ey >= canvas.height) {
+      drip.alive = false;
+      poolLevel += 0.2; // increase pooling
+    }
   }
-  animate();
+
+  // ---- Update & draw edge drips ----
+  for (const drip of edgeDrips) {
+    if (!drip.alive) continue;
+    drip.ey += drip.speed;
+    // side drips move horizontally? actually they are already at x=0 or x=width, so they just go down
+    drip.ex += (Math.random() - 0.5) * 0.5;
+
+    ctx.beginPath();
+    ctx.moveTo(drip.sx, drip.sy);
+    ctx.lineTo(drip.ex, drip.ey);
+    ctx.strokeStyle = drip.color;
+    ctx.lineWidth = drip.thickness;
+    ctx.stroke();
+
+    if (drip.ey >= canvas.height) {
+      drip.alive = false;
+      poolLevel += 0.15;
+    }
+  }
+
+  // ---- Pool at bottom (dynamic thickness) ----
+  poolLevel = Math.min(poolLevel, 60); // max thickness
+  if (poolLevel > 0) {
+    ctx.fillStyle = `rgba(50, 0, 0, ${0.6 + poolLevel/200})`;
+    ctx.fillRect(0, canvas.height - poolLevel, canvas.width, poolLevel);
+  }
+
+  bloodAnimationId = requestAnimationFrame(animateBlood);
 }
 
-window.addEventListener('beforeunload', () => {
+// Start the loop when animation begins
+function startBloodAnimation(canvas) {
+  // Reset & initial burst
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = [];
+  settledStains = [];
+  drips = [];
+  edgeDrips = [];
+  poolLevel = 0;
+
+  burstParticles(canvas.width / 2, canvas.height / 2, 400, 4, 15, 1, 8);
+  // Start the animation loop
   if (bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
+  bloodAnimationId = requestAnimationFrame(animateBlood);
+}
+
+// Resize handling
+window.addEventListener('resize', () => {
+  const bloodCanvas = document.getElementById('bloodCanvas');
+  if (bloodCanvas.style.display !== 'none') {
+    bloodCanvas.width = window.innerWidth;
+    bloodCanvas.height = window.innerHeight;
+  }
 });
 
 /* =========================
