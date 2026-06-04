@@ -47,12 +47,23 @@
     /* ===== RIGHT SIDE UI WRAPPER ===== */
     #rightUI {
       position: fixed;
-      top: 130px;
+      top: 110px;
       right: 20px;
       z-index: 10000;
       display: flex;
       flex-direction: column;
       gap: 15px;
+      width: 250px;
+    }
+
+    /* ===== MEMORIAL TEXT ===== */
+    #memorialText {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+      text-align: center;
+      margin-bottom: -10px;
+      font-family: monospace;
+      pointer-events: none;
     }
 
     /* ===== ROULETTE UI ===== */
@@ -76,6 +87,7 @@
       color: white;
       border: 1px solid red;
       font-weight: bold;
+      width: 100%;
     }
     #rouletteBtn:hover { background: #ff0000; }
 
@@ -161,8 +173,8 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 9998; /* Above fridges, below UI */
-      pointer-events: none; /* Off by default so you can drag fridges */
+      z-index: 9998; 
+      pointer-events: none; 
     }
 
     /* ===== COCKROACH JUMPSCARE ===== */
@@ -174,17 +186,33 @@
       width: 100vw;
       height: 100vh;
       object-fit: cover;
-      z-index: 9999998; /* Just below screen crack */
+      z-index: 9999996; 
       pointer-events: none;
     }
 
-    /* ===== DEATH SEQUENCE ASSETS ===== */
+    /* ===== REALISTIC DEATH SEQUENCE ASSETS ===== */
+    #deathFlash {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: white;
+      z-index: 99999999;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    #deathBlur {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      backdrop-filter: blur(8px) grayscale(100%);
+      z-index: 9999997; /* Behind the screen crack */
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 4s ease-in;
+    }
+
     #screenCrack {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0; width: 100vw; height: 100vh;
       background: url('screencrack.png') no-repeat center center;
       background-size: cover;
       z-index: 9999999;
@@ -194,10 +222,7 @@
 
     #deathFade {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0; width: 100vw; height: 100vh;
       background: black;
       opacity: 0;
       z-index: 9999998;
@@ -214,6 +239,8 @@
 <audio id="sfx-flesh" src="bullethitflesh.mp3" preload="auto"></audio>
 
 <video id="cockroachVid" src="cockroach.webm"></video>
+<div id="deathFlash"></div>
+<div id="deathBlur"></div>
 <div id="screenCrack"></div>
 <div id="deathFade"></div>
 
@@ -226,10 +253,13 @@
 <button id="spawnBtn">spawn fridge</button>
 
 <div id="rightUI">
+
+  <div id="memorialText">R.I.P. LEGACY RUSSIAN ROULLETE SYSTEM, REN IS THE KING. 38.</div>
+
   <div id="rouletteContainer">
     <div style="font-weight:bold; color:red;">RUSSIAN ROULETTE</div>
     <label style="font-size: 12px;">Bullets in chamber:</label><br>
-    <select id="bulletCount">
+    <select id="bulletCount" onchange="reloadRevolver()">
       <option value="1">1</option>
       <option value="2">2</option>
       <option value="3">3</option>
@@ -275,7 +305,6 @@
 /* =========================
    FRIDGE PHYSICS
 ========================= */
-
 const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint } = Matter;
 
 const engine = Engine.create();
@@ -285,10 +314,8 @@ const render = Render.create({
   element: document.body,
   engine,
   options: {
-    width: window.innerWidth,
-    height: window.innerHeight,
-    wireframes: false,
-    background: "#0b0f14"
+    width: window.innerWidth, height: window.innerHeight,
+    wireframes: false, background: "#0b0f14"
   }
 });
 
@@ -298,17 +325,17 @@ Runner.run(Runner.create(), engine);
 const ground    = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true });
 const leftWall  = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
 const rightWall = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight * 2, { isStatic: true });
+const ceiling   = Bodies.rectangle(window.innerWidth / 2, -100, window.innerWidth, 100, { isStatic: true }); // added ceiling so they don't get permanently lost
 
-World.add(world, [ground, leftWall, rightWall]);
+World.add(world, [ground, leftWall, rightWall, ceiling]);
 
 const fridgeImages = ["fridge1.png", "fridge2.png", "fridge3.png"];
 const spawnedFridges = [];
 
 function spawnFridge() {
   const img = fridgeImages[Math.floor(Math.random() * fridgeImages.length)];
-  const fridge = Bodies.rectangle(Math.random() * window.innerWidth, -50, 80, 100, {
-    restitution: 0.6,
-    friction: 0.2,
+  const fridge = Bodies.rectangle(Math.random() * window.innerWidth, 50, 80, 100, {
+    restitution: 0.6, friction: 0.2,
     render: { sprite: { texture: img, xScale: 0.25, yScale: 0.25 } }
   });
   World.add(world, fridge);
@@ -323,7 +350,6 @@ const mouseConstraint = MouseConstraint.create(engine, {
 World.add(world, mouseConstraint);
 render.mouse = mouse;
 
-// Handle window resizing for Matter.js
 window.addEventListener('resize', () => {
   render.canvas.width = window.innerWidth;
   render.canvas.height = window.innerHeight;
@@ -333,11 +359,7 @@ window.addEventListener('resize', () => {
 /* =========================
    AUDIO ENGINE & MUSIC SYSTEM
 ========================= */
-
-let audioCtx;
-let analyser;
-let source;
-let masterGain;
+let audioCtx, analyser, source, masterGain, biquadFilter, tinnitusOsc, tinnitusGain;
 
 function initAudio() {
   if (audioCtx) return;
@@ -345,13 +367,21 @@ function initAudio() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     source = audioCtx.createMediaElementSource(audio);
     analyser = audioCtx.createAnalyser();
+    
+    // Death Filters
     masterGain = audioCtx.createGain();
+    biquadFilter = audioCtx.createBiquadFilter();
+    biquadFilter.type = "lowpass";
+    biquadFilter.frequency.value = 24000; // Open by default
+
     analyser.fftSize = 64;
+    
     source.connect(analyser);
-    analyser.connect(masterGain);
+    analyser.connect(biquadFilter);
+    biquadFilter.connect(masterGain);
     masterGain.connect(audioCtx.destination);
   } catch (e) {
-    console.warn("Audio Context failed to start.", e);
+    console.warn("Audio Context failed.", e);
   }
 }
 
@@ -376,105 +406,48 @@ function togglePlay() {
   if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
   audio.paused ? audio.play() : audio.pause();
 }
-
-function nextSong() {
-  initAudio();
-  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  loadSong(current + 1);
-  audio.play();
-}
-
-function prevSong() {
-  initAudio();
-  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  loadSong(current - 1);
-  audio.play();
-}
+function nextSong() { initAudio(); if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); loadSong(current + 1); audio.play(); }
+function prevSong() { initAudio(); if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); loadSong(current - 1); audio.play(); }
 loadSong(0);
 
 /* =========================
-   PAINT TOOL LOGIC
+   AUTHENTIC REVOLVER LOGIC
 ========================= */
-
-const pCanvas = document.getElementById("paintCanvas");
-const pCtx = pCanvas.getContext("2d");
-
-function resizePaintCanvas() {
-  const tempCanvas = document.createElement('canvas');
-  const tCtx = tempCanvas.getContext('2d');
-  tempCanvas.width = pCanvas.width;
-  tempCanvas.height = pCanvas.height;
-  tCtx.drawImage(pCanvas, 0, 0);
-
-  pCanvas.width = window.innerWidth;
-  pCanvas.height = window.innerHeight;
-  pCtx.drawImage(tempCanvas, 0, 0);
-}
-window.addEventListener('resize', resizePaintCanvas);
-pCanvas.width = window.innerWidth;
-pCanvas.height = window.innerHeight;
-
-let isDrawing = false;
-let isEraserMode = false;
-
-const drawToggle = document.getElementById("drawToggle");
-const colorPicker = document.getElementById("drawColor");
-const sizeSlider = document.getElementById("drawSize");
-const eraserBtn = document.getElementById("eraserBtn");
-
-drawToggle.addEventListener("change", (e) => {
-  // If drawing is enabled, block clicks to the physics fridges below
-  pCanvas.style.pointerEvents = e.target.checked ? "auto" : "none";
-});
-
-eraserBtn.onclick = () => {
-  isEraserMode = !isEraserMode;
-  eraserBtn.style.background = isEraserMode ? 'white' : '';
-  eraserBtn.style.color = isEraserMode ? 'black' : '';
-};
-
-window.clearCanvas = () => {
-  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
-};
-
-pCanvas.addEventListener("mousedown", (e) => {
-  isDrawing = true;
-  pCtx.beginPath();
-  pCtx.moveTo(e.clientX, e.clientY);
-});
-
-pCanvas.addEventListener("mousemove", (e) => {
-  if (!isDrawing) return;
-  pCtx.lineWidth = sizeSlider.value;
-  pCtx.lineCap = "round";
-
-  if (isEraserMode) {
-    pCtx.globalCompositeOperation = "destination-out";
-    pCtx.strokeStyle = "rgba(0,0,0,1)";
-  } else {
-    pCtx.globalCompositeOperation = "source-over";
-    pCtx.strokeStyle = colorPicker.value;
-  }
-
-  pCtx.lineTo(e.clientX, e.clientY);
-  pCtx.stroke();
-});
-
-pCanvas.addEventListener("mouseup", () => { isDrawing = false; });
-pCanvas.addEventListener("mouseout", () => { isDrawing = false; });
-
-/* =========================
-   RUSSIAN ROULETTE LOGIC
-========================= */
-
 let isDead = false;
 let survivalStreak = 0;
+let cylinder = [];
+let currentChamber = 0;
+
+function reloadRevolver() {
+  if (isDead) return;
+  const bullets = parseInt(document.getElementById("bulletCount").value);
+  
+  // Load chamber
+  cylinder = [];
+  for (let i = 0; i < 6; i++) {
+    cylinder.push(i < bullets); // true = bullet, false = blank
+  }
+
+  // Spin cylinder (Shuffle array)
+  for (let i = cylinder.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cylinder[i], cylinder[j]] = [cylinder[j], cylinder[i]];
+  }
+
+  currentChamber = 0;
+  survivalStreak = 0;
+  updateStreak();
+  
+  const resultDiv = document.getElementById("rouletteResult");
+  resultDiv.style.color = "yellow";
+  resultDiv.textContent = "*Cylinder spun*";
+  setTimeout(() => { if (!isDead && currentChamber === 0) resultDiv.textContent = ""; }, 1500);
+}
 
 function updateStreak() {
   const el = document.getElementById("streakDisplay");
-  if (survivalStreak === 0) {
-    el.textContent = "";
-  } else {
+  if (survivalStreak === 0) { el.textContent = ""; } 
+  else {
     el.textContent = `survived ${survivalStreak} pull${survivalStreak !== 1 ? "s" : ""} in a row`;
     el.style.color = survivalStreak >= 5 ? "#ffcc00" : "#aaa";
   }
@@ -482,183 +455,200 @@ function updateStreak() {
 
 function playRoulette() {
   if (isDead) return;
+  
+  // Auto-reload if empty (should never trigger unless code breaks)
+  if (cylinder.length === 0 || currentChamber >= 6) reloadRevolver();
 
-  const bullets = parseInt(document.getElementById("bulletCount").value);
-  const chance = bullets / 6;
+  const hasBullet = cylinder[currentChamber];
+  currentChamber++; 
+
   const resultDiv = document.getElementById("rouletteResult");
 
-  if (Math.random() < chance) {
-    // === YOU DIED ===
+  if (hasBullet) {
+    // === REALISTIC DEATH SEQUENCE ===
     isDead = true;
     survivalStreak = 0;
     document.getElementById("rouletteBtn").disabled = true;
     resultDiv.textContent = "";
 
+    // Muzzle Flash & Bang instantly
     document.getElementById("sfx-revolver").play();
+    const flash = document.getElementById("deathFlash");
+    flash.style.opacity = 1;
+    setTimeout(() => { flash.style.opacity = 0; }, 80);
 
     setTimeout(() => {
       document.getElementById("sfx-shatter").play();
       document.getElementById("sfx-flesh").play();
 
+      // Visual Trauma
       document.getElementById("screenCrack").style.visibility = "visible";
+      document.getElementById("deathBlur").style.opacity = "1";
       document.getElementById("deathFade").style.opacity = "1";
 
+      // Audio Trauma
       if (audioCtx && !audio.paused) {
+        
+        // Muffle the music (simulate losing hearing/consciousness)
+        biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
+        biquadFilter.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 3);
+
+        // Fade music out
         masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
         masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 6);
 
+        // Extremely smooth tape-stop pitch drop
+        let smoothPitch = audio.playbackRate;
         let dropInterval = setInterval(() => {
-          if (audio.playbackRate > 0.1) {
-            audio.playbackRate -= 0.05;
+          smoothPitch -= 0.015;
+          if (smoothPitch > 0.05) {
+            audio.playbackRate = smoothPitch;
           } else {
             clearInterval(dropInterval);
             audio.pause();
           }
-        }, 300);
+        }, 50);
+
+        // Tinnitus Ringing Generator
+        tinnitusOsc = audioCtx.createOscillator();
+        tinnitusGain = audioCtx.createGain();
+        tinnitusOsc.type = 'sine';
+        tinnitusOsc.frequency.value = 6500; // High pitch ring
+        
+        tinnitusGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        tinnitusGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1); // Quick spike
+        tinnitusGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 8); // Long fade
+
+        tinnitusOsc.connect(tinnitusGain);
+        tinnitusGain.connect(audioCtx.destination);
+        tinnitusOsc.start();
+        tinnitusOsc.stop(audioCtx.currentTime + 8);
       }
     }, 150);
 
   } else {
-    // === YOU SURVIVED ===
+    // === SURVIVAL ===
     survivalStreak++;
     updateStreak();
     resultDiv.style.color = "#00ff00";
-    resultDiv.textContent = "Click... you survived!";
-    setTimeout(() => { resultDiv.textContent = ""; }, 2000);
+    resultDiv.textContent = `Click... (Chamber ${currentChamber}/6 empty)`;
+    
+    // If they magically survived to the end of a cylinder (only possible if 0 bullets, but dropdown limits to 1 min)
+    if (currentChamber >= 6) {
+      setTimeout(() => { reloadRevolver(); }, 1500);
+    }
   }
 }
+
+// Load gun on startup
+window.onload = () => { reloadRevolver(); };
+
+/* =========================
+   PAINT TOOL LOGIC
+========================= */
+const pCanvas = document.getElementById("paintCanvas");
+const pCtx = pCanvas.getContext("2d");
+
+function resizePaintCanvas() {
+  const tempCanvas = document.createElement('canvas');
+  const tCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = pCanvas.width; tempCanvas.height = pCanvas.height;
+  tCtx.drawImage(pCanvas, 0, 0);
+  pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
+  pCtx.drawImage(tempCanvas, 0, 0);
+}
+window.addEventListener('resize', resizePaintCanvas);
+pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
+
+let isDrawing = false; let isEraserMode = false;
+const drawToggle = document.getElementById("drawToggle");
+const colorPicker = document.getElementById("drawColor");
+const sizeSlider = document.getElementById("drawSize");
+const eraserBtn = document.getElementById("eraserBtn");
+
+drawToggle.addEventListener("change", (e) => { pCanvas.style.pointerEvents = e.target.checked ? "auto" : "none"; });
+eraserBtn.onclick = () => { isEraserMode = !isEraserMode; eraserBtn.style.background = isEraserMode ? 'white' : ''; eraserBtn.style.color = isEraserMode ? 'black' : ''; };
+window.clearCanvas = () => { pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height); };
+
+pCanvas.addEventListener("mousedown", (e) => { isDrawing = true; pCtx.beginPath(); pCtx.moveTo(e.clientX, e.clientY); });
+pCanvas.addEventListener("mousemove", (e) => {
+  if (!isDrawing) return;
+  pCtx.lineWidth = sizeSlider.value; pCtx.lineCap = "round";
+  if (isEraserMode) { pCtx.globalCompositeOperation = "destination-out"; pCtx.strokeStyle = "rgba(0,0,0,1)"; } 
+  else { pCtx.globalCompositeOperation = "source-over"; pCtx.strokeStyle = colorPicker.value; }
+  pCtx.lineTo(e.clientX, e.clientY); pCtx.stroke();
+});
+pCanvas.addEventListener("mouseup", () => { isDrawing = false; }); pCanvas.addEventListener("mouseout", () => { isDrawing = false; });
 
 /* =========================
    COCKROACH JUMPSCARE (1/100 EVERY SEC)
 ========================= */
-
 const roachVid = document.getElementById('cockroachVid');
 let roachActive = false;
-
 setInterval(() => {
-  // Only roll the dice if we aren't dead and the cockroach isn't already playing
   if (!isDead && !roachActive) {
-    // 1% Chance
-    if (Math.random() < 0.01) {
-      roachActive = true;
-      roachVid.style.display = "block";
-      roachVid.play();
-    }
+    if (Math.random() < 0.01) { roachActive = true; roachVid.style.display = "block"; roachVid.play(); }
   }
 }, 1000);
-
-// Hide when finished
-roachVid.onended = () => {
-  roachVid.style.display = "none";
-  roachActive = false;
-};
+roachVid.onended = () => { roachVid.style.display = "none"; roachActive = false; };
 
 /* =========================
    KONAMI CODE — GUNDHAM EASTER EGG
-   sequence: up up down down left right left right b a s t a r t
 ========================= */
-
-const KONAMI_SEQUENCE = [
-  'ArrowUp','ArrowUp',
-  'ArrowDown','ArrowDown',
-  'ArrowLeft','ArrowRight',
-  'ArrowLeft','ArrowRight',
-  'b','a',
-  's','t','a','r','t'
-];
-
+const KONAMI_SEQUENCE = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a','s','t','a','r','t'];
 let konamiProgress = 0;
-
 document.addEventListener('keydown', (e) => {
-  const expected = KONAMI_SEQUENCE[konamiProgress];
-
-  if (e.key === expected) {
+  if (e.key === KONAMI_SEQUENCE[konamiProgress]) {
     konamiProgress++;
-    if (konamiProgress === KONAMI_SEQUENCE.length) {
-      triggerGundham();
-      konamiProgress = 0;
-    }
-  } else {
-    konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0;
-  }
+    if (konamiProgress === KONAMI_SEQUENCE.length) { triggerGundham(); konamiProgress = 0; }
+  } else { konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0; }
 });
-
 function triggerGundham() {
-  audio.pause();
-  Render.stop(render);
-  document.body.innerHTML = '';
+  audio.pause(); Render.stop(render); document.body.innerHTML = '';
   document.body.style.cssText = 'margin:0; background:#000; display:flex; align-items:center; justify-content:center; width:100vw; height:100vh; overflow:hidden;';
-
-  const img = document.createElement('img');
-  img.src = 'gundlex.gif';
-  img.style.cssText = 'max-width:100vw; max-height:100vh; object-fit:contain;';
-  document.body.appendChild(img);
+  const img = document.createElement('img'); img.src = 'gundlex.gif'; img.style.cssText = 'max-width:100vw; max-height:100vh; object-fit:contain;'; document.body.appendChild(img);
 }
 
 /* =========================
    VISUALIZER (BLOODY CHAOS)
 ========================= */
-
-const canvas = document.getElementById("viz");
-const ctx = canvas.getContext("2d");
-canvas.width = 320;
-canvas.height = 80;
-const dataArray = new Uint8Array(32);
+const canvas = document.getElementById("viz"); const ctx = canvas.getContext("2d");
+canvas.width = 320; canvas.height = 80; const dataArray = new Uint8Array(32);
 
 function draw() {
   requestAnimationFrame(draw);
   if (!analyser || isDead) return;
 
   analyser.getByteFrequencyData(dataArray);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const barWidth = canvas.width / dataArray.length;
-  let peak = 0;
+  const barWidth = canvas.width / dataArray.length; let peak = 0;
 
   for (let i = 0; i < dataArray.length; i++) {
-    const v = dataArray[i];
-    peak = Math.max(peak, v);
+    const v = dataArray[i]; peak = Math.max(peak, v);
     const barHeight = (v / 255) * canvas.height * 1.2;
-
-    if (v > 200) {
-      ctx.fillStyle = `rgba(255, 0, 0, 0.4)`;
-      ctx.fillRect(i * barWidth - 2, canvas.height - barHeight - (Math.random() * 15), barWidth + 4, barHeight);
-    }
-    ctx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`;
-    ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth + 2, barHeight + Math.random() * 5);
+    if (v > 200) { ctx.fillStyle = `rgba(255, 0, 0, 0.4)`; ctx.fillRect(i * barWidth - 2, canvas.height - barHeight - (Math.random() * 15), barWidth + 4, barHeight); }
+    ctx.fillStyle = `rgb(${200 + (v / 5)}, 0, 0)`; ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth + 2, barHeight + Math.random() * 5);
   }
 
   if (peak > 180) {
-    const stretchY = 1 + ((peak - 180) / 30);
-    const lean = (Math.random() - 0.5) * 10;
+    const stretchY = 1 + ((peak - 180) / 30); const lean = (Math.random() - 0.5) * 10;
     canvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
     canvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
     document.getElementById("vizGlow").style.opacity = "1";
   } else {
-    canvas.style.transform = "none";
-    canvas.style.filter = "none";
-    document.getElementById("vizGlow").style.opacity = "0.3";
+    canvas.style.transform = "none"; canvas.style.filter = "none"; document.getElementById("vizGlow").style.opacity = "0.3";
   }
 
   if (peak > 230) {
     document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
-
     spawnedFridges.forEach(f => {
       let yForce = (Math.random() * 3 + 1);
-      if (Math.random() > 0.95) {
-        yForce = 25;
-      }
-      Matter.Body.setVelocity(f, {
-        x: f.velocity.x + (Math.random() - 0.5) * 4,
-        y: f.velocity.y - yForce
-      });
+      if (Math.random() > 0.95) yForce = 25;
+      Matter.Body.setVelocity(f, { x: f.velocity.x + (Math.random() - 0.5) * 4, y: f.velocity.y - yForce });
       Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random() - 0.5) * 0.4);
     });
-  } else {
-    document.body.style.transform = "none";
-  }
+  } else { document.body.style.transform = "none"; }
 }
 draw();
 </script>
