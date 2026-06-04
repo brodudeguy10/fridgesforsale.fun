@@ -172,6 +172,20 @@
       z-index: 10001;
       pointer-events: none;
     }
+
+    /* ---- NEW: Bass red flash overlay ---- */
+    #musicFlash {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(255,0,0,0.15); opacity: 0; z-index: 9999990;
+      pointer-events: none; transition: opacity 0.1s ease-out;
+    }
+
+    /* ---- NEW: BSOD overlay ---- */
+    #bsodOverlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background-size: cover; background-position: center;
+      z-index: 100000000; cursor: none;
+    }
   </style>
 </head>
 <body>
@@ -193,6 +207,8 @@
 <canvas id="paintCanvas"></canvas>
 
 <div id="guyPrompt">[click me]</div>
+<div id="musicFlash"></div>          <!-- NEW: bass red flash -->
+<div id="bsodOverlay"></div>         <!-- NEW: BSOD screen -->
 
 <div id="header">
   <img src="cooltext509446167575809.gif">
@@ -205,7 +221,10 @@
   <div id="shopMenu">
     <b>SHOP</b><br><br>
     Autoclicker (50F)<br>
-    <button onclick="buyAutoclicker()">Buy</button>
+    <button onclick="buyAutoclicker()">Buy</button><br><br>
+    <!-- NEW: Autoclicker II -->
+    Autoclicker II (1000F)<br>
+    <button id="buyAutoclicker2" onclick="buyAutoclicker2()">Buy</button>
   </div>
 </div>
 
@@ -267,6 +286,18 @@
 })();
 
 /* =========================
+   NEW: BSOD CACHE‑BUSTING
+========================= */
+(function() {
+  const bsodDiv = document.getElementById('bsodOverlay');
+  const img = new Image();
+  img.onload = function() {
+    bsodDiv.style.backgroundImage = `url(${img.src})`;
+  };
+  img.src = 'BSOD.png?t=' + Date.now();
+})();
+
+/* =========================
    GLOBAL AUDIO CONTEXT
 ========================= */
 let audioCtx = null;
@@ -284,6 +315,8 @@ function ensureAudioContext() {
 ========================= */
 let fridgesOwned = 0;
 const spawnedFridges = [];
+/* NEW: autoclicker II flag */
+let autoclicker2Active = false;
 
 function updateCounter() {
   document.getElementById("fridgeCounter").innerText = `Fridges: ${fridgesOwned}`;
@@ -303,6 +336,26 @@ function buyAutoclicker() {
     setInterval(spawnFridge, 1000);
   } else {
     alert("NOT ENOUGH FRIDGES. YOU NEED 50.");
+  }
+}
+
+/* NEW: buyAutoclicker2 function */
+function buyAutoclicker2() {
+  if (fridgesOwned >= 1000 && !autoclicker2Active) {
+    // Remove up to 1000 physical fridges
+    const count = Math.min(1000, spawnedFridges.length);
+    const removed = spawnedFridges.splice(-count);
+    removed.forEach(f => Matter.World.remove(world, f));
+    fridgesOwned -= 1000;
+    updateCounter();
+    autoclicker2Active = true;
+    setInterval(spawnFridge, 500);
+    document.getElementById('buyAutoclicker2').disabled = true;
+    document.getElementById('buyAutoclicker2').innerText = 'Bought';
+  } else if (autoclicker2Active) {
+    alert("Already purchased!");
+  } else {
+    alert("NOT ENOUGH FRIDGES. YOU NEED 1000.");
   }
 }
 
@@ -819,132 +872,139 @@ function animateBlood(timestamp) {
 }
 
 /* =========================
-   RAGDOLL GUY (PROFESSIONAL, TIGHT, BLEEDING)
+   RAGDOLL GUY (NOW WITH DEATH/RESURRECTION, BLEEDING, MUSIC REACT)
+   =========================
+   This replaces the old static ragdoll. The guy now:
+   - Can be killed after enough wall impacts
+   - Explodes into blood and respawns after 3 seconds
+   - Bleeds on every hard collision
+   - Bounces to music
 ========================= */
-const ragdollParts = [];
+let ragdollParts = [];
+let ragdollConstraints = [];
 let guyActivated = false;
+let ragdollDamage = 0;
+const RAGDOLL_DAMAGE_THRESHOLD = 10;
+let respawnTimer = null;
 
-const baseX = window.innerWidth - 80, baseY = window.innerHeight - 180;
+const BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
 
-// Solid, clean body parts
-const head = Bodies.circle(baseX, baseY - 62, 10, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const torso = Bodies.rectangle(baseX, baseY - 28, 14, 30, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#3366cc', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const leftUpperArm = Bodies.rectangle(baseX - 15, baseY - 42, 20, 6, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const rightUpperArm = Bodies.rectangle(baseX + 15, baseY - 42, 20, 6, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const leftLowerArm = Bodies.rectangle(baseX - 15, baseY - 20, 18, 5, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const rightLowerArm = Bodies.rectangle(baseX + 15, baseY - 20, 18, 5, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const leftUpperLeg = Bodies.rectangle(baseX - 5, baseY + 10, 22, 7, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const rightUpperLeg = Bodies.rectangle(baseX + 5, baseY + 10, 22, 7, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const leftLowerLeg = Bodies.rectangle(baseX - 5, baseY + 34, 22, 6, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-});
-const rightLowerLeg = Bodies.rectangle(baseX + 5, baseY + 34, 22, 6, {
-  isStatic: true,
-  collisionFilter: { group: -1 },
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
-});
+/* Builds a fresh static guy (used on spawn and respawn) */
+function buildGuy() {
+  const head = Bodies.circle(BASE_X, BASE_Y - 62, 10, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const torso = Bodies.rectangle(BASE_X, BASE_Y - 28, 14, 30, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#3366cc', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const leftUpperArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 42, 20, 6, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const rightUpperArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 42, 20, 6, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const leftLowerArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 20, 18, 5, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const rightLowerArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 20, 18, 5, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const leftUpperLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 10, 22, 7, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const rightUpperLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 10, 22, 7, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const leftLowerLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 34, 22, 6, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  const rightLowerLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 34, 22, 6, {
+    isStatic: true, collisionFilter: { group: -1 }, render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
+  });
+  return [head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg];
+}
 
-ragdollParts.push(head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg);
-World.add(world, ragdollParts);
+function spawnGuy() {
+  ragdollParts = buildGuy();
+  World.add(world, ragdollParts);
+  guyActivated = false;
+  ragdollDamage = 0;
+  document.getElementById('guyPrompt').style.display = 'block';
+}
 
-const ragdollConstraints = [];
+/* Initial spawn */
+spawnGuy();
+
+/* Called when ragdoll takes enough damage */
+function killRagdoll() {
+  if (!guyActivated) return;
+  guyActivated = false; // freeze further damage
+  // Explode limbs
+  ragdollParts.forEach(p => {
+    Matter.Body.setVelocity(p, { x: (Math.random()-0.5)*15, y: -Math.random()*10 - 5 });
+    Matter.Body.setAngularVelocity(p, (Math.random()-0.5)*2);
+  });
+  // Remove constraints
+  ragdollConstraints.forEach(c => Matter.World.remove(world, c));
+  ragdollConstraints = [];
+  // Big blood burst at torso position
+  const center = ragdollParts[1].position;
+  for (let i=0; i<80; i++) {
+    ragdollBloodParticles.push({
+      x: center.x, y: center.y,
+      vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12 - 3,
+      life: 30 + Math.random()*20,
+      size: 3 + Math.random()*5,
+      color: 'rgba(140,0,0,0.9)'
+    });
+  }
+  // After 3 seconds, remove body parts and respawn
+  clearTimeout(respawnTimer);
+  respawnTimer = setTimeout(() => {
+    ragdollParts.forEach(p => Matter.World.remove(world, p));
+    spawnGuy();
+  }, 3000);
+}
+
+/* Activation on click */
+render.canvas.addEventListener('mousedown', (e) => {
+  if (guyActivated || ragdollParts.length === 0) return;
+  const pos = { x: e.clientX, y: e.clientY };
+  if (Matter.Query.point(ragdollParts, pos).length > 0) {
+    activateGuy();
+  }
+});
 
 function activateGuy() {
   if (guyActivated) return;
   guyActivated = true;
+  ragdollParts.forEach(p => Matter.Body.setStatic(p, false));
 
-  // Make dynamic
-  ragdollParts.forEach(part => Matter.Body.setStatic(part, false));
-
-  // Invisible, super tight constraints – perfectly holds shape
   const stiff = 0.9, damp = 0.2;
   const cOpts = (a, b, pa, pb) => Constraint.create({
-    bodyA: a, bodyB: b,
-    pointA: pa, pointB: pb,
-    stiffness: stiff, damping: damp,
-    render: { visible: false }
+    bodyA: a, bodyB: b, pointA: pa, pointB: pb, stiffness: stiff, damping: damp, render: { visible: false }
   });
-
-  ragdollConstraints.push(
-    cOpts(head, torso, { x: 0, y: 10 }, { x: 0, y: -15 }),
-    cOpts(torso, leftUpperArm, { x: -7, y: -13 }, { x: 10, y: 0 }),
-    cOpts(torso, rightUpperArm, { x: 7, y: -13 }, { x: -10, y: 0 }),
-    cOpts(leftUpperArm, leftLowerArm, { x: -10, y: 0 }, { x: 9, y: 0 }),
-    cOpts(rightUpperArm, rightLowerArm, { x: 10, y: 0 }, { x: -9, y: 0 }),
-    cOpts(torso, leftUpperLeg, { x: -5, y: 15 }, { x: 0, y: -11 }),
-    cOpts(torso, rightUpperLeg, { x: 5, y: 15 }, { x: 0, y: -11 }),
-    cOpts(leftUpperLeg, leftLowerLeg, { x: 0, y: 11 }, { x: 0, y: -11 }),
-    cOpts(rightUpperLeg, rightLowerLeg, { x: 0, y: 11 }, { x: 0, y: -11 })
-  );
+  ragdollConstraints = [
+    cOpts(ragdollParts[0], ragdollParts[1], { x: 0, y: 10 }, { x: 0, y: -15 }),
+    cOpts(ragdollParts[1], ragdollParts[2], { x: -7, y: -13 }, { x: 10, y: 0 }),
+    cOpts(ragdollParts[1], ragdollParts[3], { x: 7, y: -13 }, { x: -10, y: 0 }),
+    cOpts(ragdollParts[2], ragdollParts[4], { x: -10, y: 0 }, { x: 9, y: 0 }),
+    cOpts(ragdollParts[3], ragdollParts[5], { x: 10, y: 0 }, { x: -9, y: 0 }),
+    cOpts(ragdollParts[1], ragdollParts[6], { x: -5, y: 15 }, { x: 0, y: -11 }),
+    cOpts(ragdollParts[1], ragdollParts[7], { x: 5, y: 15 }, { x: 0, y: -11 }),
+    cOpts(ragdollParts[6], ragdollParts[8], { x: 0, y: 11 }, { x: 0, y: -11 }),
+    cOpts(ragdollParts[7], ragdollParts[9], { x: 0, y: 11 }, { x: 0, y: -11 })
+  ];
   World.add(world, ragdollConstraints);
-
-  // Hide prompt
   document.getElementById('guyPrompt').style.display = 'none';
 }
 
-// Click to activate
-render.canvas.addEventListener('mousedown', (e) => {
-  if (guyActivated) return;
-  const pos = { x: e.clientX, y: e.clientY };
-  if (Matter.Query.point(ragdollParts, pos).length > 0) activateGuy();
-});
-
 /* =========================
-   RAGDOLL BLEEDING (dynamic, scaled down)
+   RAGDOLL BLEEDING & DAMAGE (with death check)
 ========================= */
 const ragdollBloodCanvas = document.getElementById('ragdollBloodCanvas');
 const ragdollCtx = ragdollBloodCanvas.getContext('2d');
 let ragdollBloodParticles = [];
-
-function spawnRagdollBlood(x, y, intensity = 1) {
-  const count = Math.floor(20 * intensity);
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 4;
-    ragdollBloodParticles.push({
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 5 + Math.random() * 10,
-      size: 0.5 + Math.random() * 2,
-      color: `rgba(80,0,0,${0.6 + Math.random() * 0.4})`
-    });
-  }
-}
 
 Events.on(engine, 'collisionStart', (event) => {
   if (!guyActivated) return;
@@ -960,8 +1020,20 @@ Events.on(engine, 'collisionStart', (event) => {
     };
     const speed = Math.sqrt(relVel.x ** 2 + relVel.y ** 2);
     if (speed > 2) {
+      ragdollDamage++;
       const contact = pair.collision.supports ? pair.collision.supports[0] : ragdollPart.position;
-      spawnRagdollBlood(contact.x, contact.y, Math.min(speed / 5, 1));
+      for (let i=0; i<12; i++) {
+        ragdollBloodParticles.push({
+          x: contact.x, y: contact.y,
+          vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8 - 2,
+          life: 15 + Math.random()*10,
+          size: 2 + Math.random()*3,
+          color: 'rgba(140,0,0,0.9)'
+        });
+      }
+      if (ragdollDamage >= RAGDOLL_DAMAGE_THRESHOLD) {
+        killRagdoll();
+      }
     }
   }
 });
@@ -1078,7 +1150,107 @@ function triggerGundham() {
 }
 
 /* =========================
-   VISUALIZER + RAGDOLL BLOOD DRAWING
+   NEW: BSOD RANDOM EVENT + DEBUG TRIGGER
+   =========================
+   - Every 10 seconds, 0.5% chance to queue a BSOD.
+   - The next click or keypress triggers it.
+   - Forces fullscreen, hides everything else, shows BSOD.png.
+   - After 5 seconds, restores the page.
+   - Debug: type "BSOD" at any time to activate instantly.
+========================= */
+let bsodQueued = false;
+let bsodActive = false;
+
+function triggerBSOD() {
+  if (bsodActive) return;
+  bsodActive = true;
+  // Attempt fullscreen (requires user gesture – we're inside one)
+  try {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      document.documentElement.webkitRequestFullscreen();
+    }
+  } catch(e) {}
+
+  // Hide everything except BSOD overlay
+  const allChildren = document.body.children;
+  for (let i = 0; i < allChildren.length; i++) {
+    if (allChildren[i].id !== 'bsodOverlay') {
+      allChildren[i].style.display = 'none';
+    }
+  }
+  document.getElementById('bsodOverlay').style.display = 'block';
+
+  // Pause music and physics
+  if (audio) audio.pause();
+  Runner.stop(engine);
+
+  // Restore after 5 seconds
+  setTimeout(() => {
+    document.getElementById('bsodOverlay').style.display = 'none';
+    for (let i = 0; i < allChildren.length; i++) {
+      allChildren[i].style.display = '';
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+    Runner.run(engine);
+    bsodActive = false;
+    bsodQueued = false;
+  }, 5000);
+}
+
+/* Random queue every 10 seconds (0.5% chance) */
+setInterval(() => {
+  if (!bsodActive && !isDead && Math.random() < 0.005) {
+    bsodQueued = true;
+  }
+}, 10000);
+
+/* Catch next user interaction to trigger BSOD */
+document.addEventListener('click', (e) => {
+  if (bsodQueued && !bsodActive) {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerBSOD();
+  }
+}, true);
+
+document.addEventListener('keydown', (e) => {
+  if (bsodQueued && !bsodActive) {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerBSOD();
+  }
+}, true);
+
+/* Debug trigger: type "BSOD" */
+let bsodSequence = 0;
+document.addEventListener('keydown', (e) => {
+  const keys = ['b','s','o','d'];
+  if (e.key.toLowerCase() === keys[bsodSequence]) {
+    bsodSequence++;
+    if (bsodSequence === keys.length) {
+      bsodSequence = 0;
+      bsodQueued = false; // cancel any pending queue
+      triggerBSOD();
+    }
+  } else {
+    bsodSequence = (e.key.toLowerCase() === 'b') ? 1 : 0;
+  }
+});
+
+/* =========================
+   NEW: MUSIC FLASH (red overlay)
+   =========================
+   A semi‑transparent red flash synced to bass.
+   The element is already in HTML (#musicFlash).
+========================= */
+const musicFlash = document.getElementById('musicFlash');
+
+/* =========================
+   VISUALIZER + RAGDOLL BLOOD DRAWING + RAGDOLL MUSIC REACT + FLASH
 ========================= */
 const vizCanvas = document.getElementById("viz");
 const vizCtx = vizCanvas.getContext("2d");
@@ -1130,6 +1302,20 @@ function drawVisualizer() {
       });
       Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random() - 0.5) * 0.4);
     });
+    /* NEW: Ragdoll also bounces to music */
+    if (guyActivated) {
+      ragdollParts.forEach(part => {
+        const yForce = (Math.random() * 3 + 1);
+        Matter.Body.setVelocity(part, {
+          x: part.velocity.x + (Math.random() - 0.5) * 4,
+          y: part.velocity.y - yForce
+        });
+        Matter.Body.setAngularVelocity(part, part.angularVelocity + (Math.random() - 0.5) * 0.4);
+      });
+    }
+    /* NEW: red flash on bass */
+    musicFlash.style.opacity = '1';
+    setTimeout(() => { musicFlash.style.opacity = '0'; }, 150);
   } else if (!isDead) {
     document.body.style.transform = "none";
   }
