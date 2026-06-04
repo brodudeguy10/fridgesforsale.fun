@@ -30,7 +30,7 @@
       to { transform: rotate(360deg); }
     }
 
-    /* ===== RETRO 80s KEYBOARD ECONOMY UI ===== */
+    /* ===== BAREBONES ECONOMY PANEL – NO BUTTON STYLING ===== */
     #economyBox {
       position: fixed;
       top: 130px;
@@ -38,71 +38,31 @@
       z-index: 9999;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 5px;
       width: 160px;
-      font-family: 'Courier New', monospace;
-    }
-
-    .bareBtn {
-      background: #555;
-      color: white;
-      border: 4px solid #000;
-      border-top-color: #888;
-      border-left-color: #888;
-      border-right-color: #333;
-      border-bottom-color: #333;
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
-      font-weight: bold;
-      letter-spacing: 1px;
-      padding: 8px 5px;
-      cursor: pointer;
-      text-transform: uppercase;
-      box-shadow: inset -2px -2px 0 #222, inset 2px 2px 0 #999;
-    }
-    .bareBtn:active {
-      background: #3a3a3a;
-      border-top-color: #333;
-      border-left-color: #333;
-      border-right-color: #888;
-      border-bottom-color: #888;
-      box-shadow: inset 2px 2px 0 #222, inset -2px -2px 0 #999;
+      font-family: monospace;
     }
 
     #fridgeCounter {
-      background: #444;
-      color: #0f0;
-      font-family: 'Courier New', monospace;
-      font-size: 16px;
-      font-weight: bold;
-      padding: 8px;
-      border: 4px solid #000;
+      background: #ddd;
+      color: black;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 5px;
       text-align: center;
-      text-shadow: 0 0 6px #0f0;
     }
 
     #shopMenu {
       display: none;
-      background: #666;
-      border: 4px solid #000;
-      padding: 10px;
-      font-family: 'Courier New', monospace;
+      background: #ccc;
+      border: 1px solid #999;
+      padding: 8px;
+      font-family: monospace;
       font-size: 12px;
-      color: white;
-      margin-top: -4px;
+      color: black;
     }
-    #shopMenu button {
-      margin-top: 5px;
-      background: #444;
-      border: 3px outset #888;
-      color: white;
-      font-family: 'Courier New', monospace;
-      font-weight: bold;
-      padding: 4px 8px;
-    }
-    #shopMenu button:active { border-style: inset; }
 
-    /* ===== RIGHT SIDE UI ===== */
+    /* right side UI unchanged */
     #rightUI {
       position: fixed;
       top: 110px;
@@ -145,7 +105,6 @@
       box-shadow: 0px 0px 15px rgba(255,255,0,0.5);
     }
 
-    /* ===== MUSIC PLAYER ===== */
     #musicPlayer {
       position: fixed;
       bottom: 10px; left: 10px; z-index: 10000; width: 340px;
@@ -183,7 +142,8 @@
     }
     #screenCrack {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background-size: cover; z-index: 9999999; pointer-events: none; visibility: hidden;
+      background-size: cover;
+      z-index: 9999999; pointer-events: none; visibility: hidden;
     }
     #deathFade {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -217,12 +177,13 @@
 </div>
 
 <div id="economyBox">
-  <button class="bareBtn" onclick="spawnFridge()">SPAWN FRIDGE</button>
-  <div id="fridgeCounter">FRIDGES: 0</div>
-  <button class="bareBtn" onclick="toggleShop()">FRIDGE SHOP</button>
+  <button onclick="spawnFridge()">spawn fridge</button>
+  <div id="fridgeCounter">Fridges: 0</div>
+  <button onclick="toggleShop()">fridge shop</button>
   <div id="shopMenu">
-    <b>AUTOCLICKER (50F)</b><br>
-    <button onclick="buyAutoclicker()">BUY</button>
+    <b>SHOP</b><br><br>
+    Autoclicker (50F)<br>
+    <button onclick="buyAutoclicker()">Buy</button>
   </div>
 </div>
 
@@ -272,7 +233,19 @@
 
 <script>
 /* =========================
-   GLOBAL AUDIO CONTEXT SETUP
+   SCREEN CRACK CACHE‑BUSTING
+========================= */
+(function() {
+  const crackDiv = document.getElementById('screenCrack');
+  const img = new Image();
+  img.onload = function() {
+    crackDiv.style.backgroundImage = `url(${img.src})`;
+  };
+  img.src = 'screencrack.png?t=' + Date.now();
+})();
+
+/* =========================
+   GLOBAL AUDIO CONTEXT
 ========================= */
 let audioCtx = null;
 function ensureAudioContext() {
@@ -285,13 +258,13 @@ function ensureAudioContext() {
 }
 
 /* =========================
-   ECONOMY & AUTO-CLICKER
+   ECONOMY
 ========================= */
 let fridgesOwned = 0;
 const spawnedFridges = [];
 
 function updateCounter() {
-  document.getElementById("fridgeCounter").innerText = `FRIDGES: ${fridgesOwned}`;
+  document.getElementById("fridgeCounter").innerText = `Fridges: ${fridgesOwned}`;
 }
 
 function toggleShop() {
@@ -301,11 +274,8 @@ function toggleShop() {
 
 function buyAutoclicker() {
   if (fridgesOwned >= 50) {
-    // Remove 50 physical fridges
     const removed = spawnedFridges.splice(-50);
-    removed.forEach(fridge => {
-      Matter.World.remove(world, fridge);
-    });
+    removed.forEach(fridge => Matter.World.remove(world, fridge));
     fridgesOwned -= 50;
     updateCounter();
     setInterval(spawnFridge, 1000);
@@ -373,7 +343,7 @@ window.addEventListener('resize', () => {
 });
 
 /* =========================
-   MUSIC SYSTEM
+   MUSIC
 ========================= */
 let analyser, source, masterGain, biquadFilter;
 const audio = document.getElementById("audio");
@@ -384,7 +354,7 @@ function initAudio() {
     ensureAudioContext();
     if (!audioCtx) return;
   }
-  if (source) return; // already connected
+  if (source) return;
   source = audioCtx.createMediaElementSource(audio);
   analyser = audioCtx.createAnalyser();
   masterGain = audioCtx.createGain();
@@ -432,7 +402,7 @@ function prevSong() {
 loadSong(0);
 
 /* =========================
-   HEARTBEAT & DEATH SOUNDS
+   HEARTBEAT & DEATH BREATHING
 ========================= */
 function playHeartbeat() {
   if (!audioCtx) return;
@@ -440,6 +410,7 @@ function playHeartbeat() {
   let interval = 0.8;
   for (let i = 0; i < 12; i++) {
     const t = beatTime;
+    // Lub
     const osc1 = audioCtx.createOscillator();
     const gain1 = audioCtx.createGain();
     osc1.type = "sine";
@@ -452,7 +423,7 @@ function playHeartbeat() {
     gain1.connect(audioCtx.destination);
     osc1.start(t);
     osc1.stop(t + 0.5);
-
+    // Dub
     const osc2 = audioCtx.createOscillator();
     const gain2 = audioCtx.createGain();
     osc2.type = "triangle";
@@ -472,24 +443,66 @@ function playHeartbeat() {
 
 function playDeathBreathing() {
   if (!audioCtx) return;
-  const t = audioCtx.currentTime;
-  for (let i = 0; i < 5; i++) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(40 + Math.random()*20, t + i * 1.5);
-    gain.gain.setValueAtTime(0, t + i * 1.5);
-    gain.gain.linearRampToValueAtTime(0.15, t + i * 1.5 + 0.1);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 1.5 + 1.2);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(t + i * 1.5);
-    osc.stop(t + i * 1.5 + 1.5);
-  }
+  const now = audioCtx.currentTime;
+  const masterBreathGain = audioCtx.createGain();
+  masterBreathGain.gain.setValueAtTime(0, now);
+  masterBreathGain.gain.linearRampToValueAtTime(0.12, now + 2);
+  masterBreathGain.gain.linearRampToValueAtTime(0.12, now + 8);
+  masterBreathGain.gain.exponentialRampToValueAtTime(0.001, now + 12);
+  masterBreathGain.connect(audioCtx.destination);
+
+  const bufferSize = audioCtx.sampleRate * 2;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  noise.loop = true;
+
+  const bandPass = audioCtx.createBiquadFilter();
+  bandPass.type = "bandpass";
+  bandPass.frequency.value = 400;
+  bandPass.Q.value = 0.8;
+
+  const bandPass2 = audioCtx.createBiquadFilter();
+  bandPass2.type = "bandpass";
+  bandPass2.frequency.value = 600;
+  bandPass2.Q.value = 1.2;
+
+  const gainNoise = audioCtx.createGain();
+  gainNoise.gain.value = 0.8;
+  noise.connect(bandPass);
+  bandPass.connect(gainNoise);
+  gainNoise.connect(masterBreathGain);
+
+  const noise2 = audioCtx.createBufferSource();
+  noise2.buffer = noiseBuffer;
+  noise2.loop = true;
+  const gainNoise2 = audioCtx.createGain();
+  gainNoise2.gain.value = 0.6;
+  noise2.connect(bandPass2);
+  bandPass2.connect(gainNoise2);
+  gainNoise2.connect(masterBreathGain);
+
+  const lfo = audioCtx.createOscillator();
+  lfo.frequency.value = 0.3;
+  lfo.type = 'sine';
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 0.5;
+  lfo.connect(lfoGain);
+  lfoGain.connect(gainNoise.gain);
+
+  noise.start(now);
+  noise2.start(now);
+  lfo.start(now);
+  noise.stop(now + 14);
+  noise2.stop(now + 14);
+  lfo.stop(now + 14);
 }
 
 /* =========================
-   RUSSIAN ROULETTE (DEATHMAX)
+   RUSSIAN ROULETTE
 ========================= */
 let isDead = false;
 let survivalStreak = 0;
@@ -556,11 +569,11 @@ function playRoulette() {
       document.getElementById("deathBlur").style.opacity = "1";
       document.getElementById("deathFade").style.opacity = "1";
 
+      document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
+
       const bloodCanvas = document.getElementById("bloodCanvas");
       bloodCanvas.style.display = "block";
-      drawBloodSplatter(bloodCanvas);
-
-      document.body.style.filter = "grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)";
+      startBloodAnimation(bloodCanvas);
 
       if (audioCtx && !audio.paused && analyser) {
         biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value, audioCtx.currentTime);
@@ -593,7 +606,6 @@ function playRoulette() {
       playHeartbeat();
       setTimeout(() => { playDeathBreathing(); }, 4000);
     }, 150);
-
   } else {
     survivalStreak++;
     updateStreak();
@@ -605,66 +617,80 @@ function playRoulette() {
 window.onload = () => { reloadRevolver(); };
 
 /* =========================
-   SCREEN CRACK GENERATOR
+   REALISTIC BLOOD ANIMATION
 ========================= */
-function generateCrackTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = 'rgba(200,200,200,0.9)';
-  ctx.lineWidth = 4;
-  ctx.shadowColor = 'black';
-  ctx.shadowBlur = 5;
-  const cx = canvas.width/2, cy = canvas.height/2;
-  for (let i = 0; i < 30; i++) {
-    ctx.beginPath();
-    const angle = Math.random() * Math.PI * 2;
-    const length = 100 + Math.random() * 300;
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
-    ctx.stroke();
-  }
-  for (let i = 0; i < 20; i++) {
-    ctx.beginPath();
-    const startX = cx + (Math.random() - 0.5) * 400;
-    const startY = cy + (Math.random() - 0.5) * 400;
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(startX + (Math.random() - 0.5) * 200, startY + (Math.random() - 0.5) * 200);
-    ctx.stroke();
-  }
-  return canvas.toDataURL();
-}
-document.getElementById("screenCrack").style.backgroundImage = `url(${generateCrackTexture()})`;
+let bloodAnimationId = null;
+const bloodDrops = [];
 
-/* =========================
-   BLOOD SPLATTER
-========================= */
-function drawBloodSplatter(canvas) {
+function startBloodAnimation(canvas) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#8B0000';
-  for (let i = 0; i < 80; i++) {
+
+  bloodDrops.length = 0;
+  for (let i = 0; i < 40; i++) {
+    bloodDrops.push({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * 200,
+      speed: 0.5 + Math.random() * 2,
+      size: 2 + Math.random() * 8,
+      opacity: 0.5 + Math.random() * 0.5,
+      trail: []
+    });
+  }
+
+  ctx.fillStyle = '#4a0000';
+  for (let i = 0; i < 150; i++) {
     ctx.beginPath();
-    ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 2 + Math.random() * 30, 0, Math.PI*2);
+    ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1 + Math.random() * 25, 0, Math.PI*2);
     ctx.fill();
   }
-  ctx.fillStyle = '#4A0000';
-  for (let i = 0; i < 20; i++) {
-    ctx.beginPath();
-    const x = Math.random() * canvas.width;
-    const y = canvas.height * 0.2 + Math.random() * canvas.height * 0.6;
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + (Math.random()-0.5)*20, y + 50 + Math.random()*150);
-    ctx.strokeStyle = '#600000';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+
+  function animate() {
+    ctx.fillStyle = 'rgba(0,0,0,0.02)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let drop of bloodDrops) {
+      drop.y += drop.speed;
+      if (drop.y > canvas.height + 50) {
+        drop.y = -20 - Math.random() * 200;
+        drop.x = Math.random() * canvas.width;
+        drop.trail = [];
+      }
+      drop.trail.push({x: drop.x, y: drop.y});
+      if (drop.trail.length > 15) drop.trail.shift();
+
+      if (drop.trail.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(drop.trail[0].x, drop.trail[0].y);
+        for (let i = 1; i < drop.trail.length; i++) ctx.lineTo(drop.trail[i].x, drop.trail[i].y);
+        ctx.strokeStyle = `rgba(139, 0, 0, ${drop.opacity * 0.8})`;
+        ctx.lineWidth = drop.size * 0.5;
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(139, 0, 0, ${drop.opacity})`;
+      ctx.fill();
+
+      drop.x += (Math.random() - 0.5) * 0.8;
+    }
+
+    ctx.fillStyle = 'rgba(80, 0, 0, 0.7)';
+    ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+
+    bloodAnimationId = requestAnimationFrame(animate);
   }
+  animate();
 }
 
+window.addEventListener('beforeunload', () => {
+  if (bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
+});
+
 /* =========================
-   PAINT TOOL (redesigned for fridge coexistence)
+   PAINT TOOL (COEXISTS WITH FRIDGE DRAGGING)
 ========================= */
 const pCanvas = document.getElementById("paintCanvas");
 const pCtx = pCanvas.getContext("2d");
@@ -682,7 +708,7 @@ window.addEventListener('resize', resizePaintCanvas);
 pCanvas.width = window.innerWidth;
 pCanvas.height = window.innerHeight;
 
-let drawingActive = false;  // true while a stroke is in progress
+let drawingActive = false;
 const drawToggle = document.getElementById("drawToggle");
 const colorPicker = document.getElementById("drawColor");
 const sizeSlider = document.getElementById("drawSize");
@@ -698,14 +724,11 @@ window.clearCanvas = () => {
   pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
 };
 
-// Listen on the Matter.js render canvas for paint events
 const renderCanvas = render.canvas;
 
 renderCanvas.addEventListener('mousedown', (e) => {
   if (!drawToggle.checked) return;
-  // If the mouse just grabbed a fridge, do NOT start drawing
   if (mouseConstraint.constraint.bodyB) return;
-
   drawingActive = true;
   pCtx.beginPath();
   pCtx.moveTo(e.clientX, e.clientY);
@@ -713,7 +736,6 @@ renderCanvas.addEventListener('mousedown', (e) => {
 
 renderCanvas.addEventListener('mousemove', (e) => {
   if (!drawingActive || !drawToggle.checked) return;
-  // Safety check: if somehow a fridge got grabbed mid-stroke, abort
   if (mouseConstraint.constraint.bodyB) {
     drawingActive = false;
     return;
@@ -731,12 +753,8 @@ renderCanvas.addEventListener('mousemove', (e) => {
   pCtx.stroke();
 });
 
-renderCanvas.addEventListener('mouseup', () => {
-  drawingActive = false;
-});
-renderCanvas.addEventListener('mouseout', () => {
-  drawingActive = false;
-});
+renderCanvas.addEventListener('mouseup', () => { drawingActive = false; });
+renderCanvas.addEventListener('mouseout', () => { drawingActive = false; });
 
 /* =========================
    COCKROACH JUMPSCARE
