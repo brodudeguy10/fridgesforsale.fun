@@ -158,7 +158,7 @@
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       z-index: 9999994; pointer-events: none; display: block;
     }
-    /* ===== NEW: DRIED BLOOD CANVAS ===== */
+    /* ===== DRIED BLOOD CANVAS ===== */
     #driedBloodCanvas {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       z-index: 9999993; pointer-events: none; display: block;
@@ -177,28 +177,28 @@
       z-index: 10001;
       pointer-events: none;
     }
-    /* ===== NEW: GUY NAME FLOATING LABEL ===== */
+    /* ===== GUY NAME FLOATING LABEL ===== */
     #guyName {
       position: fixed; top: 0; left: 0; color: white; font-family: monospace; font-size: 12px;
       text-shadow: 1px 1px 2px black; z-index: 10001; pointer-events: none; white-space: nowrap;
       display: block;
     }
 
-    /* ---- NEW: Bass red flash overlay ---- */
+    /* ---- Bass red flash overlay ---- */
     #musicFlash {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(255,0,0,0.15); opacity: 0; z-index: 9999990;
       pointer-events: none; transition: opacity 0.1s ease-out;
     }
 
-    /* ---- NEW: BSOD overlay ---- */
+    /* ---- BSOD overlay ---- */
     #bsodOverlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background-size: cover; background-position: center;
       z-index: 100000000; cursor: none;
     }
 
-    /* ===== NEW: AUTOPSY REPORT MODAL ===== */
+    /* ===== AUTOPSY REPORT MODAL ===== */
     #autopsyReport {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: 400px; background: rgba(10,10,10,0.95); border: 2px solid #555; padding: 20px;
@@ -210,19 +210,6 @@
     #autopsyReport .detail { color: #aaa; }
     #autopsyReport .limb { margin: 2px 0; }
     #autopsyReport .personal { margin-top: 12px; font-style: italic; color: #777; }
-
-    /* Fridge Cannon button */
-    #fridgeCannonBtn {
-      position: fixed; bottom: 10px; left: 370px; z-index: 10002;
-      background: #550000; color: white; border: 2px solid red; padding: 8px 12px;
-      font-family: monospace; font-size: 14px; font-weight: bold; cursor: pointer;
-    }
-    /* Explode Guy button */
-    #explodeGuyBtn {
-      position: fixed; bottom: 190px; right: 75px; z-index: 10002;
-      background: transparent; border: none; color: red; font-size: 18px; cursor: pointer;
-      display: block;
-    }
   </style>
 </head>
 <body>
@@ -239,17 +226,14 @@
 <div id="deathFade"></div>
 <canvas id="bloodCanvas"></canvas>
 <canvas id="ragdollBloodCanvas"></canvas>
-<canvas id="driedBloodCanvas"></canvas>  <!-- NEW -->
+<canvas id="driedBloodCanvas"></canvas>
 <canvas id="paintCanvas"></canvas>
 
 <div id="guyPrompt">[click me]</div>
-<div id="guyName"></div>                 <!-- NEW -->
+<div id="guyName"></div>
 <div id="musicFlash"></div>
 <div id="bsodOverlay"></div>
-<div id="autopsyReport"></div>           <!-- NEW -->
-
-<button id="fridgeCannonBtn" onclick="fireFridgeCannon()">FRIDGE CANNON</button>
-<button id="explodeGuyBtn" onclick="explodeGuy()">💀</button>
+<div id="autopsyReport"></div>
 
 <div id="header"><img src="cooltext509446167575809.gif"></div>
 
@@ -264,6 +248,7 @@
     Autoclicker II (1000F)<br>
     <button id="buyAutoclicker2" onclick="buyAutoclicker2()">Buy</button>
   </div>
+  <button onclick="fireFridgeCannon()">fridge cannon</button>
 </div>
 
 <div id="rightUI">
@@ -593,19 +578,19 @@ function animateBlood(timestamp) {
 }
 
 /* =========================
-   RAGDOLL GUY – FULLY EXTENDED
+   RAGDOLL GUY – FULLY EXTENDED (EXPLODE BUTTON REMOVED)
 ========================= */
 let ragdollParts = [];
 let ragdollConstraints = [];
 let guyActivated = false;
 let ragdollDamage = 0;
-const RAGDOLL_DAMAGE_THRESHOLD = 30;
+const RAGDOLL_DAMAGE_THRESHOLD = 50;
 let respawnTimer = null;
-let activationStartTime = null;        // NEW
-let currentGuyName = '';               // NEW
-let currentGuyColors = { skin: '#ffccaa', shirt: '#3366cc', pants: '#333' }; // NEW
-const partNames = ['Head','Torso','Left Upper Arm','Right Upper Arm','Left Lower Arm','Right Lower Arm','Left Upper Leg','Right Upper Leg','Left Lower Leg','Right Lower Leg']; // NEW
-let partDamageCounts = new Array(10).fill(0); // NEW
+let activationStartTime = null;
+let currentGuyName = '';
+let currentGuyColors = { skin: '#ffccaa', shirt: '#3366cc', pants: '#333' };
+const partNames = ['Head','Torso','Left Upper Arm','Right Upper Arm','Left Lower Arm','Right Lower Arm','Left Upper Leg','Right Upper Leg','Left Lower Leg','Right Lower Leg'];
+let partDamageCounts = new Array(10).fill(0);
 
 const BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
 const nameList = ['Frank','Blurst','Theodore','Rustbucket','Gregory','Mortimer','Bartholomew','Cletus','Jebediah','Hank','Lenny','Stumpy'];
@@ -644,12 +629,11 @@ function spawnGuy() {
   World.add(world, ragdollParts);
   guyActivated = false;
   ragdollDamage = 0;
-  partDamageCounts = new Array(10).fill(0); // NEW
+  partDamageCounts = new Array(10).fill(0);
   document.getElementById('guyPrompt').style.display = 'block';
-  document.getElementById('explodeGuyBtn').style.display = 'block';
-  document.getElementById('guyName').style.display = 'block';       // NEW
-  document.getElementById('guyName').textContent = currentGuyName;  // NEW
-  updateNamePosition();                                             // NEW
+  document.getElementById('guyName').style.display = 'block';
+  document.getElementById('guyName').textContent = currentGuyName;
+  updateNamePosition();
 }
 
 spawnGuy();
@@ -682,9 +666,8 @@ function killRagdoll() {
       color: 'rgba(140,0,0,0.9)'
     });
   }
-  document.getElementById('explodeGuyBtn').style.display = 'none';
-  document.getElementById('guyName').style.display = 'none';       // NEW
-  showAutopsyReport();                                             // NEW
+  document.getElementById('guyName').style.display = 'none';
+  showAutopsyReport();
   clearTimeout(respawnTimer);
   respawnTimer = setTimeout(() => {
     ragdollParts.forEach(p => Matter.World.remove(world, p));
@@ -727,7 +710,7 @@ render.canvas.addEventListener('mousedown', (e) => {
   if (guyActivated || ragdollParts.length === 0) return;
   const pos = { x: e.clientX, y: e.clientY };
   if (Matter.Query.point(ragdollParts, pos).length > 0) {
-    activationStartTime = Date.now();  // NEW
+    activationStartTime = Date.now();
     activateGuy();
   }
 });
@@ -753,31 +736,73 @@ function activateGuy() {
   document.getElementById('guyPrompt').style.display = 'none';
 }
 
-function explodeGuy() {
-  if (guyActivated) return;
-  if (ragdollParts.length > 0) {
-    activationStartTime = Date.now();  // NEW
-    activateGuy();
-    setTimeout(() => { killRagdoll(); }, 50);
-  }
-}
-
+/* =========================
+   HUMAN SCREAM OF PAIN (REPLACES LASER BLASTER)
+========================= */
 function playScream() {
   if (!audioCtx) ensureAudioContext();
   if (!audioCtx) return;
   const now = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(300 + Math.random() * 600, now);
-  osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(0.2, now + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start(now);
-  osc.stop(now + 0.5);
+
+  // Main vocal cord oscillator – gritty, raw
+  const osc1 = audioCtx.createOscillator();
+  const gain1 = audioCtx.createGain();
+  osc1.type = 'sawtooth';
+  osc1.frequency.setValueAtTime(400, now);
+  osc1.frequency.exponentialRampToValueAtTime(150, now + 0.8);
+  gain1.gain.setValueAtTime(0, now);
+  gain1.gain.linearRampToValueAtTime(1.2, now + 0.05);
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+  osc1.connect(gain1);
+
+  // Harsh distortion – adds throat‑ripping texture
+  const waveshaper = audioCtx.createWaveShaper();
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const x = (i - 128) / 128;
+    curve[i] = Math.tanh(x * 3);
+  }
+  waveshaper.curve = curve;
+  gain1.connect(waveshaper);
+
+  // Formant filter – mimics human vocal tract
+  const formantFilter = audioCtx.createBiquadFilter();
+  formantFilter.type = 'peaking';
+  formantFilter.frequency.setValueAtTime(900, now);
+  formantFilter.frequency.exponentialRampToValueAtTime(600, now + 0.6);
+  formantFilter.Q.setValueAtTime(6, now);
+  formantFilter.gain.setValueAtTime(25, now);
+  waveshaper.connect(formantFilter);
+
+  // Vibrato (rapid pitch wobble, pain tremor)
+  const vibrato = audioCtx.createOscillator();
+  const vibratoGain = audioCtx.createGain();
+  vibrato.frequency.setValueAtTime(18, now);
+  vibratoGain.gain.setValueAtTime(40, now);
+  vibrato.connect(vibratoGain);
+  vibratoGain.connect(osc1.frequency);
+  vibrato.start(now);
+  vibrato.stop(now + 1.2);
+
+  // Second layer – higher piercing overtone
+  const osc2 = audioCtx.createOscillator();
+  const gain2 = audioCtx.createGain();
+  osc2.type = 'square';
+  osc2.frequency.setValueAtTime(1200, now);
+  osc2.frequency.exponentialRampToValueAtTime(800, now + 0.5);
+  gain2.gain.setValueAtTime(0, now);
+  gain2.gain.linearRampToValueAtTime(0.4, now + 0.03);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+  osc2.connect(gain2);
+  gain2.connect(audioCtx.destination);
+
+  // Connect the main vocal chain to destination
+  formantFilter.connect(audioCtx.destination);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + 1.2);
+  osc2.stop(now + 0.9);
 }
 
 /* =========================
@@ -817,8 +842,8 @@ Events.on(engine, 'collisionStart', (event) => {
     const speed = Math.sqrt(relVel.x**2 + relVel.y**2);
     if (speed > 3.5) {
       ragdollDamage++;
-      const idx = ragdollParts.indexOf(ragdollPart);     // NEW
-      if (idx !== -1) partDamageCounts[idx]++;           // NEW
+      const idx = ragdollParts.indexOf(ragdollPart);
+      if (idx !== -1) partDamageCounts[idx]++;
 
       const contact = pair.collision.supports ? pair.collision.supports[0] : ragdollPart.position;
       for (let i=0; i<15; i++) {
@@ -996,18 +1021,16 @@ function drawVisualizer() {
     document.body.style.transform = "none";
   }
 
-  // NEW: update floating name
   if (guyActivated && ragdollParts.length > 0) {
     updateNamePosition();
   }
 
-  // Draw ragdoll blood & transfer to permanent dried stains
   ragdollCtx.clearRect(0,0,ragdollBloodCanvas.width,ragdollBloodCanvas.height);
   for (let i=ragdollBloodParticles.length-1; i>=0; i--) {
     const p = ragdollBloodParticles[i];
     p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95+0.03; p.life--;
     if (p.life <= 0) {
-      stampDriedBlood(p.x, p.y, p.size);   // NEW
+      stampDriedBlood(p.x, p.y, p.size);
       ragdollBloodParticles.splice(i,1);
       continue;
     }
@@ -1019,14 +1042,14 @@ drawVisualizer();
 window.addEventListener('resize', () => {
   ragdollBloodCanvas.width = window.innerWidth;
   ragdollBloodCanvas.height = window.innerHeight;
-  driedBloodCanvas.width = window.innerWidth;   // NEW
-  driedBloodCanvas.height = window.innerHeight;  // NEW
+  driedBloodCanvas.width = window.innerWidth;
+  driedBloodCanvas.height = window.innerHeight;
   resizePaintCanvas();
 });
 ragdollBloodCanvas.width = window.innerWidth;
 ragdollBloodCanvas.height = window.innerHeight;
-driedBloodCanvas.width = window.innerWidth;   // NEW
-driedBloodCanvas.height = window.innerHeight;  // NEW
+driedBloodCanvas.width = window.innerWidth;
+driedBloodCanvas.height = window.innerHeight;
 </script>
 </body>
 </html>
