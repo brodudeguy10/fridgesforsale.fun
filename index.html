@@ -614,9 +614,6 @@ window.onload = () => { reloadRevolver(); };
 function addTearDrop() {
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
-  // Add a special drip object to the main death blood system
-  // The main blood drips array is in scope of startBloodAnimation, but we need to access it globally.
-  // We'll use a global reference.
   if (typeof dripsGlobal !== 'undefined' && dripsGlobal) {
     dripsGlobal.push({
       sx: cx, sy: cy,
@@ -636,7 +633,7 @@ function addTearDrop() {
 let bloodAnimationId = null;
 let particles = [];
 let settledStains = [];
-let dripsGlobal = [];   // renamed to avoid conflict with ragdoll
+let dripsGlobal = [];
 let edgeDrips = [];
 let poolLevel = 0;
 
@@ -822,89 +819,96 @@ function animateBlood(timestamp) {
 }
 
 /* =========================
-   RAGDOLL GUY & RAGDOLL BLOOD
+   RAGDOLL GUY (PROFESSIONAL, TIGHT, BLEEDING)
 ========================= */
 const ragdollParts = [];
 let guyActivated = false;
 
-// Positioning at bottom right corner
-const guyBaseX = window.innerWidth - 100;
-const guyBaseY = window.innerHeight - 200;
+const baseX = window.innerWidth - 80, baseY = window.innerHeight - 180;
 
-// Create ragdoll parts (initially static)
-const head = Bodies.circle(guyBaseX, guyBaseY - 70, 12, {
+// Solid, clean body parts
+const head = Bodies.circle(baseX, baseY - 62, 10, {
   isStatic: true,
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const torso = Bodies.rectangle(guyBaseX, guyBaseY - 30, 20, 35, {
+const torso = Bodies.rectangle(baseX, baseY - 28, 14, 30, {
   isStatic: true,
-  render: { fillStyle: '#3366cc', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#3366cc', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const leftUpperArm = Bodies.rectangle(guyBaseX - 18, guyBaseY - 45, 25, 8, {
+const leftUpperArm = Bodies.rectangle(baseX - 15, baseY - 42, 20, 6, {
   isStatic: true,
-  angle: Math.PI/2,
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const rightUpperArm = Bodies.rectangle(guyBaseX + 18, guyBaseY - 45, 25, 8, {
+const rightUpperArm = Bodies.rectangle(baseX + 15, baseY - 42, 20, 6, {
   isStatic: true,
-  angle: -Math.PI/2,
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const leftLowerArm = Bodies.rectangle(guyBaseX - 18, guyBaseY - 15, 25, 7, {
+const leftLowerArm = Bodies.rectangle(baseX - 15, baseY - 20, 18, 5, {
   isStatic: true,
-  angle: Math.PI/2,
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const rightLowerArm = Bodies.rectangle(guyBaseX + 18, guyBaseY - 15, 25, 7, {
+const rightLowerArm = Bodies.rectangle(baseX + 15, baseY - 20, 18, 5, {
   isStatic: true,
-  angle: -Math.PI/2,
-  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#ffccaa', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const leftUpperLeg = Bodies.rectangle(guyBaseX - 6, guyBaseY + 10, 30, 9, {
+const leftUpperLeg = Bodies.rectangle(baseX - 5, baseY + 10, 22, 7, {
   isStatic: true,
-  angle: 0,
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const rightUpperLeg = Bodies.rectangle(guyBaseX + 6, guyBaseY + 10, 30, 9, {
+const rightUpperLeg = Bodies.rectangle(baseX + 5, baseY + 10, 22, 7, {
   isStatic: true,
-  angle: 0,
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const leftLowerLeg = Bodies.rectangle(guyBaseX - 6, guyBaseY + 35, 30, 8, {
+const leftLowerLeg = Bodies.rectangle(baseX - 5, baseY + 34, 22, 6, {
   isStatic: true,
-  angle: 0,
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
 });
-const rightLowerLeg = Bodies.rectangle(guyBaseX + 6, guyBaseY + 35, 30, 8, {
+const rightLowerLeg = Bodies.rectangle(baseX + 5, baseY + 34, 22, 6, {
   isStatic: true,
-  angle: 0,
-  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1 }
+  collisionFilter: { group: -1 },
+  render: { fillStyle: '#333', strokeStyle: '#000', lineWidth: 1.5 }
 });
 
 ragdollParts.push(head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg);
 World.add(world, ragdollParts);
 
-// Constraints will be added upon activation
 const ragdollConstraints = [];
 
 function activateGuy() {
   if (guyActivated) return;
   guyActivated = true;
 
-  // Remove static flag
+  // Make dynamic
   ragdollParts.forEach(part => Matter.Body.setStatic(part, false));
 
-  // Add constraints
+  // Invisible, super tight constraints – perfectly holds shape
+  const stiff = 0.9, damp = 0.2;
+  const cOpts = (a, b, pa, pb) => Constraint.create({
+    bodyA: a, bodyB: b,
+    pointA: pa, pointB: pb,
+    stiffness: stiff, damping: damp,
+    render: { visible: false }
+  });
+
   ragdollConstraints.push(
-    Constraint.create({ bodyA: head, bodyB: torso, pointA: { x: 0, y: 12 }, pointB: { x: 0, y: -17 }, stiffness: 0.6, damping: 0.1 }),
-    Constraint.create({ bodyA: torso, bodyB: leftUpperArm, pointA: { x: -10, y: -15 }, pointB: { x: 12, y: 0 }, stiffness: 0.5, damping: 0.1 }),
-    Constraint.create({ bodyA: torso, bodyB: rightUpperArm, pointA: { x: 10, y: -15 }, pointB: { x: -12, y: 0 }, stiffness: 0.5, damping: 0.1 }),
-    Constraint.create({ bodyA: leftUpperArm, bodyB: leftLowerArm, pointA: { x: -12, y: 0 }, pointB: { x: 12, y: 0 }, stiffness: 0.4, damping: 0.1 }),
-    Constraint.create({ bodyA: rightUpperArm, bodyB: rightLowerArm, pointA: { x: 12, y: 0 }, pointB: { x: -12, y: 0 }, stiffness: 0.4, damping: 0.1 }),
-    Constraint.create({ bodyA: torso, bodyB: leftUpperLeg, pointA: { x: -5, y: 17 }, pointB: { x: 0, y: -15 }, stiffness: 0.6, damping: 0.1 }),
-    Constraint.create({ bodyA: torso, bodyB: rightUpperLeg, pointA: { x: 5, y: 17 }, pointB: { x: 0, y: -15 }, stiffness: 0.6, damping: 0.1 }),
-    Constraint.create({ bodyA: leftUpperLeg, bodyB: leftLowerLeg, pointA: { x: 0, y: 15 }, pointB: { x: 0, y: -15 }, stiffness: 0.5, damping: 0.1 }),
-    Constraint.create({ bodyA: rightUpperLeg, bodyB: rightLowerLeg, pointA: { x: 0, y: 15 }, pointB: { x: 0, y: -15 }, stiffness: 0.5, damping: 0.1 })
+    cOpts(head, torso, { x: 0, y: 10 }, { x: 0, y: -15 }),
+    cOpts(torso, leftUpperArm, { x: -7, y: -13 }, { x: 10, y: 0 }),
+    cOpts(torso, rightUpperArm, { x: 7, y: -13 }, { x: -10, y: 0 }),
+    cOpts(leftUpperArm, leftLowerArm, { x: -10, y: 0 }, { x: 9, y: 0 }),
+    cOpts(rightUpperArm, rightLowerArm, { x: 10, y: 0 }, { x: -9, y: 0 }),
+    cOpts(torso, leftUpperLeg, { x: -5, y: 15 }, { x: 0, y: -11 }),
+    cOpts(torso, rightUpperLeg, { x: 5, y: 15 }, { x: 0, y: -11 }),
+    cOpts(leftUpperLeg, leftLowerLeg, { x: 0, y: 11 }, { x: 0, y: -11 }),
+    cOpts(rightUpperLeg, rightLowerLeg, { x: 0, y: 11 }, { x: 0, y: -11 })
   );
   World.add(world, ragdollConstraints);
 
@@ -912,18 +916,16 @@ function activateGuy() {
   document.getElementById('guyPrompt').style.display = 'none';
 }
 
-// Detect click on the guy (using mousedown on render canvas)
+// Click to activate
 render.canvas.addEventListener('mousedown', (e) => {
-  if (guyActivated) return; // already activated, can be dragged normally
-  const mousePos = { x: e.clientX, y: e.clientY };
-  const bodiesUnder = Matter.Query.point(ragdollParts, mousePos);
-  if (bodiesUnder.length > 0) {
-    activateGuy();
-    // Prevent immediate drag? The mouse constraint will grab the body under cursor, that's fine.
-  }
+  if (guyActivated) return;
+  const pos = { x: e.clientX, y: e.clientY };
+  if (Matter.Query.point(ragdollParts, pos).length > 0) activateGuy();
 });
 
-// Ragdoll bleeding
+/* =========================
+   RAGDOLL BLEEDING (dynamic, scaled down)
+========================= */
 const ragdollBloodCanvas = document.getElementById('ragdollBloodCanvas');
 const ragdollCtx = ragdollBloodCanvas.getContext('2d');
 let ragdollBloodParticles = [];
@@ -934,7 +936,7 @@ function spawnRagdollBlood(x, y, intensity = 1) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 1 + Math.random() * 4;
     ragdollBloodParticles.push({
-      x: x, y: y,
+      x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 5 + Math.random() * 10,
@@ -947,26 +949,22 @@ function spawnRagdollBlood(x, y, intensity = 1) {
 Events.on(engine, 'collisionStart', (event) => {
   if (!guyActivated) return;
   for (const pair of event.pairs) {
-    const bodyA = pair.bodyA;
-    const bodyB = pair.bodyB;
+    const bodyA = pair.bodyA, bodyB = pair.bodyB;
     const ragdollPart = ragdollParts.includes(bodyA) ? bodyA : (ragdollParts.includes(bodyB) ? bodyB : null);
     const otherBody = ragdollPart === bodyA ? bodyB : bodyA;
     if (!ragdollPart || !otherBody || otherBody.label !== 'wall') continue;
 
-    const relativeVelocity = {
-      x: (ragdollPart.velocity.x - (otherBody.isStatic ? 0 : otherBody.velocity.x)),
-      y: (ragdollPart.velocity.y - (otherBody.isStatic ? 0 : otherBody.velocity.y))
+    const relVel = {
+      x: ragdollPart.velocity.x - (otherBody.isStatic ? 0 : otherBody.velocity.x),
+      y: ragdollPart.velocity.y - (otherBody.isStatic ? 0 : otherBody.velocity.y)
     };
-    const speed = Math.sqrt(relativeVelocity.x ** 2 + relativeVelocity.y ** 2);
-    if (speed > 3) {
-      const contactPoint = pair.collision.supports[0] || ragdollPart.position;
-      spawnRagdollBlood(contactPoint.x, contactPoint.y, Math.min(speed / 5, 1));
+    const speed = Math.sqrt(relVel.x ** 2 + relVel.y ** 2);
+    if (speed > 2) {
+      const contact = pair.collision.supports ? pair.collision.supports[0] : ragdollPart.position;
+      spawnRagdollBlood(contact.x, contact.y, Math.min(speed / 5, 1));
     }
   }
 });
-
-// Draw ragdoll blood in the visualizer loop (we'll extend the existing draw function)
-const originalDraw = draw; // 'draw' is the visualizer's function, but we haven't defined it yet? It's defined later. We'll modify it after definition.
 
 /* =========================
    PAINT TOOL (COEXISTS WITH FRIDGE DRAGGING)
