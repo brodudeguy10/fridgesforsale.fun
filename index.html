@@ -1414,11 +1414,149 @@ document.addEventListener('keydown', (e) => {
 
   let popupStorm = null;
 
-  let fullscreenInterval = null;
-
-  let pointerLockInterval = null;
-
   let trapListeners = [];
+
+  let popupWindows = [];
+
+  const popupMessages = [
+
+    "the vendor sees you.",
+
+    "NO.",
+
+    "you do not get to leave.",
+
+    "there is no waking up.",
+
+    "i'm still here.",
+
+    "closing this won't help.",
+
+    "the maze remembers."
+
+  ];
+
+
+
+  function openSinglePopup(msg) {
+
+    try {
+
+      const w = window.open(
+
+        'about:blank', '_blank',
+
+        'width=400,height=300,left=' + (Math.random() * 300) + ',top=' + (Math.random() * 200)
+
+      );
+
+      if (w) {
+
+        w.document.write(
+
+          `<body style="margin:0;background:#000;color:#c00;font-family:monospace;text-align:center;padding:90px 20px;font-size:22px;"><h1>${msg}</h1></body>`
+
+        );
+
+        const bounceInterval = setInterval(() => {
+
+          if (w.closed) {
+
+            clearInterval(bounceInterval);
+
+            return;
+
+          }
+
+          try {
+
+            w.moveTo(100 + Math.random() * 500, 100 + Math.random() * 300);
+
+            w.resizeTo(300 + Math.random() * 200, 200 + Math.random() * 150);
+
+          } catch (e) {}
+
+        }, 800);
+
+        popupWindows.push({ window: w, bounceInterval });
+
+      }
+
+    } catch (e) {}
+
+  }
+
+
+
+  function openPopups(count) {
+
+    for (let i = 0; i < count; i++) {
+
+      openSinglePopup(popupMessages[Math.floor(Math.random() * popupMessages.length)]);
+
+    }
+
+  }
+
+
+
+  function killAllPopups() {
+
+    popupWindows.forEach(p => {
+
+      try { p.window.close(); } catch (e) {}
+
+      clearInterval(p.bounceInterval);
+
+    });
+
+    popupWindows = [];
+
+  }
+
+
+
+  function pruneClosedPopups() {
+
+    for (let i = popupWindows.length - 1; i >= 0; i--) {
+
+      if (popupWindows[i].window.closed) {
+
+        clearInterval(popupWindows[i].bounceInterval);
+
+        popupWindows.splice(i, 1);
+
+      }
+
+    }
+
+  }
+
+
+
+  function forceFullscreenAndPointerLock() {
+
+    try {
+
+      if (!document.fullscreenElement) {
+
+        document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+
+      }
+
+    } catch (e) {}
+
+    try {
+
+      if (document.pointerLockElement !== canvas) {
+
+        canvas.requestPointerLock();
+
+      }
+
+    } catch (e) {}
+
+  }
 
 
 
@@ -1428,7 +1566,7 @@ document.addEventListener('keydown', (e) => {
 
 
 
-    // beforeunload – shows browser dialog on close/reload
+    // Prevent closing/reloading
 
     const beforeUnloadHandler = (e) => {
 
@@ -1450,7 +1588,7 @@ document.addEventListener('keydown', (e) => {
 
 
 
-    // Block dangerous keyboard shortcuts
+    // Block dangerous keyboard shortcuts and immediately re‑lock
 
     const keydownHandler = (e) => {
 
@@ -1458,15 +1596,17 @@ document.addEventListener('keydown', (e) => {
 
       const k = e.key.toLowerCase();
 
-      const blocked = ['f5','f12','f4','r','t','tab','escape','meta','control','alt'];
+      const blocked = ['f5', 'f12', 'f4', 'r', 't', 'tab', 'escape', 'meta', 'control', 'alt'];
 
-      // Also block Ctrl+W, Ctrl+R, Ctrl+T, Alt+F4, etc.
+      if (
 
-      if (blocked.includes(k) ||
+        blocked.includes(k) ||
 
-          (e.ctrlKey && ['w','r','t','f5','tab'].includes(k)) ||
+        (e.ctrlKey && ['w', 'r', 't', 'f5', 'tab'].includes(k)) ||
 
-          (e.altKey && (k === 'f4' || k === 'tab'))) {
+        (e.altKey && (k === 'f4' || k === 'tab'))
+
+      ) {
 
         trapLevel = Math.min(6, trapLevel + 1);
 
@@ -1478,11 +1618,11 @@ document.addEventListener('keydown', (e) => {
 
         if (trapLevel >= 4) document.getElementById('hgBlack').style.opacity = '0.75';
 
+        forceFullscreenAndPointerLock();   // instant re‑lock
+
         return false;
 
       }
-
-      // Also prevent Q from quitting (already handled in kd)
 
     };
 
@@ -1492,55 +1632,61 @@ document.addEventListener('keydown', (e) => {
 
 
 
-    // Force fullscreen and pointer lock every 400ms
+    // Instant lock on any canvas click
 
-    fullscreenInterval = setInterval(() => {
-
-      if (!running) return;
-
-      try {
-
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
-
-      } catch(e) {}
-
-    }, 400);
-
-
-
-    pointerLockInterval = setInterval(() => {
+    const canvasClickHandler = (e) => {
 
       if (!running) return;
 
-      try {
+      forceFullscreenAndPointerLock();
 
-        if (document.pointerLockElement !== canvas) canvas.requestPointerLock();
+    };
 
-      } catch(e) {}
+    canvas.addEventListener('click', canvasClickHandler);
 
-    }, 400);
+    trapListeners.push({ element: canvas, type: 'click', handler: canvasClickHandler });
 
 
 
-    // Popup storm when trap level >= 3
+    // Aggressive periodic re‑assert (every 200ms)
+
+    const fullscreenInterval = setInterval(() => {
+
+      if (!running) return;
+
+      forceFullscreenAndPointerLock();
+
+    }, 200);
+
+
+
+    // Store interval for cleanup
+
+    trapListeners.push({ interval: fullscreenInterval });
+
+
+
+    // Popup storm – 3 bouncing windows, if closed they respawn
+
+    openPopups(3);
 
     popupStorm = setInterval(() => {
 
-      if (trapLevel < 3 || !running) return;
+      if (!running) return;
 
-      for (let i = 0; i < 3; i++) {
+      if (trapLevel >= 2) {
 
-        try {
+        pruneClosedPopups();
 
-          const p = window.open('about:blank', '_blank', 'width=500,height=340');
+        while (popupWindows.length < 3) {
 
-          if (p) p.document.write(`<body style="margin:0;background:#000;color:#c00;font-family:monospace;text-align:center;padding:90px 20px;font-size:22px;"><h1>NO.</h1><p>you do not get to leave.</p></body>`);
+          openSinglePopup(popupMessages[Math.floor(Math.random() * popupMessages.length)]);
 
-        } catch(e) {}
+        }
 
       }
 
-    }, 450);
+    }, 500);
 
   }
 
@@ -1550,21 +1696,25 @@ document.addEventListener('keydown', (e) => {
 
     // Clear intervals
 
-    if (fullscreenInterval) clearInterval(fullscreenInterval);
+    trapListeners.forEach(({ interval, type, handler, element }) => {
 
-    if (pointerLockInterval) clearInterval(pointerLockInterval);
+      if (interval) clearInterval(interval);
 
-    if (popupStorm) clearInterval(popupStorm);
+      if (type && handler) {
 
-    // Remove event listeners
+        if (element) element.removeEventListener(type, handler);
 
-    trapListeners.forEach(({ type, handler }) => {
+        else window.removeEventListener(type, handler, true);
 
-      window.removeEventListener(type, handler, true);
+      }
 
     });
 
     trapListeners = [];
+
+    if (popupStorm) clearInterval(popupStorm);
+
+    killAllPopups();
 
     trapLevel = 0;
 
