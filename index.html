@@ -1,2695 +1,1368 @@
 <!DOCTYPE html>
-
 <html>
-
 <head>
-
   <title>fridgesforsale.fun</title>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-
   <style>
-
-    body {
-
-      margin: 0;
-
-      overflow: hidden;
-
-      background: #0b0f14;
-
-      font-family: Arial;
-
-      transition: filter 0.8s;
-
-    }
-
-
-
-    /* ===== HEADER ===== */
+    body { margin: 0; overflow: hidden; background: #0b0f14; font-family: Arial; transition: filter 0.8s; }
 
     #header { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10000; pointer-events: none; }
-
     #header img { width: 420px; animation: spin 4s linear infinite; }
-
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-
-
-    /* ===== ECONOMY PANEL ===== */
-
     #economyBox { position: fixed; top: 130px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 5px; width: 160px; font-family: monospace; }
-
     #fridgeCounter { background: #ddd; color: black; font-family: monospace; font-size: 14px; padding: 5px; text-align: center; }
-
     #shopMenu { display: none; background: #ccc; border: 1px solid #999; padding: 8px; font-family: monospace; font-size: 12px; color: black; }
 
-
-
     #rightUI { position: fixed; top: 110px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 15px; width: 250px; }
-
     #memorialText { font-size: 10px; color: rgba(255,255,255,0.3); text-align: center; margin-bottom: -10px; font-family: monospace; pointer-events: none; }
 
-
-
     #rouletteContainer { background: rgba(0,0,0,0.85); border: 1px solid #ff0000; padding: 15px; color: white; text-align: center; box-shadow: 0px 0px 15px rgba(255,0,0,0.5); }
-
     #rouletteContainer select, #rouletteContainer button { margin-top: 10px; cursor: pointer; padding: 5px; }
-
     #rouletteBtn { background: #440000; color: white; border: 1px solid red; font-weight: bold; width: 100%; }
-
     #rouletteBtn:hover { background: #ff0000; }
-
     #streakDisplay { margin-top: 8px; font-size: 11px; color: #aaa; min-height: 16px; }
-
-
 
     #paintContainer { background: rgba(0,0,0,0.85); border: 1px solid #ffff00; padding: 15px; color: white; text-align: center; box-shadow: 0px 0px 15px rgba(255,255,0,0.5); }
 
-
-
     #musicPlayer { position: fixed; bottom: 10px; left: 10px; z-index: 10000; width: 340px; background: rgba(0,0,0,0.75); color: white; padding: 10px; border: 1px solid #333; }
-
     .text-layer { position: relative; z-index: 10005; text-shadow: 2px 2px 4px black, -1px -1px 4px black, 0px 0px 8px black; pointer-events: none; }
-
     #controls button { margin: 3px; cursor: pointer; position: relative; z-index: 10005; }
 
-
-
     #viz { width: 320px; height: 80px; background: black; display: block; margin-top: 10px; transform-origin: bottom center; transition: transform 0.05s, filter 0.05s; position: relative; z-index: 10001; }
-
     #vizGlow { position: fixed; bottom: 0; left: 0; width: 100%; height: 140px; pointer-events: none; background: radial-gradient(circle, rgba(200,0,0,0.35), transparent); filter: blur(20px); opacity: 0.5; transition: opacity 0.1s; }
-
     #paintCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9998; pointer-events: none; }
-
     #cockroachVid { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 9999996; pointer-events: none; }
 
-
-
-    /* ===== DEATHMAX VISUALS ===== */
-
     @keyframes deathShake {
-
-      0% { transform: translate(0,0) rotate(0deg); }
-
-      20% { transform: translate(-15px,15px) rotate(-2deg); }
-
-      40% { transform: translate(15px,-15px) rotate(2deg); }
-
-      60% { transform: translate(-15px,-15px) rotate(-2deg); }
-
-      80% { transform: translate(15px,15px) rotate(2deg); }
-
-      100% { transform: translate(0,0) rotate(0deg); }
-
+      0% { transform: translate(0,0) rotate(0deg); } 20% { transform: translate(-15px,15px) rotate(-2deg); }
+      40% { transform: translate(15px,-15px) rotate(2deg); } 60% { transform: translate(-15px,-15px) rotate(-2deg); }
+      80% { transform: translate(15px,15px) rotate(2deg); } 100% { transform: translate(0,0) rotate(0deg); }
     }
-
     .shaking { animation: deathShake 0.1s infinite; }
 
-
-
     #deathFlash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; z-index: 99999999; pointer-events: none; opacity: 0; }
-
     #tunnelVision { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle, transparent 20%, rgba(0,0,0,1) 100%); z-index: 9999996; pointer-events: none; opacity: 0; transition: opacity 6s; }
-
     #deathBlur { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; backdrop-filter: blur(15px) grayscale(100%); z-index: 9999997; pointer-events: none; opacity: 0; transition: opacity 4s; }
-
     #screenCrack { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-size: cover; background-position: center; z-index: 9999999; pointer-events: none; visibility: hidden; }
-
     #deathFade { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; opacity: 0; z-index: 9999998; pointer-events: none; transition: opacity 12s ease-in; }
-
     #bloodCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999995; pointer-events: none; display: none; }
-
     #ragdollBloodCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999994; pointer-events: none; display: block; }
-
     #driedBloodCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999993; pointer-events: none; display: block; }
 
-
-
     #guyPrompt { position: fixed; bottom: 180px; right: 70px; background: white; color: black; font-family: monospace; font-size: 12px; padding: 2px 6px; border: 1px solid black; z-index: 10001; pointer-events: none; }
-
     #guyName { position: fixed; top: 0; left: 0; color: white; font-family: monospace; font-size: 12px; text-shadow: 1px 1px 2px black; z-index: 10001; pointer-events: none; white-space: nowrap; display: block; }
-
-
-
     #musicFlash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255,0,0,0.15); opacity: 0; z-index: 9999990; pointer-events: none; transition: opacity 0.1s ease-out; }
-
-
-
     #bsodOverlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-size: cover; background-position: center; z-index: 100000000; cursor: none; }
 
-
-
     #autopsyReport { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 400px; background: rgba(10,10,10,0.95); border: 2px solid #555; padding: 20px; font-family: 'Courier New', monospace; color: #ddd; font-size: 13px; line-height: 1.5; z-index: 10000001; box-shadow: 0 0 30px black; opacity: 1; transition: opacity 0.5s; display: none; }
-
     #autopsyReport h2 { color: #ff5555; margin: 0 0 10px; font-size: 18px; text-align: center; }
+    #autopsyReport .detail { color: #aaa; } #autopsyReport .limb { margin: 2px 0; } #autopsyReport .personal { margin-top: 12px; font-style: italic; color: #777; }
 
-    #autopsyReport .detail { color: #aaa; }
-
-    #autopsyReport .limb { margin: 2px 0; }
-
-    #autopsyReport .personal { margin-top: 12px; font-style: italic; color: #777; }
-
-
-
-    /* ============================================================
-
-       THE VENDOR — boring grey box + first person horror game
-
-    ============================================================ */
-
+    /* ===== THE VENDOR ===== */
     #vendorBox { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 10000; width: 120px; height: 44px; background: #8f8f8f; color: #111; font-family: Arial; font-size: 13px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #6f6f6f; user-select: none; }
-
     #vendorBox:hover { background: #9b9b9b; }
-
-
-
     #horrorGame { display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: #000; z-index: 100000001; overflow: hidden; transition: opacity 0.5s; }
-
     #hgCanvas { width: 100vw; height: 100vh; display: block; background: #000; image-rendering: pixelated; image-rendering: crisp-edges; }
-
-    #hgVignette { position: absolute; inset: 0; pointer-events: none; z-index: 2; background: radial-gradient(circle at 50% 52%, rgba(0,0,0,0) 5%, rgba(0,0,0,0.5) 36%, rgba(0,0,0,0.9) 70%, #000 100%); transition: opacity 0.25s; }
-
+    #hgVignette { position: absolute; inset: 0; pointer-events: none; z-index: 2; background: radial-gradient(circle at 50% 52%, rgba(0,0,0,0) 5%, rgba(0,0,0,0.5) 36%, rgba(0,0,0,0.9) 70%, #000 100%); }
     #hgBlack { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 5; transition: opacity 0.8s; }
-
     #hgChamber { position: absolute; top: 18px; left: 0; width: 100%; text-align: center; color: #c40000; font-family: 'Courier New', monospace; font-size: 15px; letter-spacing: 3px; text-shadow: 0 0 6px #000, 0 0 2px #000; z-index: 4; pointer-events: none; }
-
     #hgMessage { position: absolute; top: 50%; left: 0; width: 100%; text-align: center; transform: translateY(-50%); color: #e0e0e0; font-family: 'Courier New', monospace; font-size: 21px; text-shadow: 0 0 10px #000, 0 0 3px #000; opacity: 0; transition: opacity 0.45s; z-index: 4; pointer-events: none; padding: 0 20px; }
-
+    #hgWhisper { position: absolute; bottom: 66px; left: 0; width: 100%; text-align: center; color: rgba(200,200,210,0.7); font-family: 'Courier New', monospace; font-size: 15px; letter-spacing: 1px; text-shadow: 0 0 8px #000, 0 0 3px #000; opacity: 0; transition: opacity 0.8s; z-index: 4; pointer-events: none; padding: 0 30px; }
     #hgHint { position: absolute; bottom: 18px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.45); font-family: monospace; font-size: 12px; opacity: 0; transition: opacity 0.6s; z-index: 4; pointer-events: none; }
-
     #hgIntro { position: absolute; inset: 0; background: #000; z-index: 6; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: 'Courier New', monospace; color: #cfcfcf; text-align: center; padding: 0 26px; cursor: pointer; }
-
-    #hgIntro .hgLine { font-size: 18px; opacity: 0; animation: hgFadeIn 1.3s forwards; max-width: 560px; }
-
+    #hgIntro .hgLine { font-size: 18px; opacity: 0; animation: hgFadeIn 1.3s forwards; max-width: 580px; }
     #hgIntro #hgBegin { margin-top: 28px; font-size: 15px; color: #c40000; opacity: 0; animation: hgFadeIn 1.3s forwards; }
-
     @keyframes hgFadeIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
-
-    #hgFarewell { display: none; position: fixed; top: 60%; left: 0; width: 100%; text-align: center; color: rgba(205,205,205,0.85); font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 1px; text-shadow: 0 0 6px #000; z-index: 10000002; pointer-events: none; }
-
+    #hgFarewell { display: none; position: fixed; top: 58%; left: 0; width: 100%; text-align: center; color: rgba(205,205,205,0.85); font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 1px; text-shadow: 0 0 6px #000; z-index: 10000002; pointer-events: none; padding: 0 30px; }
   </style>
-
 </head>
-
 <body>
 
-
-
 <audio id="sfx-revolver" src="revolver.mp3" preload="auto"></audio>
-
 <audio id="sfx-shatter" src="glassshatter.mp3" preload="auto"></audio>
-
 <audio id="sfx-flesh" src="bullethitflesh.mp3" preload="auto"></audio>
-
 <video id="cockroachVid" src="cockroach.webm"></video>
 
-
-
 <div id="deathFlash"></div>
-
 <div id="tunnelVision"></div>
-
 <div id="deathBlur"></div>
-
 <div id="screenCrack"></div>
-
 <div id="deathFade"></div>
-
 <canvas id="bloodCanvas"></canvas>
-
 <canvas id="ragdollBloodCanvas"></canvas>
-
 <canvas id="driedBloodCanvas"></canvas>
-
 <canvas id="paintCanvas"></canvas>
 
-
-
 <div id="guyPrompt">[click me]</div>
-
 <div id="guyName"></div>
-
 <div id="musicFlash"></div>
-
 <div id="bsodOverlay"></div>
-
 <div id="autopsyReport"></div>
 
-
-
 <!-- THE VENDOR -->
-
 <div id="vendorBox" onclick="startHorrorGame()">click me</div>
-
 <div id="horrorGame">
-
   <canvas id="hgCanvas"></canvas>
-
   <div id="hgVignette"></div>
-
   <div id="hgBlack"></div>
-
   <div id="hgChamber"></div>
-
   <div id="hgMessage"></div>
-
+  <div id="hgWhisper"></div>
   <div id="hgHint"></div>
-
   <div id="hgIntro"></div>
-
 </div>
-
-<div id="hgFarewell">thank you for visiting fridgesforsale.fun</div>
-
-
+<div id="hgFarewell"></div>
 
 <div id="header"><img src="cooltext509446167575809.gif"></div>
 
-
-
 <div id="economyBox">
-
   <button onclick="spawnFridge()">spawn fridge</button>
-
   <div id="fridgeCounter">Fridges: 0</div>
-
   <button onclick="toggleShop()">fridge shop</button>
-
   <div id="shopMenu">
-
     <b>SHOP</b><br><br>
-
     Autoclicker (50F)<br>
-
     <button onclick="buyAutoclicker()">Buy</button><br><br>
-
     Autoclicker II (1000F)<br>
-
     <button id="buyAutoclicker2" onclick="buyAutoclicker2()">Buy</button>
-
   </div>
-
   <button onclick="fireFridgeCannon()">fridge cannon</button>
-
 </div>
-
-
 
 <div id="rightUI">
-
   <div id="memorialText">R.I.P. LEGACY RUSSIAN ROULLETE SYSTEM, REN IS THE KING. 38.</div>
-
   <div id="rouletteContainer">
-
     <div style="font-weight:bold; color:red;">RUSSIAN ROULETTE</div>
-
     <label style="font-size:12px;">Bullets in chamber:</label><br>
-
     <select id="bulletCount" onchange="reloadRevolver()">
-
       <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6 (Guaranteed Death)</option>
-
     </select><br>
-
     <button id="rouletteBtn" onclick="playRoulette()">PULL TRIGGER</button>
-
     <div id="rouletteResult" style="margin-top:10px; font-weight:bold; font-size:14px;"></div>
-
     <div id="streakDisplay"></div>
-
   </div>
-
   <div id="paintContainer">
-
     <div style="font-weight:bold; color:yellow;">MS PAINT MODE</div>
-
     <label style="font-size:12px;"><input type="checkbox" id="drawToggle"> Enable Drawing</label>
-
     <input type="color" id="drawColor" value="#ff0000">
-
     <input type="range" id="drawSize" min="1" max="50" value="5" title="Brush Size"><br>
-
     <button onclick="document.getElementById('eraserBtn').click()" id="eraserBtn">Eraser</button>
-
     <button onclick="clearCanvas()">Clear All</button>
-
   </div>
-
 </div>
-
-
 
 <div id="musicPlayer">
-
   <div class="text-layer" style="font-weight:bold; margin-bottom:5px;">LISTEN TO THIS TRACK, BIATCH!</div>
-
   <div id="nowPlaying" class="text-layer">now playing: loading...</div>
-
   <audio id="audio"></audio>
-
   <div id="controls"><button onclick="prevSong()">prev</button><button onclick="togglePlay()">play/pause</button><button onclick="nextSong()">next</button></div>
-
   <canvas id="viz"></canvas>
-
 </div>
-
 <div id="vizGlow"></div>
 
-
-
 <script>
-
 /* ===== SCREEN CRACK & BSOD CACHE-BUSTING ===== */
-
 (function() { const d=document.getElementById('screenCrack'); const img=new Image(); img.onload=function(){ d.style.backgroundImage=`url(${img.src})`; }; img.src='screencrack.png?t='+Date.now(); })();
-
 (function() { const d=document.getElementById('bsodOverlay'); const img=new Image(); img.onload=function(){ d.style.backgroundImage=`url(${img.src})`; }; img.src='BSOD.png?t='+Date.now(); })();
 
-
-
 /* ===== GLOBAL AUDIO CONTEXT ===== */
-
 let audioCtx = null;
-
-let gameActive = false; /* true while THE VENDOR is running */
-
+let gameActive = false;
 function ensureAudioContext() { if (audioCtx) return; try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { console.warn("AudioContext not supported."); } }
 
-
-
 /* ===== ECONOMY & FRIDGE PHYSICS ===== */
-
 let fridgesOwned = 0;
-
 const spawnedFridges = [];
-
 let autoclicker2Active = false;
-
 function updateCounter() { document.getElementById("fridgeCounter").innerText = `Fridges: ${fridgesOwned}`; }
-
 function toggleShop() { const s=document.getElementById("shopMenu"); s.style.display = (s.style.display==="block") ? "none" : "block"; }
-
 function buyAutoclicker() {
-
   if (fridgesOwned>=50) {
-
-    const removed = spawnedFridges.splice(-50);
-
-    removed.forEach(f => Matter.World.remove(world, f));
-
+    const removed = spawnedFridges.splice(-50); removed.forEach(f => Matter.World.remove(world, f));
     fridgesOwned -= 50; updateCounter(); setInterval(spawnFridge,1000); event.target.disabled = true;
-
   } else alert("NOT ENOUGH FRIDGES. YOU NEED 50.");
-
 }
-
 function buyAutoclicker2() {
-
   if (fridgesOwned >= 1000 && !autoclicker2Active) {
-
     const count = Math.min(1000, spawnedFridges.length);
-
-    const removed = spawnedFridges.splice(-count);
-
-    removed.forEach(f => Matter.World.remove(world, f));
-
+    const removed = spawnedFridges.splice(-count); removed.forEach(f => Matter.World.remove(world, f));
     fridgesOwned -= 1000; updateCounter(); autoclicker2Active = true; setInterval(spawnFridge, 500);
-
     document.getElementById('buyAutoclicker2').disabled = true; document.getElementById('buyAutoclicker2').innerText = 'Bought';
-
   } else if (autoclicker2Active) { alert("Already purchased!"); }
-
   else { alert("NOT ENOUGH FRIDGES. YOU NEED 1000."); }
-
 }
-
-
 
 const { Engine, Render, Runner, Bodies, World, Mouse, MouseConstraint, Constraint, Events } = Matter;
-
 const engine = Engine.create();
-
 const world = engine.world;
-
 const render = Render.create({ element: document.body, engine, options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: "#0b0f14" } });
-
 Render.run(render);
-
 const matterRunner = Runner.create();
-
 Runner.run(matterRunner, engine);
 
-
-
 const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight+50, window.innerWidth, 100, { isStatic:true, label:'wall' });
-
 const leftWall = Bodies.rectangle(-25, window.innerHeight/2, 50, window.innerHeight*2, { isStatic:true, label:'wall' });
-
 const rightWall = Bodies.rectangle(window.innerWidth+25, window.innerHeight/2, 50, window.innerHeight*2, { isStatic:true, label:'wall' });
-
 const ceiling = Bodies.rectangle(window.innerWidth/2, -100, window.innerWidth, 100, { isStatic:true, label:'wall' });
-
 World.add(world, [ground, leftWall, rightWall, ceiling]);
 
-
-
 const fridgeImages = ["fridge1.png","fridge2.png","fridge3.png"];
-
 function spawnFridge() {
-
   fridgesOwned++; updateCounter();
-
   const img = fridgeImages[Math.floor(Math.random()*fridgeImages.length)];
-
   const fridge = Bodies.rectangle(Math.random()*window.innerWidth, 50, 100, 150, { restitution:0.6, friction:0.2, render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } } });
-
   World.add(world, fridge); spawnedFridges.push(fridge);
-
 }
-
-
-
 const mouse = Mouse.create(render.canvas);
-
 const mouseConstraint = MouseConstraint.create(engine, { mouse, constraint: { stiffness:0.2, render:{visible:false} } });
-
 World.add(world, mouseConstraint);
-
 render.mouse = mouse;
-
 window.addEventListener('resize', () => { render.canvas.width = window.innerWidth; render.canvas.height = window.innerHeight; Matter.Body.setPosition(ground, { x: window.innerWidth/2, y: window.innerHeight+50 }); });
 
-
-
 /* ===== FRIDGE CANNON ===== */
-
 function fireFridgeCannon() {
-
   const img = fridgeImages[Math.floor(Math.random()*fridgeImages.length)];
-
   const startX = 0, startY = window.innerHeight * 0.5 + (Math.random()-0.5)*200;
-
   const cannonFridge = Bodies.rectangle(startX, startY, 100, 150, { restitution:0.4, friction:0.1, render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } } });
-
   const forceMagnitude = 0.08 * (window.innerWidth / 20);
-
   Matter.Body.applyForce(cannonFridge, cannonFridge.position, { x: forceMagnitude, y: (Math.random()-0.5)*0.03 });
-
   fridgesOwned++; updateCounter(); World.add(world, cannonFridge); spawnedFridges.push(cannonFridge);
-
 }
-
-
 
 /* ===== MUSIC ===== */
-
 let analyser, source, masterGain, biquadFilter;
-
 const audio = document.getElementById("audio");
-
 const nowPlaying = document.getElementById("nowPlaying");
-
 function initAudio() {
-
   if (!audioCtx) { ensureAudioContext(); if(!audioCtx) return; }
-
   if (source) return;
-
   source = audioCtx.createMediaElementSource(audio);
-
   analyser = audioCtx.createAnalyser();
-
   masterGain = audioCtx.createGain();
-
   biquadFilter = audioCtx.createBiquadFilter();
-
   biquadFilter.type = "lowpass"; biquadFilter.frequency.value = 24000;
-
   analyser.fftSize = 64;
-
   source.connect(analyser); analyser.connect(biquadFilter); biquadFilter.connect(masterGain); masterGain.connect(audioCtx.destination);
-
 }
-
 const songs = ["Intentional Manslaughter - Dying Fetus.mp3","INTERCRANIAL LACERATION - SCENE SLUTZ SAWN IN HALF - 02 IF THATS YO BITCH THEN WHY SHE ROTTING IN MY BASEMENT (FT. PSYCHOJAVA).mp3"];
-
 let current=0;
-
 function loadSong(i) { current = (i+songs.length)%songs.length; audio.src = songs[current]; nowPlaying.textContent = "now playing: "+songs[current]; audio.playbackRate=1; }
-
 function togglePlay() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); if(audio.paused) audio.play(); else audio.pause(); }
-
 function nextSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current+1); audio.play(); }
-
 function prevSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current-1); audio.play(); }
-
 loadSong(0);
 
-
-
 /* ===== HEARTBEAT ===== */
-
 function playHeartbeat() {
-
   if(!audioCtx) return;
-
   let beatTime = audioCtx.currentTime, interval = 0.8;
-
   for(let i=0;i<12;i++) {
-
     const t=beatTime;
-
     const o1=audioCtx.createOscillator(),g1=audioCtx.createGain();
-
     o1.type="sine"; o1.frequency.setValueAtTime(80,t); o1.frequency.exponentialRampToValueAtTime(20,t+0.3);
-
     g1.gain.setValueAtTime(0,t); g1.gain.linearRampToValueAtTime(2.5,t+0.1); g1.gain.exponentialRampToValueAtTime(0.001,t+0.4);
-
     o1.connect(g1); g1.connect(audioCtx.destination); o1.start(t); o1.stop(t+0.5);
-
     const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
-
     o2.type="triangle"; o2.frequency.setValueAtTime(50,t+0.25); o2.frequency.exponentialRampToValueAtTime(15,t+0.6);
-
     g2.gain.setValueAtTime(0,t+0.25); g2.gain.linearRampToValueAtTime(2.2,t+0.35); g2.gain.exponentialRampToValueAtTime(0.001,t+0.7);
-
     o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t+0.25); o2.stop(t+0.8);
-
     beatTime += interval; interval *= 1.12;
-
   }
-
 }
-
-
 
 /* ===== RUSSIAN ROULETTE ===== */
-
 let isDead=false, survivalStreak=0, cylinder=[], currentChamber=0;
-
 function reloadRevolver() {
-
   if(isDead) return;
-
   const bullets = parseInt(document.getElementById("bulletCount").value);
-
   cylinder=[]; for(let i=0;i<6;i++) cylinder.push(i<bullets);
-
   for(let i=cylinder.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [cylinder[i],cylinder[j]]=[cylinder[j],cylinder[i]]; }
-
   currentChamber=0; survivalStreak=0; updateStreak();
-
   const d=document.getElementById("rouletteResult"); d.style.color="yellow"; d.textContent="*Cylinder spun*";
-
   setTimeout(()=>{ if(!isDead&&currentChamber===0) d.textContent=""; },1500);
-
 }
-
 function updateStreak() {
-
   const el=document.getElementById("streakDisplay");
-
   if(survivalStreak===0) el.textContent="";
-
   else { el.textContent=`survived ${survivalStreak} pull${survivalStreak!==1?"s":""} in a row`; el.style.color = survivalStreak>=5 ? "#ffcc00" : "#aaa"; }
-
 }
-
 function playRoulette() {
-
   if(isDead) return;
-
   ensureAudioContext();
-
   if(cylinder.length===0||currentChamber>=6) reloadRevolver();
-
   const hasBullet=cylinder[currentChamber]; currentChamber++;
-
   const resultDiv=document.getElementById("rouletteResult");
-
   if(hasBullet) {
-
     isDead=true; survivalStreak=0; document.getElementById("rouletteBtn").disabled=true; resultDiv.textContent="";
-
     document.getElementById("sfx-revolver").play();
-
     document.body.classList.add("shaking");
-
     const flash=document.getElementById("deathFlash"); flash.style.opacity=1;
-
     setTimeout(()=>{ flash.style.opacity=0; document.body.classList.remove("shaking"); },150);
-
     setTimeout(()=>{
-
       document.getElementById("sfx-shatter").play(); document.getElementById("sfx-flesh").play();
-
       document.getElementById("screenCrack").style.visibility="visible";
-
       const bloodCanvas=document.getElementById("bloodCanvas"); bloodCanvas.style.display="block"; startBloodAnimation(bloodCanvas);
-
       setTimeout(()=>{ addTearDrop(); },600);
-
       setTimeout(()=>{ secondaryBloodBurst(); },150);
-
       setTimeout(()=>{ document.getElementById("tunnelVision").style.opacity="1"; document.getElementById("deathBlur").style.opacity="1"; },450);
-
       setTimeout(()=>{ document.body.style.filter="grayscale(100%) sepia(100%) hue-rotate(-30deg) brightness(0.6)"; },1050);
-
       setTimeout(()=>{ playHeartbeat(); },2250);
-
       setTimeout(()=>{ document.getElementById("deathFade").style.opacity="1"; },4850);
-
       setTimeout(()=>{
-
         if(audioCtx&&!audio.paused&&analyser) {
-
           biquadFilter.frequency.setValueAtTime(biquadFilter.frequency.value,audioCtx.currentTime);
-
           biquadFilter.frequency.exponentialRampToValueAtTime(100,audioCtx.currentTime+2);
-
           masterGain.gain.setValueAtTime(masterGain.gain.value,audioCtx.currentTime);
-
           masterGain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+4);
-
           let smoothPitch=audio.playbackRate;
-
           const dropInterval=setInterval(()=>{ smoothPitch-=0.015; if(smoothPitch>0.05) audio.playbackRate=smoothPitch; else { clearInterval(dropInterval); audio.pause(); } },50);
-
         }
-
         if(audioCtx) {
-
           const tO=audioCtx.createOscillator(),tG=audioCtx.createGain();
-
           tO.type='sine'; tO.frequency.value=7500;
-
           tG.gain.setValueAtTime(0,audioCtx.currentTime); tG.gain.linearRampToValueAtTime(0.3,audioCtx.currentTime+0.05); tG.gain.exponentialRampToValueAtTime(0.00001,audioCtx.currentTime+10);
-
           tO.connect(tG); tG.connect(audioCtx.destination); tO.start(); tO.stop(audioCtx.currentTime+10);
-
         }
-
       },600);
-
     },150);
-
   } else {
-
     survivalStreak++; updateStreak();
-
     resultDiv.style.color="#00ff00"; resultDiv.textContent=`Click... (Chamber ${currentChamber}/6 empty)`;
-
     if(currentChamber>=6) setTimeout(()=>{ reloadRevolver(); },1500);
-
   }
-
 }
-
 window.onload = () => { reloadRevolver(); };
 
-
-
 /* ===== TEAR DROP ===== */
-
 function addTearDrop() {
-
   if(typeof dripsGlobal!=='undefined'&&dripsGlobal) {
-
     dripsGlobal.push({ sx:window.innerWidth/2, sy:window.innerHeight/2, ex:window.innerWidth/2, ey:window.innerHeight/2, speed:0.15, color:'rgba(100,0,0,0.95)', alive:true, thickness:3, branches:[] });
-
   }
-
 }
-
-
 
 /* ===== BLOOD SYSTEM (death) ===== */
-
 let bloodAnimationId=null, particles=[], settledStains=[], dripsGlobal=[], edgeDrips=[], poolLevel=0;
-
 function burstParticles(cx,cy,count,minSpeed,maxSpeed,minSize,maxSize) {
-
   for(let i=0;i<count;i++) {
-
     const angle=Math.random()*Math.PI*2, speed=minSpeed+Math.random()*(maxSpeed-minSpeed);
-
     const vx=Math.cos(angle)*speed, vy=Math.sin(angle)*speed;
-
     particles.push({ x:cx,y:cy, vx,vy, life:8+Math.random()*25, maxLife:8+Math.random()*25, size:minSize+Math.random()*(maxSize-minSize), color:`rgba(${40+Math.floor(Math.random()*60)},${Math.floor(Math.random()*10)},${Math.floor(Math.random()*10)},${0.6+Math.random()*0.4})`, trail:[] });
-
   }
-
 }
-
 function startBloodAnimation(canvas) {
-
   canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-
   const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
-
   particles=[]; settledStains=[]; dripsGlobal=[]; edgeDrips=[]; poolLevel=0;
-
   burstParticles(canvas.width/2,canvas.height/2,400,4,15,1,8);
-
   if(bloodAnimationId) cancelAnimationFrame(bloodAnimationId);
-
   bloodAnimationId=requestAnimationFrame(animateBlood);
-
 }
-
 function secondaryBloodBurst() { burstParticles(window.innerWidth/2,window.innerHeight/2,200,2,10,0.5,4); }
-
 function animateBlood(timestamp) {
-
   const canvas=document.getElementById('bloodCanvas');
-
   if(canvas.style.display==='none') return;
-
   const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
-
   for(let i=particles.length-1;i>=0;i--) {
-
     const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vx*=0.93; p.vy*=0.93+0.02; p.life--;
-
     p.trail.push({x:p.x,y:p.y}); if(p.trail.length>4) p.trail.shift();
-
     if(p.trail.length>1) { ctx.beginPath(); ctx.moveTo(p.trail[0].x,p.trail[0].y); for(let t=1;t<p.trail.length;t++) ctx.lineTo(p.trail[t].x,p.trail[t].y); ctx.strokeStyle=p.color.replace(/[\d\.]+\)$/g,'0.3)'); ctx.lineWidth=p.size*0.6; ctx.stroke(); }
-
     ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
-
     if(p.y<=0||p.x<=0||p.x>=canvas.width) { settledStains.push({ x:Math.max(0,Math.min(canvas.width,p.x)), y:Math.max(0,p.y), size:p.size*0.7, color:p.color }); particles.splice(i,1); continue; }
-
     if(p.life<=0||(Math.abs(p.vx)<0.2&&Math.abs(p.vy)<0.2)) { settledStains.push({x:p.x,y:p.y,size:p.size*0.8,color:p.color}); particles.splice(i,1); }
-
   }
-
   for(const stain of settledStains) { ctx.beginPath(); ctx.arc(stain.x,stain.y,stain.size,0,Math.PI*2); ctx.fillStyle=stain.color; ctx.fill(); }
-
   if(edgeDrips.length===0&&particles.length===0&&settledStains.length>0) {
-
     for(let i=0;i<25;i++) { const x=Math.random()*canvas.width; edgeDrips.push({sx:x,sy:0,ex:x,ey:0,speed:0.5+Math.random()*1.5,color:'rgba(70,0,0,0.8)',alive:true,thickness:1+Math.random()*2}); }
-
     for(let i=0;i<15;i++) { const y=Math.random()*canvas.height; edgeDrips.push({sx:0,sy:y,ex:0,ey:y,speed:0.5+Math.random()*1.2,color:'rgba(70,0,0,0.8)',alive:true,thickness:1+Math.random()*2}); edgeDrips.push({sx:canvas.width,sy:y,ex:canvas.width,ey:y,speed:0.5+Math.random()*1.2,color:'rgba(70,0,0,0.8)',alive:true,thickness:1+Math.random()*2}); }
-
   }
-
   if(dripsGlobal.length===0&&particles.length===0&&settledStains.length>0) {
-
     for(const stain of settledStains) { if(Math.random()<0.4) dripsGlobal.push({sx:stain.x,sy:stain.y,ex:stain.x,ey:stain.y,speed:0.2+Math.random()*1.0,color:stain.color,alive:true,thickness:stain.size*0.5,branches:[]}); }
-
   }
-
   for(const drip of dripsGlobal) {
-
     if(!drip.alive) continue; drip.ey+=drip.speed; drip.ex+=(Math.random()-0.5)*0.6;
-
     const grad=ctx.createLinearGradient(drip.sx,drip.sy,drip.ex,drip.ey); grad.addColorStop(0,drip.color); grad.addColorStop(1,drip.color.replace(/[\d\.]+\)$/g,'0.2)'));
-
     ctx.beginPath(); ctx.moveTo(drip.sx,drip.sy); ctx.lineTo(drip.ex,drip.ey); ctx.strokeStyle=grad; ctx.lineWidth=drip.thickness; ctx.stroke();
-
     if(Math.random()<0.01) drip.branches.push({ex:drip.ex,ey:drip.ey,speed:drip.speed*0.7,color:drip.color});
-
     for(const b of drip.branches) { b.ey+=b.speed; b.ex+=(Math.random()-0.5)*0.5; ctx.beginPath(); ctx.moveTo(drip.ex,drip.ey); ctx.lineTo(b.ex,b.ey); ctx.strokeStyle=b.color; ctx.lineWidth=0.8; ctx.stroke(); }
-
     if(drip.ey>=canvas.height) { drip.alive=false; poolLevel+=0.2; }
-
   }
-
   for(const drip of edgeDrips) {
-
     if(!drip.alive) continue; drip.ey+=drip.speed; drip.ex+=(Math.random()-0.5)*0.5;
-
     ctx.beginPath(); ctx.moveTo(drip.sx,drip.sy); ctx.lineTo(drip.ex,drip.ey); ctx.strokeStyle=drip.color; ctx.lineWidth=drip.thickness; ctx.stroke();
-
     if(drip.ey>=canvas.height) { drip.alive=false; poolLevel+=0.15; }
-
   }
-
   poolLevel=Math.min(poolLevel,60);
-
   if(poolLevel>0) { ctx.fillStyle=`rgba(50,0,0,${0.6+poolLevel/200})`; ctx.fillRect(0,canvas.height-poolLevel,canvas.width,poolLevel); }
-
   bloodAnimationId=requestAnimationFrame(animateBlood);
-
 }
-
-
 
 /* ===== RAGDOLL GUY ===== */
-
 let ragdollParts = [];
-
 let ragdollConstraints = [];
-
 let guyActivated = false;
-
 let ragdollDamage = 0;
-
 const RAGDOLL_DAMAGE_THRESHOLD = 50;
-
 let respawnTimer = null;
-
 let activationStartTime = null;
-
 let currentGuyName = '';
-
 let currentGuyColors = { skin: '#ffccaa', shirt: '#3366cc', pants: '#333' };
-
 const partNames = ['Head','Torso','Left Upper Arm','Right Upper Arm','Left Lower Arm','Right Lower Arm','Left Upper Leg','Right Upper Leg','Left Lower Leg','Right Lower Leg'];
-
 let partDamageCounts = new Array(10).fill(0);
-
 const BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
-
 const nameList = ['Frank','Blurst','Theodore','Rustbucket','Gregory','Mortimer','Bartholomew','Cletus','Jebediah','Hank','Lenny','Stumpy'];
-
 const personalEffects = ['one (1) fridge magnet','a receipt for 50 fridges','a bloodied note reading "I am sorry"','a tiny photograph of a child','an expired warranty card','a bottle cap'];
-
 function randomColor(baseHue, range) { return `hsl(${baseHue + Math.random()*range}, 70%, 60%)`; }
-
 function buildGuy() {
-
   currentGuyColors.skin = randomColor(25, 20);
-
   currentGuyColors.shirt = randomColor(200, 60);
-
   currentGuyColors.pants = `hsl(0, 0%, ${20 + Math.random()*20}%)`;
-
   currentGuyName = nameList[Math.floor(Math.random()*nameList.length)];
-
   const ragdollCategory = 0x0002;
-
   const mask = 0xFFFF & ~ragdollCategory;
-
   const opts = { isStatic: true, collisionFilter: { category: ragdollCategory, mask: mask }, render: { strokeStyle: '#000', lineWidth: 1.5 } };
-
   const head = Bodies.circle(BASE_X, BASE_Y - 62, 10, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-
   const torso = Bodies.rectangle(BASE_X, BASE_Y - 28, 14, 30, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.shirt } });
-
   const leftUpperArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 42, 20, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-
   const rightUpperArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 42, 20, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-
   const leftLowerArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 20, 18, 5, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-
   const rightLowerArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 20, 18, 5, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-
   const leftUpperLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 10, 22, 7, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-
   const rightUpperLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 10, 22, 7, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-
   const leftLowerLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 34, 22, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-
   const rightLowerLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 34, 22, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-
   return [head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg];
-
 }
-
 function spawnGuy() {
-
   ragdollParts = buildGuy(); World.add(world, ragdollParts);
-
   guyActivated = false; ragdollDamage = 0; partDamageCounts = new Array(10).fill(0);
-
   document.getElementById('guyPrompt').style.display = 'block';
-
   document.getElementById('guyName').style.display = 'block';
-
   document.getElementById('guyName').textContent = currentGuyName;
-
   updateNamePosition();
-
 }
-
 spawnGuy();
-
 function updateNamePosition() {
-
   const nameDiv = document.getElementById('guyName');
-
   if (ragdollParts.length > 0) { const headPos = ragdollParts[0].position; nameDiv.style.left = (headPos.x - 20) + 'px'; nameDiv.style.top = (headPos.y - 25) + 'px'; }
-
 }
-
 function killRagdoll() {
-
   if (!guyActivated) return;
-
   guyActivated = false;
-
   ragdollParts.forEach(p => { Matter.Body.setVelocity(p, { x: (Math.random()-0.5)*15, y: -Math.random()*10 - 5 }); Matter.Body.setAngularVelocity(p, (Math.random()-0.5)*2); });
-
   ragdollConstraints.forEach(c => Matter.World.remove(world, c)); ragdollConstraints = [];
-
   const center = ragdollParts[1].position;
-
   for (let i=0; i<80; i++) { ragdollBloodParticles.push({ x: center.x, y: center.y, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12 - 3, life: 30 + Math.random()*20, size: 3 + Math.random()*5, color: 'rgba(140,0,0,0.9)' }); }
-
   document.getElementById('guyName').style.display = 'none';
-
   showAutopsyReport();
-
   clearTimeout(respawnTimer);
-
   respawnTimer = setTimeout(() => { ragdollParts.forEach(p => Matter.World.remove(world, p)); spawnGuy(); }, 3000);
-
 }
-
 function showAutopsyReport() {
-
   const reportDiv = document.getElementById('autopsyReport');
-
   const elapsed = activationStartTime ? Math.floor((Date.now() - activationStartTime)/1000) : 'unknown';
-
   let reportHTML = `<h2>AUTOPSY REPORT</h2>`;
-
   reportHTML += `<div class="detail">Subject: <strong>${currentGuyName}</strong></div>`;
-
   reportHTML += `<div class="detail">Time of death: ${elapsed}s after activation</div>`;
-
   reportHTML += `<div class="detail">Cause: Blunt force trauma, multiple impacts</div>`;
-
   reportHTML += `<div style="margin:10px 0;">Limb damage assessment:</div>`;
-
   for (let i=0; i<partNames.length; i++) {
-
     const dmg = partDamageCounts[i]; let severity = 'intact';
-
     if (dmg > 5) severity = 'fractured'; if (dmg > 10) severity = 'shattered'; if (dmg > 15) severity = 'comminuted';
-
     reportHTML += `<div class="limb">${partNames[i]}: ${severity} (${dmg} impacts)</div>`;
-
   }
-
   const effect = personalEffects[Math.floor(Math.random()*personalEffects.length)];
-
   reportHTML += `<div class="personal">Found in pocket: ${effect}</div>`;
-
   reportDiv.innerHTML = reportHTML; reportDiv.style.display = 'block'; reportDiv.style.opacity = '1';
-
   setTimeout(() => { reportDiv.style.opacity = '0'; setTimeout(() => { reportDiv.style.display = 'none'; }, 500); }, 8000);
-
   reportDiv.onclick = () => { reportDiv.style.opacity = '0'; setTimeout(() => { reportDiv.style.display = 'none'; }, 500); };
-
 }
-
 render.canvas.addEventListener('mousedown', (e) => {
-
   if (guyActivated || ragdollParts.length === 0) return;
-
   const pos = { x: e.clientX, y: e.clientY };
-
   if (Matter.Query.point(ragdollParts, pos).length > 0) { activationStartTime = Date.now(); activateGuy(); }
-
 });
-
 function activateGuy() {
-
   if (guyActivated) return;
-
   guyActivated = true;
-
   ragdollParts.forEach(p => Matter.Body.setStatic(p, false));
-
   const stiff = 0.9, damp = 0.2;
-
   const cOpts = (a, b, pa, pb) => Constraint.create({ bodyA:a, bodyB:b, pointA:pa, pointB:pb, stiffness:stiff, damping:damp, render:{visible:false} });
-
   ragdollConstraints = [
-
     cOpts(ragdollParts[0], ragdollParts[1], {x:0,y:10}, {x:0,y:-15}),
-
     cOpts(ragdollParts[1], ragdollParts[2], {x:-7,y:-13}, {x:10,y:0}),
-
     cOpts(ragdollParts[1], ragdollParts[3], {x:7,y:-13}, {x:-10,y:0}),
-
     cOpts(ragdollParts[2], ragdollParts[4], {x:-10,y:0}, {x:9,y:0}),
-
     cOpts(ragdollParts[3], ragdollParts[5], {x:10,y:0}, {x:-9,y:0}),
-
     cOpts(ragdollParts[1], ragdollParts[6], {x:-5,y:15}, {x:0,y:-11}),
-
     cOpts(ragdollParts[1], ragdollParts[7], {x:5,y:15}, {x:0,y:-11}),
-
     cOpts(ragdollParts[6], ragdollParts[8], {x:0,y:11}, {x:0,y:-11}),
-
     cOpts(ragdollParts[7], ragdollParts[9], {x:0,y:11}, {x:0,y:-11})
-
   ];
-
   World.add(world, ragdollConstraints);
-
   document.getElementById('guyPrompt').style.display = 'none';
-
 }
-
-
 
 /* ===== HUMAN SCREAM OF PAIN ===== */
-
 function playScream() {
-
   if (!audioCtx) ensureAudioContext();
-
   if (!audioCtx) return;
-
   const now = audioCtx.currentTime;
-
   const osc1 = audioCtx.createOscillator(); const gain1 = audioCtx.createGain();
-
   osc1.type = 'sawtooth'; osc1.frequency.setValueAtTime(400, now); osc1.frequency.exponentialRampToValueAtTime(150, now + 0.8);
-
   gain1.gain.setValueAtTime(0, now); gain1.gain.linearRampToValueAtTime(1.2, now + 0.05); gain1.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-
   osc1.connect(gain1);
-
   const waveshaper = audioCtx.createWaveShaper();
-
   const curve = new Float32Array(256);
-
   for (let i = 0; i < 256; i++) { const x = (i - 128) / 128; curve[i] = Math.tanh(x * 3); }
-
   waveshaper.curve = curve; gain1.connect(waveshaper);
-
   const formantFilter = audioCtx.createBiquadFilter();
-
   formantFilter.type = 'peaking'; formantFilter.frequency.setValueAtTime(900, now); formantFilter.frequency.exponentialRampToValueAtTime(600, now + 0.6);
-
   formantFilter.Q.setValueAtTime(6, now); formantFilter.gain.setValueAtTime(25, now);
-
   waveshaper.connect(formantFilter);
-
   const vibrato = audioCtx.createOscillator(); const vibratoGain = audioCtx.createGain();
-
   vibrato.frequency.setValueAtTime(18, now); vibratoGain.gain.setValueAtTime(40, now);
-
   vibrato.connect(vibratoGain); vibratoGain.connect(osc1.frequency); vibrato.start(now); vibrato.stop(now + 1.2);
-
   const osc2 = audioCtx.createOscillator(); const gain2 = audioCtx.createGain();
-
   osc2.type = 'square'; osc2.frequency.setValueAtTime(1200, now); osc2.frequency.exponentialRampToValueAtTime(800, now + 0.5);
-
   gain2.gain.setValueAtTime(0, now); gain2.gain.linearRampToValueAtTime(0.4, now + 0.03); gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-
   osc2.connect(gain2); gain2.connect(audioCtx.destination);
-
   formantFilter.connect(audioCtx.destination);
-
   osc1.start(now); osc2.start(now); osc1.stop(now + 1.2); osc2.stop(now + 0.9);
-
 }
-
-
 
 /* ===== PERMANENT DRIED BLOOD CANVAS ===== */
-
 const driedBloodCanvas = document.getElementById('driedBloodCanvas');
-
 const driedCtx = driedBloodCanvas.getContext('2d');
-
 driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
-
 function stampDriedBlood(x, y, size) { driedCtx.beginPath(); driedCtx.arc(x, y, size, 0, Math.PI*2); driedCtx.fillStyle = 'rgba(60, 20, 0, 0.8)'; driedCtx.fill(); }
 
-
-
 /* ===== RAGDOLL BLEEDING & DAMAGE ===== */
-
 const ragdollBloodCanvas = document.getElementById('ragdollBloodCanvas');
-
 const ragdollCtx = ragdollBloodCanvas.getContext('2d');
-
 let ragdollBloodParticles = [];
-
 Events.on(engine, 'collisionStart', (event) => {
-
   if (!guyActivated) return;
-
   for (const pair of event.pairs) {
-
     const bodyA = pair.bodyA, bodyB = pair.bodyB;
-
     const ragdollPart = ragdollParts.includes(bodyA) ? bodyA : (ragdollParts.includes(bodyB) ? bodyB : null);
-
     const otherBody = ragdollPart === bodyA ? bodyB : bodyA;
-
     if (!ragdollPart || !otherBody || otherBody.label !== 'wall') continue;
-
     const relVel = { x: ragdollPart.velocity.x - (otherBody.isStatic ? 0 : otherBody.velocity.x), y: ragdollPart.velocity.y - (otherBody.isStatic ? 0 : otherBody.velocity.y) };
-
     const speed = Math.sqrt(relVel.x**2 + relVel.y**2);
-
     if (speed > 3.5) {
-
       ragdollDamage++;
-
       const idx = ragdollParts.indexOf(ragdollPart);
-
       if (idx !== -1) partDamageCounts[idx]++;
-
       const contact = pair.collision.supports ? pair.collision.supports[0] : ragdollPart.position;
-
       for (let i=0; i<15; i++) { ragdollBloodParticles.push({ x: contact.x, y: contact.y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8 - 2, life: 15 + Math.random()*10, size: 2 + Math.random()*3, color: 'rgba(140,0,0,0.9)' }); }
-
       if (speed > 6) playScream();
-
       if (ragdollDamage >= RAGDOLL_DAMAGE_THRESHOLD) killRagdoll();
-
     }
-
   }
-
 });
-
-
 
 /* ===== PAINT TOOL ===== */
-
 const pCanvas = document.getElementById("paintCanvas");
-
 const pCtx = pCanvas.getContext("2d");
-
 function resizePaintCanvas() {
-
   const tempCanvas = document.createElement('canvas'); const tCtx = tempCanvas.getContext('2d');
-
   tempCanvas.width = pCanvas.width; tempCanvas.height = pCanvas.height; tCtx.drawImage(pCanvas,0,0);
-
   pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; pCtx.drawImage(tempCanvas,0,0);
-
 }
-
 window.addEventListener('resize', resizePaintCanvas);
-
 pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
-
 let drawingActive = false;
-
 const drawToggle = document.getElementById("drawToggle");
-
 const colorPicker = document.getElementById("drawColor");
-
 const sizeSlider = document.getElementById("drawSize");
-
 const eraserBtn = document.getElementById("eraserBtn");
-
 let isEraserMode = false;
-
 eraserBtn.onclick = () => { isEraserMode = !isEraserMode; eraserBtn.style.background = isEraserMode ? 'white' : ''; eraserBtn.style.color = isEraserMode ? 'black' : ''; };
-
 window.clearCanvas = () => { pCtx.clearRect(0,0,pCanvas.width,pCanvas.height); };
-
 const renderCanvas = render.canvas;
-
 renderCanvas.addEventListener('mousedown', (e) => { if (!drawToggle.checked) return; if (mouseConstraint.constraint.bodyB) return; drawingActive = true; pCtx.beginPath(); pCtx.moveTo(e.clientX, e.clientY); });
-
 renderCanvas.addEventListener('mousemove', (e) => {
-
   if (!drawingActive || !drawToggle.checked) return;
-
   if (mouseConstraint.constraint.bodyB) { drawingActive = false; return; }
-
   pCtx.lineWidth = sizeSlider.value; pCtx.lineCap = "round";
-
   if (isEraserMode) { pCtx.globalCompositeOperation = "destination-out"; pCtx.strokeStyle = "rgba(0,0,0,1)"; }
-
   else { pCtx.globalCompositeOperation = "source-over"; pCtx.strokeStyle = colorPicker.value; }
-
   pCtx.lineTo(e.clientX, e.clientY); pCtx.stroke();
-
 });
-
 renderCanvas.addEventListener('mouseup', () => { drawingActive = false; });
-
 renderCanvas.addEventListener('mouseout', () => { drawingActive = false; });
 
-
-
 /* ===== COCKROACH ===== */
-
 const roachVid = document.getElementById('cockroachVid');
-
 let roachActive = false;
-
 setInterval(() => { if (gameActive) return; if (!isDead && !roachActive && Math.random() < 0.01) { roachActive = true; roachVid.style.display = "block"; roachVid.play(); } }, 1000);
-
 roachVid.onended = () => { roachVid.style.display = "none"; roachActive = false; };
 
-
-
 /* ===== KONAMI CODE ===== */
-
 const KONAMI_SEQUENCE = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a','s','t','a','r','t'];
-
 let konamiProgress = 0;
-
 document.addEventListener('keydown', (e) => {
-
   if (gameActive) return;
-
   if (e.key === KONAMI_SEQUENCE[konamiProgress]) { konamiProgress++; if (konamiProgress === KONAMI_SEQUENCE.length) { triggerGundham(); konamiProgress = 0; } }
-
   else { konamiProgress = (e.key === KONAMI_SEQUENCE[0]) ? 1 : 0; }
-
 });
-
 function triggerGundham() {
-
   audio.pause(); Render.stop(render); document.body.innerHTML = '';
-
   document.body.style.cssText = 'margin:0; background:#000; display:flex; align-items:center; justify-content:center; width:100vw; height:100vh; overflow:hidden;';
-
   const img = document.createElement('img'); img.src = 'gundlex.gif'; img.style.cssText = 'max-width:100vw; max-height:100vh; object-fit:contain;';
-
   document.body.appendChild(img);
-
 }
-
-
 
 /* ===== BSOD RANDOM EVENT + DEBUG TRIGGER ===== */
-
 let bsodQueued = false;
-
 let bsodActive = false;
-
 function triggerBSOD() {
-
   if (bsodActive) return;
-
   bsodActive = true;
-
   try { if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen(); } else if (document.documentElement.webkitRequestFullscreen) { document.documentElement.webkitRequestFullscreen(); } } catch(e) {}
-
   const allChildren = document.body.children;
-
   for (let i = 0; i < allChildren.length; i++) { if (allChildren[i].id !== 'bsodOverlay') allChildren[i].style.display = 'none'; }
-
   document.getElementById('bsodOverlay').style.display = 'block';
-
   if (audio) audio.pause();
-
   Runner.stop(matterRunner);
-
   setTimeout(() => {
-
     document.getElementById('bsodOverlay').style.display = 'none';
-
     for (let i = 0; i < allChildren.length; i++) allChildren[i].style.display = '';
-
     if (document.fullscreenElement) document.exitFullscreen();
-
     Runner.run(matterRunner, engine);
-
     bsodActive = false; bsodQueued = false;
-
   }, 5000);
-
 }
-
 setInterval(() => { if (gameActive) return; if (!bsodActive && !isDead && Math.random() < 0.005) bsodQueued = true; }, 10000);
-
 document.addEventListener('click', (e) => { if (gameActive) return; if (bsodQueued && !bsodActive) { e.preventDefault(); e.stopPropagation(); triggerBSOD(); } }, true);
-
 document.addEventListener('keydown', (e) => { if (gameActive) return; if (bsodQueued && !bsodActive) { e.preventDefault(); e.stopPropagation(); triggerBSOD(); } }, true);
-
 let bsodSequence = 0;
-
 document.addEventListener('keydown', (e) => {
-
   if (gameActive) return;
-
   const keys = ['b','s','o','d'];
-
   if (e.key.toLowerCase() === keys[bsodSequence]) { bsodSequence++; if (bsodSequence === keys.length) { bsodSequence = 0; bsodQueued = false; triggerBSOD(); } }
-
   else { bsodSequence = (e.key.toLowerCase() === 'b') ? 1 : 0; }
-
 });
 
-
-
 /* ============================================================
-
    THE VENDOR — FIRST PERSON RAYCASTER HORROR GAME
-
-   "the horror was never in the box"
-
-   *** NOW WITH MAXIMUM YOUAREANIDIOT TRAP ***
-
+   it reads you. it dims. and it is the only thing that remembers.
 ============================================================ */
-
 (function(){
-
   const container = document.getElementById('horrorGame');
-
   const canvas    = document.getElementById('hgCanvas');
-
   const ctx       = canvas.getContext('2d');
-
   const vignette  = document.getElementById('hgVignette');
-
   const hgBlack   = document.getElementById('hgBlack');
-
   const chamberEl = document.getElementById('hgChamber');
-
   const messageEl = document.getElementById('hgMessage');
-
+  const whisperEl = document.getElementById('hgWhisper');
   const introEl   = document.getElementById('hgIntro');
-
   const hintEl    = document.getElementById('hgHint');
-
   const farewell  = document.getElementById('hgFarewell');
 
+  /* ---------- HELPERS ---------- */
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function fmtSince(ms){ if(!ms||ms<0) return null; const s=Math.floor(ms/1000); if(s<60) return s+' second'+(s!==1?'s':''); const m=Math.floor(s/60); if(m<60) return m+' minute'+(m!==1?'s':''); const h=Math.floor(m/60); if(h<24) return h+' hour'+(h!==1?'s':''); const d=Math.floor(h/24); return d+' day'+(d!==1?'s':''); }
 
+  /* ---------- MEMORY (the only thing on the site that persists) ---------- */
+  const MEM_KEY = 'vendor_memory_v1';
+  function loadMem(){ try{ const r=localStorage.getItem(MEM_KEY); if(r) return JSON.parse(r); }catch(e){} return { visits:0, deaths:0, escaped:0, bestChamber:0, lastVisit:0, firstVisit:0 }; }
+  function saveMem(m){ try{ localStorage.setItem(MEM_KEY, JSON.stringify(m)); }catch(e){} }
+  let mem = loadMem();
+  let returningFlag = false, sinceText = null;
 
   /* ---------- MAP ---------- */
-
   const MW = 24, MH = 24;
-
   let map = [];
-
   function buildMap(){
-
     map = [];
-
     for(let x=0;x<MW;x++){ map[x]=[]; for(let y=0;y<MH;y++){ map[x][y] = (x===0||y===0||x===MW-1||y===MH-1) ? 1 : 0; } }
-
     const blocks = [[4,4],[10,4],[16,4],[4,10],[10,10],[16,10],[4,16],[10,16],[16,16]];
-
     blocks.forEach(([bx,by])=>{ for(let i=0;i<2;i++) for(let j=0;j<2;j++) map[bx+i][by+j]=1; });
-
     map[20][12]=1; map[20][13]=1; map[3][13]=1; map[13][20]=1;
-
   }
-
   function isWall(x,y){ if(x<0||y<0||x>=MW||y>=MH) return true; return map[Math.floor(x)][Math.floor(y)]===1; }
 
-
-
   /* ---------- STATE ---------- */
-
   let posX, posY, dirX, dirY, planeX, planeY;
-
   let ven = { x:12, y:3, active:false, speed:0 };
-
   let fridges = [];
-
   let found = 0;
-
-  let running = false, ended = false, scriptedBlack = false;
-
+  let running = false, ended = false, scriptedBlack = false, blackoutActive = false;
   let rafId = null, lastT = 0, gameTime = 0;
-
+  let sessionDeaths = 0;
+  let lightLevel = 1, lightCooldown = 0;
+  let lastThump = 0, lastWhisperT = 0, nextWhisperGap = 14000;
+  let wakeAttempts = 0;
+  let whisperQueue = [];
+  let metaPool = [];
   const keys = {};
 
-
-
-  /* ==================== MAXIMUM YOUAREANIDIOT TRAP ==================== */
-
-  let trapLevel = 0;
-
-  let popupStorm = null;
-
-  let trapListeners = [];
-
-  let popupWindows = [];
-
-  const popupMessages = [
-
-    "the vendor sees you.",
-
-    "NO.",
-
-    "you do not get to leave.",
-
-    "there is no waking up.",
-
-    "i'm still here.",
-
-    "closing this won't help.",
-
-    "the maze remembers."
-
+  /* ---------- CONTENT POOLS ---------- */
+  const chamberPools = {
+    1: ["chamber one. five left.", "one. you can still hear yourself breathe.", "first one. they're all easy until they aren't.", "chamber one loaded. it just looked up.", "one down. it knows you're here now."],
+    2: ["chamber two.", "two. it's moving.", "second. did the hum get louder, or is that you.", "two down. don't look behind you.", "chamber two. it found your scent."],
+    3: ["chamber three. it heard that.", "three. halfway is the worst place to be.", "third. it has your pattern now.", "chamber three. it stopped pretending.", "three. it's between you and the way back."],
+    4: ["chamber four. faster now.", "four. you're running, not walking. i noticed.", "fourth. the walls feel closer because they are.", "chamber four. it isn't tired. you are.", "four. one mistake left in you, maybe."],
+    5: ["chamber five.", "five. one more. that's what they all thought.", "fifth. listen. it stopped.", "chamber five. you shouldn't have come this far.", "five. the sixth one is where it's waiting."]
+  };
+  const wakeTaunts = [
+    "there is no waking up.", "you're already awake. that's the problem.", "that key won't save you. none of them will.",
+    "i hear you pressing it.", "keep trying. i like the sound.", "the door locked when you clicked the box.",
+    "you wanted this. you clicked.", "wake up into what. the fridges are still falling.",
+    "there's no pause. there's no menu. there's me.", "stop that.", "you can close the tab. we both know you won't.",
+    "pressing it again won't change my answer.", "this is the waking part.", "shhh.",
+    "i don't have a key you can press to undo me.", "you keep reaching for an exit that isn't in here.",
+    "that does nothing. like the rest of you.", "you're not dreaming. i checked.", "the only way out is the sixth. or me.",
+    "no.", "down here, that key is just a sound you make when you're scared."
+  ];
+  const restartTaunts = [
+    "again.", "back to the start. like nothing happened. but it did.", "you died. the hallway didn't care. neither do i.",
+    "get up.", "that's one. you have more in you. i can tell.", "the maze put you back. it always puts you back.",
+    "you'll do that again. and again.", "nothing learns down here except me.",
+    "up you get. the fridges are right where you left them.", "you keep ending. i keep beginning you."
+  ];
+  const rememberOpeners = [
+    "you came back.", "i know your shape.", "everything else here forgot you. i didn't.",
+    "the fridges reset. the blood washed off. i kept you.", "you again. i never lose a face. i don't have eyes, but i never lose one.",
+    "refresh all you want. i'm under the refresh.", "they wiped the page. they can't wipe me.",
+    "you thought leaving was the same as never being here. it isn't.", "still warm from last time.",
+    "back in my hallway.", "i was hoping. i don't hope often.", "the site doesn't know you left. i do.",
+    "you keep clicking the grey box. i keep being here.", "nothing remembers you but me. sit with that.",
+    "welcome back to the only part that stays.", "i held your place.", "you smell like last time.",
+    "you and me again. it's always been just us.", "the rest of this site resets at midnight. i don't have a midnight.",
+    "i'm the only thing on this whole site that kept a copy of you.", "you left. i stayed exactly here. i don't move when you're gone.",
+    "did you think i'd be gone?"
   ];
 
-
-
-  function openSinglePopup(msg) {
-
-    try {
-
-      const w = window.open(
-
-        'about:blank', '_blank',
-
-        'width=400,height=300,left=' + (Math.random() * 300) + ',top=' + (Math.random() * 200)
-
-      );
-
-      if (w) {
-
-        w.document.write(
-
-          `<body style="margin:0;background:#000;color:#c00;font-family:monospace;text-align:center;padding:90px 20px;font-size:22px;"><h1>${msg}</h1></body>`
-
-        );
-
-        const bounceInterval = setInterval(() => {
-
-          if (w.closed) {
-
-            clearInterval(bounceInterval);
-
-            return;
-
-          }
-
-          try {
-
-            w.moveTo(100 + Math.random() * 500, 100 + Math.random() * 300);
-
-            w.resizeTo(300 + Math.random() * 200, 200 + Math.random() * 150);
-
-          } catch (e) {}
-
-        }, 800);
-
-        popupWindows.push({ window: w, bounceInterval });
-
-      }
-
-    } catch (e) {}
-
+  /* ---------- ROTATION ---------- */
+  function rotate(a){
+    const od = dirX;
+    dirX = dirX*Math.cos(a) - dirY*Math.sin(a);
+    dirY = od*Math.sin(a) + dirY*Math.cos(a);
+    const op = planeX;
+    planeX = planeX*Math.cos(a) - planeY*Math.sin(a);
+    planeY = op*Math.sin(a) + planeY*Math.cos(a);
   }
 
+  /* ---------- META: it reads your machine ---------- */
+  function buildMetaWhispers(){
+    const out = [];
+    const ua = navigator.userAgent || '';
+    let browser = 'your browser';
+    if(/Edg\//.test(ua)) browser='Edge';
+    else if(/OPR\//.test(ua)||/Opera/.test(ua)) browser='Opera';
+    else if(/Firefox\//.test(ua)) browser='Firefox';
+    else if(/Chrome\//.test(ua)) browser='Chrome';
+    else if(/Safari\//.test(ua)) browser='Safari';
+    out.push(`you're hiding behind ${browser}. i see through it.`);
+    out.push(`${browser}. that won't help you down here.`);
+    const lang = (navigator.language||'').toLowerCase();
+    const langName = lang.startsWith('en')?'english':lang.startsWith('es')?'spanish':lang.startsWith('fr')?'french':lang.startsWith('de')?'german':lang.startsWith('ja')?'japanese':lang.startsWith('pt')?'portuguese':lang.startsWith('ru')?'russian':lang.startsWith('zh')?'chinese':lang;
+    if(langName){ out.push(`you think in ${langName}. i don't think in anything.`); out.push(`${langName}. i'll learn it from the sounds you make.`); }
+    try { const tz=Intl.DateTimeFormat().resolvedOptions().timeZone; if(tz){ out.push(`${tz}. i know exactly where that is.`); out.push(`it's a different hour in ${tz} than you think it is.`); } } catch(e){}
+    const sw=screen.width, sh=screen.height;
+    if(sw&&sh){ out.push(`${sw} by ${sh}. such a small window to watch me through.`); out.push(`your whole screen is ${sw} by ${sh}. i'm bigger than that.`); }
+    if(window.innerWidth < screen.width-40){ out.push(`your window isn't even maximized. you're not seeing all of me.`); }
+    const cores=navigator.hardwareConcurrency; if(cores){ out.push(`${cores} cores. every one of them is mine now.`); out.push(`${cores} processors and not one can think me away.`); }
+    const dmem=navigator.deviceMemory; if(dmem){ out.push(`${dmem} gigabytes of memory. none of it can forget me.`); }
+    const day=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][new Date().getDay()];
+    out.push(`it's ${day}. nobody checks on you on ${day}.`);
+    const hr=new Date().getHours();
+    if(hr>=0&&hr<5) out.push(`${hr===0?'midnight':hr+' in the morning'}. everyone you know is asleep.`);
+    if(navigator.maxTouchPoints>0) out.push(`you could reach out and touch the screen. don't.`);
+    else out.push(`no touch screen. just you, the keys, and me.`);
+    try { if(matchMedia('(prefers-color-scheme: dark)').matches) out.push(`you keep your world dark. you'll fit right in.`); else out.push(`you keep your screen bright. it won't stay that way.`); } catch(e){}
+    if(document.referrer){ try{ const ref=new URL(document.referrer).hostname; out.push(`you came from ${ref}. it can't take you back.`); }catch(e){} } else out.push(`you came from nowhere. that's where you'll go.`);
+    if(typeof fridgesOwned==='number'){ if(fridgesOwned>0) out.push(`you left ${fridgesOwned} fridge${fridgesOwned!==1?'s':''} falling up there. they're still falling.`); else out.push(`you didn't spawn a single fridge. you came straight for me.`); }
+    const plat = (navigator.userAgentData&&navigator.userAgentData.platform) || navigator.platform || '';
+    if(/win/i.test(plat)) out.push(`windows. i've been in a hundred of them.`);
+    else if(/mac/i.test(plat)) out.push(`a mac won't save you. nothing shiny does.`);
+    else if(/linux/i.test(plat)) out.push(`linux. you think you're clever. i don't care.`);
+    out.push((()=>{let n=new Date();let h=((n.getHours()+11)%12)+1;return `your clock says ${h}:${n.getMinutes().toString().padStart(2,'0')}. mine doesn't move.`;})());
+    return out;
+  }
 
+  /* ---------- SPRITE PRERENDER ---------- */
+  function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  const fridgeSpr = document.createElement('canvas'); fridgeSpr.width = 64; fridgeSpr.height = 110;
+  (function(){
+    const c = fridgeSpr.getContext('2d');
+    c.fillStyle = '#cfd3d6'; roundRect(c,8,4,48,102,5); c.fill();
+    c.strokeStyle = '#7a7d80'; c.lineWidth = 2; roundRect(c,8,4,48,102,5); c.stroke();
+    c.strokeStyle = '#9aa0a4'; c.beginPath(); c.moveTo(8,44); c.lineTo(56,44); c.stroke();
+    c.fillStyle = '#6a6d70'; c.fillRect(48,12,4,24); c.fillRect(48,52,4,40);
+    c.fillStyle = 'rgba(120,170,200,0.10)'; roundRect(c,8,4,48,102,5); c.fill();
+  })();
+  const venSpr = document.createElement('canvas'); venSpr.width = 120; venSpr.height = 300;
+  const venCtx = venSpr.getContext('2d');
+  function drawVendor(open, rage){
+    const c = venCtx, W = venSpr.width, H = venSpr.height, cx = W/2;
+    c.clearRect(0,0,W,H);
+    c.fillStyle = '#e7e2d6';
+    c.fillRect(cx-20, 120, 6, 132); c.fillRect(cx+14, 120, 6, 132);
+    roundRect(c, cx-14, 108, 28, 150, 8); c.fill();
+    c.fillRect(cx-10, 250, 7, 48); c.fillRect(cx+3, 250, 7, 48);
+    c.fillRect(cx-5, 92, 10, 22);
+    const hw=48, hh=72, hx=cx-hw/2, hy=18;
+    c.fillStyle = '#dfe3e6'; roundRect(c,hx,hy,hw,hh,6); c.fill();
+    c.strokeStyle = '#888'; c.lineWidth = 2; roundRect(c,hx,hy,hw,hh,6); c.stroke();
+    const gap = 6 + open*30;
+    const ig = c.createRadialGradient(cx, hy+hh*0.55, 2, cx, hy+hh*0.55, gap*1.5);
+    ig.addColorStop(0, `rgba(${(120+rage*135)|0},0,0,${0.55+rage*0.45})`);
+    ig.addColorStop(1, 'rgba(0,0,0,0.96)');
+    c.fillStyle = ig; c.fillRect(cx-gap/2, hy+8, gap, hh-16);
+    c.fillStyle = '#cdd2d6'; c.fillRect(hx - open*18, hy+6, 8, hh-12);
+    c.fillStyle = '#777'; c.fillRect(hx+hw-6, hy+14, 3, hh-28);
+  }
 
-  function openPopups(count) {
+  /* ---------- AUDIO ---------- */
+  let drone, droneG, hum1, hum2, humG, humLP, fanSrc, fanG;
+  function startAudio(){
+    if(!audioCtx) return;
+    drone = audioCtx.createOscillator(); droneG = audioCtx.createGain();
+    drone.type='sine'; drone.frequency.value=42; droneG.gain.value=0.07;
+    drone.connect(droneG); droneG.connect(audioCtx.destination); drone.start();
+    humLP = audioCtx.createBiquadFilter(); humLP.type='lowpass'; humLP.frequency.value=220;
+    humG = audioCtx.createGain(); humG.gain.value=0.0001;
+    hum1 = audioCtx.createOscillator(); hum1.type='sawtooth'; hum1.frequency.value=58;
+    hum2 = audioCtx.createOscillator(); hum2.type='sine'; hum2.frequency.value=116.5;
+    const h1g = audioCtx.createGain(); h1g.gain.value=0.5;
+    const h2g = audioCtx.createGain(); h2g.gain.value=0.18;
+    hum1.connect(h1g); hum2.connect(h2g); h1g.connect(humLP); h2g.connect(humLP);
+    humLP.connect(humG); humG.connect(audioCtx.destination);
+    hum1.start(); hum2.start();
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*2, audioCtx.sampleRate);
+    const d = buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    fanSrc = audioCtx.createBufferSource(); fanSrc.buffer=buf; fanSrc.loop=true;
+    const bp = audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=320; bp.Q.value=0.8;
+    fanG = audioCtx.createGain(); fanG.gain.value=0.0001;
+    fanSrc.connect(bp); bp.connect(fanG); fanG.connect(audioCtx.destination); fanSrc.start();
+  }
+  function setHum(vol){ if(!audioCtx||!humG) return; const t = audioCtx.currentTime; humG.gain.setTargetAtTime(Math.max(0.0001, vol), t, 0.12); if(fanG) fanG.gain.setTargetAtTime(Math.max(0.0001, vol*0.4), t, 0.12); }
+  function humSpike(){ if(humG) humG.gain.setTargetAtTime(0.85, audioCtx.currentTime, 0.05); }
+  function humMax(){ if(humG) humG.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.05); }
+  function humUnderDeath(){ setHum(0.22); }
+  function stopAudio(){ try{drone.stop();hum1.stop();hum2.stop();fanSrc.stop();}catch(e){} }
+  function playPickup(){
+    if(!audioCtx) return;
+    const t=audioCtx.currentTime;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='square'; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(60,t+0.18);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.5,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.3);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.32);
+    const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
+    o2.type='sine'; o2.frequency.value=70;
+    g2.gain.setValueAtTime(0.0001,t); g2.gain.linearRampToValueAtTime(0.6,t+0.01); g2.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+    o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t); o2.stop(t+0.22);
+  }
+  function thump(){
+    if(!audioCtx) return;
+    const t=audioCtx.currentTime;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(70,t); o.frequency.exponentialRampToValueAtTime(28,t+0.18);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.9,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.3);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.32);
+  }
 
-    for (let i = 0; i < count; i++) {
+  /* ---------- INPUT ---------- */
+  function kd(e){
+    const k = e.key.toLowerCase();
+    keys[k] = true;
+    if(['arrowup','arrowdown','arrowleft','arrowright','f'].includes(k)) e.preventDefault();
+    if((k==='q' || k==='escape') && running){ wakeUpAttempt(); }
+  }
+  function ku(e){ keys[e.key.toLowerCase()] = false; }
+  function mm(e){ if(document.pointerLockElement===canvas){ rotate(-e.movementX*0.0025); } }
+  function addInput(){ document.addEventListener('keydown', kd); document.addEventListener('keyup', ku); document.addEventListener('mousemove', mm); }
+  function removeInput(){ document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); document.removeEventListener('mousemove', mm); for(const k in keys) keys[k]=false; }
+  canvas.addEventListener('click', ()=>{ if(running && document.pointerLockElement!==canvas && canvas.requestPointerLock) canvas.requestPointerLock(); });
 
-      openSinglePopup(popupMessages[Math.floor(Math.random() * popupMessages.length)]);
+  function resize(){ canvas.width = Math.max(160, Math.floor(window.innerWidth * 0.5)); canvas.height = Math.max(120, Math.floor(window.innerHeight * 0.5)); }
+  window.addEventListener('resize', ()=>{ if(gameActive) resize(); });
 
+  /* ---------- RENDER ---------- */
+  function render3d(){
+    const w = canvas.width, h = canvas.height;
+    let g = ctx.createLinearGradient(0,0,0,h/2); g.addColorStop(0,'#05070a'); g.addColorStop(1,'#0b0f14'); ctx.fillStyle=g; ctx.fillRect(0,0,w,h/2);
+    let g2 = ctx.createLinearGradient(0,h/2,0,h); g2.addColorStop(0,'#0a0c0f'); g2.addColorStop(1,'#151515'); ctx.fillStyle=g2; ctx.fillRect(0,h/2,w,h/2);
+    const zbuf = new Float32Array(w);
+    for(let x=0;x<w;x++){
+      const cameraX = 2*x/w - 1;
+      const rdx = dirX + planeX*cameraX, rdy = dirY + planeY*cameraX;
+      let mx = Math.floor(posX), my = Math.floor(posY);
+      const ddx = Math.abs(1/rdx), ddy = Math.abs(1/rdy);
+      let stepX, stepY, sdx, sdy;
+      if(rdx<0){ stepX=-1; sdx=(posX-mx)*ddx; } else { stepX=1; sdx=(mx+1-posX)*ddx; }
+      if(rdy<0){ stepY=-1; sdy=(posY-my)*ddy; } else { stepY=1; sdy=(my+1-posY)*ddy; }
+      let hit=0, side=0, guard=0;
+      while(!hit && guard++<80){
+        if(sdx<sdy){ sdx+=ddx; mx+=stepX; side=0; } else { sdy+=ddy; my+=stepY; side=1; }
+        if(mx<0||my<0||mx>=MW||my>=MH){ hit=2; break; }
+        if(map[mx][my]===1) hit=1;
+      }
+      let pwd = side===0 ? (sdx-ddx) : (sdy-ddy);
+      if(pwd<0.0001) pwd=0.0001;
+      zbuf[x] = pwd;
+      if(hit!==1) continue;
+      const lineH = Math.floor(h/pwd);
+      let dStart = Math.floor(-lineH/2 + h/2); if(dStart<0) dStart=0;
+      let dEnd   = Math.floor(lineH/2 + h/2);  if(dEnd>=h) dEnd=h-1;
+      let wallX = side===0 ? posY+pwd*rdy : posX+pwd*rdx; wallX -= Math.floor(wallX);
+      const fog = Math.max(0, 1 - pwd/(8+lightLevel*8));
+      const base = side===1 ? 70 : 96;
+      const streak = 0.82 + 0.18*Math.sin(wallX*44 + (mx*7+my*13));
+      const shade = fog*streak*(0.55+lightLevel*0.45);
+      const r=((base+18)*shade)|0, gg=((base+20)*shade)|0, b=((base+30)*shade)|0;
+      ctx.fillStyle = `rgb(${r},${gg},${b})`;
+      ctx.fillRect(x, dStart, 1, dEnd-dStart+1);
     }
-
+    drawSprites(zbuf, w, h);
+    const bloom = ctx.createRadialGradient(w/2, h*0.52, 0, w/2, h*0.52, h*0.5);
+    bloom.addColorStop(0,`rgba(180,190,200,${0.04+lightLevel*0.08})`); bloom.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = bloom; ctx.fillRect(0,0,w,h);
   }
-
-
-
-  function killAllPopups() {
-
-    popupWindows.forEach(p => {
-
-      try { p.window.close(); } catch (e) {}
-
-      clearInterval(p.bounceInterval);
-
-    });
-
-    popupWindows = [];
-
-  }
-
-
-
-  function pruneClosedPopups() {
-
-    for (let i = popupWindows.length - 1; i >= 0; i--) {
-
-      if (popupWindows[i].window.closed) {
-
-        clearInterval(popupWindows[i].bounceInterval);
-
-        popupWindows.splice(i, 1);
-
+  function drawSprites(zbuf, w, h){
+    const list = [];
+    for(const f of fridges){ if(!f.taken) list.push({x:f.x, y:f.y, type:'fridge'}); }
+    list.push({x:ven.x, y:ven.y, type:'vendor'});
+    for(const s of list){ s.d = (posX-s.x)**2 + (posY-s.y)**2; }
+    list.sort((a,b)=> b.d - a.d);
+    const invDet = 1/(planeX*dirY - dirX*planeY);
+    for(const s of list){
+      const spx = s.x - posX, spy = s.y - posY;
+      const tx = invDet*(dirY*spx - dirX*spy);
+      const ty = invDet*(-planeY*spx + planeX*spy);
+      if(ty <= 0.05) continue;
+      const screenX = Math.floor((w/2)*(1 + tx/ty));
+      let sprH, sprW, yOff, img;
+      if(s.type==='fridge'){
+        sprH = Math.abs(Math.floor(h/ty))*0.6; sprW = sprH*(fridgeSpr.width/fridgeSpr.height); yOff = sprH*0.18; img = fridgeSpr;
+      } else {
+        const dd = Math.hypot(posX-ven.x, posY-ven.y);
+        const prox = Math.max(0, (6-dd)/6);
+        const rage = Math.min(1, found/6*0.55 + prox*0.6);
+        const openP = Math.min(1.2, 0.35 + 0.4*(0.5+0.5*Math.sin(gameTime*(0.16+prox*0.5))) + rage*0.2);
+        drawVendor(openP, rage);
+        sprH = Math.abs(Math.floor(h/ty))*1.18; sprW = sprH*(venSpr.width/venSpr.height); yOff = 0; img = venSpr;
       }
-
+      const drawStartY = Math.floor(h/2 - sprH/2 + yOff);
+      const drawStartX = Math.floor(screenX - sprW/2);
+      const iw = img.width, ih = img.height;
+      for(let stripe=0; stripe<sprW; stripe++){
+        const colX = drawStartX + stripe;
+        if(colX<0 || colX>=w) continue;
+        if(ty >= zbuf[colX]) continue;
+        const texX = Math.floor((stripe/sprW)*iw);
+        ctx.drawImage(img, texX, 0, 1, ih, colX, drawStartY, 1, sprH);
+      }
     }
-
+  }
+  function drawVendorFullscreen(p){
+    const w = canvas.width, h = canvas.height;
+    drawVendor(0.6 + 0.4*p, Math.min(1, 0.5 + p));
+    const scale = 0.6 + p*3.6;
+    const dw = venSpr.width*scale, dh = venSpr.height*scale;
+    ctx.globalAlpha = Math.min(1, 0.4 + p);
+    ctx.drawImage(venSpr, w/2 - dw/2, h*0.5 - dh*0.5, dw, dh);
+    ctx.globalAlpha = 1;
+    const rg = ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,h*0.7);
+    rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(1,`rgba(${(100+p*100)|0},0,0,${0.3+0.5*p})`);
+    ctx.fillStyle = rg; ctx.fillRect(0,0,w,h);
   }
 
-
-
-  function forceFullscreenAndPointerLock() {
-
-    try {
-
-      if (!document.fullscreenElement) {
-
-        document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
-
-      }
-
-    } catch (e) {}
-
-    try {
-
-      if (document.pointerLockElement !== canvas) {
-
-        canvas.requestPointerLock();
-
-      }
-
-    } catch (e) {}
-
+  /* ---------- MESSAGES + WHISPERS ---------- */
+  function flashMessage(txt){
+    messageEl.textContent = txt;
+    messageEl.style.opacity = '1';
+    clearTimeout(flashMessage._t);
+    flashMessage._t = setTimeout(()=>{ messageEl.style.opacity='0'; }, 1900);
+  }
+  function whisper(txt){
+    if(!txt) return;
+    whisperEl.textContent = txt;
+    whisperEl.style.opacity = '0.85';
+    clearTimeout(whisper._t);
+    whisper._t = setTimeout(()=>{ whisperEl.style.opacity='0'; }, 4000);
+  }
+  function maybeWhisper(now){
+    if(!running || scriptedBlack || blackoutActive || whisperQueue.length===0) return;
+    if(now - lastWhisperT > nextWhisperGap){
+      lastWhisperT = now; nextWhisperGap = 12000 + Math.random()*9000;
+      whisper(whisperQueue.shift());
+    }
   }
 
-
-
-  function enableMaximumTrap() {
-
-    trapLevel = 0;
-
-
-
-    // Prevent closing/reloading
-
-    const beforeUnloadHandler = (e) => {
-
-      if (!running) return;
-
-      trapLevel = 5;
-
-      e.preventDefault();
-
-      e.returnValue = "the vendor is not done with you.";
-
-      return "the vendor is not done with you.";
-
-    };
-
-    window.addEventListener('beforeunload', beforeUnloadHandler, { capture: true });
-
-    trapListeners.push({ type: 'beforeunload', handler: beforeUnloadHandler });
-
-
-
-    // Block dangerous keyboard shortcuts and immediately re‑lock
-
-    const keydownHandler = (e) => {
-
-      if (!running) return;
-
-      const k = e.key.toLowerCase();
-
-      const blocked = ['f5', 'f12', 'f4', 'r', 't', 'tab', 'escape', 'meta', 'control', 'alt'];
-
-      if (
-
-        blocked.includes(k) ||
-
-        (e.ctrlKey && ['w', 'r', 't', 'f5', 'tab'].includes(k)) ||
-
-        (e.altKey && (k === 'f4' || k === 'tab'))
-
-      ) {
-
-        trapLevel = Math.min(6, trapLevel + 1);
-
-        e.stopImmediatePropagation();
-
-        e.preventDefault();
-
-        if (Math.random() < 0.45) flashMessage("no.");
-
-        if (trapLevel >= 4) document.getElementById('hgBlack').style.opacity = '0.75';
-
-        forceFullscreenAndPointerLock();   // instant re‑lock
-
-        return false;
-
-      }
-
-    };
-
-    document.addEventListener('keydown', keydownHandler, true);
-
-    trapListeners.push({ type: 'keydown', handler: keydownHandler });
-
-
-
-    // Instant lock on any canvas click
-
-    const canvasClickHandler = (e) => {
-
-      if (!running) return;
-
-      forceFullscreenAndPointerLock();
-
-    };
-
-    canvas.addEventListener('click', canvasClickHandler);
-
-    trapListeners.push({ element: canvas, type: 'click', handler: canvasClickHandler });
-
-
-
-    // Aggressive periodic re‑assert (every 200ms)
-
-    const fullscreenInterval = setInterval(() => {
-
-      if (!running) return;
-
-      forceFullscreenAndPointerLock();
-
-    }, 200);
-
-
-
-    // Store interval for cleanup
-
-    trapListeners.push({ interval: fullscreenInterval });
-
-
-
-    // Popup storm – 3 bouncing windows, if closed they respawn
-
-    openPopups(3);
-
-    popupStorm = setInterval(() => {
-
-      if (!running) return;
-
-      if (trapLevel >= 2) {
-
-        pruneClosedPopups();
-
-        while (popupWindows.length < 3) {
-
-          openSinglePopup(popupMessages[Math.floor(Math.random() * popupMessages.length)]);
-
-        }
-
-      }
-
-    }, 500);
-
+  /* ---------- DYNAMIC DARKNESS ---------- */
+  function applyVignette(d){
+    const inner = Math.max(2, 6 - found*0.55);
+    let darkStart = 40 - found*3;
+    if(d!=null && d<4) darkStart -= (4-d)*3;
+    darkStart = Math.max(18, darkStart);
+    const midA = (0.45 + (1-lightLevel)*0.45).toFixed(2);
+    vignette.style.background = `radial-gradient(circle at 50% 52%, rgba(0,0,0,0) ${inner}%, rgba(0,0,0,${midA}) ${darkStart}%, rgba(0,0,0,0.95) 72%, #000 100%)`;
+  }
+  function flicker(amount, dur){
+    if(scriptedBlack || blackoutActive) return;
+    hgBlack.style.transition = 'opacity 0.05s';
+    hgBlack.style.opacity = String(amount);
+    setTimeout(()=>{ if(!scriptedBlack && !blackoutActive) hgBlack.style.opacity='0'; }, dur);
+  }
+  function blackout(){
+    if(blackoutActive || scriptedBlack) return;
+    blackoutActive = true;
+    hgBlack.style.transition = 'opacity 0.08s';
+    hgBlack.style.opacity = '1';
+    let dx=posX-ven.x, dy=posY-ven.y; const d=Math.hypot(dx,dy)||0.0001; dx/=d; dy/=d;
+    const lunge = Math.min(1.3, Math.max(0, d-0.62));
+    const nx=ven.x+dx*lunge, ny=ven.y+dy*lunge;
+    if(!isWall(nx, ven.y)) ven.x=nx;
+    if(!isWall(ven.x, ny)) ven.y=ny;
+    if(audioCtx){ const t=audioCtx.currentTime; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(30,t+0.25); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(1.0,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.4); o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.42); }
+    setTimeout(()=>{ hgBlack.style.opacity='0'; blackoutActive=false; }, 360);
   }
 
-
-
-  function disableMaximumTrap() {
-
-    // Clear intervals
-
-    trapListeners.forEach(({ interval, type, handler, element }) => {
-
-      if (interval) clearInterval(interval);
-
-      if (type && handler) {
-
-        if (element) element.removeEventListener(type, handler);
-
-        else window.removeEventListener(type, handler, true);
-
-      }
-
-    });
-
-    trapListeners = [];
-
-    if (popupStorm) clearInterval(popupStorm);
-
-    killAllPopups();
-
-    trapLevel = 0;
-
-  }
-
-
-
-  /* Override quit/wake to do nothing */
-
-  function wakeUpAttempt() {
-
-    flashMessage("there is no waking up.");
-
-  }
-
-  function quitGame() {
-
-    // does nothing – you cannot escape
-
-    flashMessage("there is no escape key");
-
-  }
-
-
-
-  /* ---------- CAUGHT -> RESTART, NOT EXIT ---------- */
-
-  function caught(completed) {
-
-    if (ended) return;
-
-    ended = true; running = false;
-
-    if (document.pointerLockElement) document.exitPointerLock();
-
-    chamberEl.textContent = '';
-
-    messageEl.style.opacity = '0';
-
-    try { playScream(); } catch(e) {}
-
-    humMax();
-
-    const t0 = performance.now();
-
-    (function rush(now) {
-
-      const p = Math.min(1, (now - t0) / 1400);
-
-      render3d();
-
-      drawVendorFullscreen(p);
-
-      vignette.style.opacity = String(0.85 + 0.15 * p);
-
-      if (p < 1) requestAnimationFrame(rush);
-
-      else {
-
-        ctx.fillStyle = '#000';
-
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        setTimeout(restartGame, 800);
-
-      }
-
-    })(t0);
-
-  }
-
-
-
-  function restartGame() {
-
-    buildMap();
-
-    posX = 12.5; posY = 21.5;
-
-    dirX = 0; dirY = -1; planeX = 0.66; planeY = 0;
-
-    ven = { x: 12, y: 3, active: false, speed: 0 };
-
-    fridges = [
-
-      { x: 3.5, y: 3.5 }, { x: 20.5, y: 4.5 },
-
-      { x: 3.5, y: 20.5 }, { x: 20.5, y: 20.5 },
-
-      { x: 8.5, y: 13.5 }, { x: 13.5, y: 8.5 }
-
-    ].map(f => ({ ...f, taken: false }));
-
-    found = 0;
-
-    ended = false;
-
-    scriptedBlack = false;
-
-    gameTime = 0;
-
-    chamberEl.textContent = '';
-
-    messageEl.style.opacity = '0';
-
-    vignette.style.opacity = '1';
-
-    running = false;
-
-    if (document.pointerLockElement) document.exitPointerLock();
-
-    setTimeout(() => { startRunning(); }, 300);
-
-  }
-
-
-
-  /* ---------- VICTORY (only after collecting all 6) ---------- */
-
-  function victory() {
-
-    disableMaximumTrap();
-
-    running = false;
-
-    cancelAnimationFrame(rafId);
-
-    stopAudio();
-
-    removeInput();
-
-    if (document.pointerLockElement) document.exitPointerLock();
-
-    container.style.display = 'none';
-
-    farewell.textContent = 'you collected all six. the door opens.';
-
-    farewell.style.display = 'block';
-
-    setTimeout(() => {
-
-      farewell.style.display = 'none';
-
-      gameActive = false;
-
-      try { Render.run(render); Runner.run(matterRunner, engine); } catch(e) {}
-
-    }, 5000);
-
-  }
-
-
-
-  /* ---------- COLLECTION (modified to call victory) ---------- */
-
-  function collect(f) {
-
-    f.taken = true;
-
-    found++;
-
+  /* ---------- COLLECTION ---------- */
+  function collect(f){
+    f.taken = true; found++;
     playPickup();
-
     chamberEl.textContent = 'CHAMBER ' + found + ' / 6';
-
-    flashMessage(chamberLines[found] || '');
-
-    if (found >= 6) {
-
-      setTimeout(victory, 900);
-
-      return;
-
-    }
-
+    flashMessage(pick(chamberPools[found] || ['chamber ' + found + '.']));
+    if(found > mem.bestChamber){ mem.bestChamber = found; saveMem(mem); }
+    if(found >= 6){ setTimeout(victory, 900); return; }
     ven.active = true;
-
     const speedTable = [0, 0.013, 0.019, 0.026, 0.035, 0.046];
-
-    ven.speed = speedTable[found];
-
-    if (found === 5) scriptedScare();
-
+    ven.speed = speedTable[found] * (1 + sessionDeaths*0.18);
+    if(found === 5) scriptedScare();
   }
-
-
 
   /* ---------- SCRIPTED FRIDGE-5 BEAT ---------- */
-
   function scriptedScare(){
-
     scriptedBlack = true;
-
     setHum(0.02);
-
+    hgBlack.style.transition = 'opacity 0.8s';
     hgBlack.style.opacity = '1';
-
     setTimeout(()=>{
-
       const cand = [
-
         [posX - dirX*2.4, posY - dirY*2.4],
-
         [posX + planeX*2.4, posY + planeY*2.4],
-
         [posX - planeX*2.4, posY - planeY*2.4],
-
         [posX - dirX*1.6, posY - dirY*1.6]
-
       ];
-
       let placed = false;
-
       for(const [cx,cy] of cand){ if(!isWall(cx,cy)){ ven.x=cx; ven.y=cy; placed=true; break; } }
-
       if(!placed){ ven.x = posX; ven.y = Math.max(1.5, posY - 1.5); }
-
-      ven.active = true;
-
-      humSpike();
-
+      ven.active = true; humSpike();
       setTimeout(()=>{ hgBlack.style.opacity='0'; scriptedBlack=false; }, 750);
-
     }, 1150);
-
   }
 
-
-
   /* ---------- UPDATE ---------- */
-
   function update(dt){
-
     let fwd=0, strafe=0, turn=0;
-
     if(keys['w']||keys['arrowup']) fwd+=1;
-
     if(keys['s']||keys['arrowdown']) fwd-=1;
-
     if(keys['a']) strafe-=1;
-
     if(keys['d']) strafe+=1;
-
     if(keys['arrowleft']) turn-=1;
-
     if(keys['arrowright']) turn+=1;
-
     if(turn) rotate(-turn*0.04*dt);
-
     const ms = 0.052*dt;
-
     const mvx = dirX*fwd*ms + planeX*strafe*ms*0.8;
-
     const mvy = dirY*fwd*ms + planeY*strafe*ms*0.8;
-
     const bx = mvx>0?0.2:-0.2, by = mvy>0?0.2:-0.2;
-
     if(!isWall(posX+mvx+bx, posY)) posX += mvx;
-
     if(!isWall(posX, posY+mvy+by)) posY += mvy;
 
-
-
-    if(ven.active && !scriptedBlack){
-
-      let dx = posX-ven.x, dy = posY-ven.y;
-
-      const d = Math.hypot(dx,dy) || 0.0001;
-
-      if(d < 0.6){ caught(false); }
-
-      else {
-
-        dx/=d; dy/=d;
-
-        const vs = ven.speed*dt;
-
-        const nx = ven.x + dx*vs, ny = ven.y + dy*vs;
-
-        if(!isWall(nx, ven.y)) ven.x = nx;
-
-        if(!isWall(ven.x, ny)) ven.y = ny;
-
-      }
-
+    // flashlight: drains slowly, F refocuses
+    if(keys['f'] && lightCooldown<=0){
+      lightLevel = Math.min(1, lightLevel + 0.45);
+      lightCooldown = 165;
+      if(audioCtx){ const t=audioCtx.currentTime; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.value=900; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.15,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.08); o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.09); }
     }
+    if(lightCooldown>0) lightCooldown -= dt;
+    lightLevel = Math.max(0.28, lightLevel - 0.0009*dt);
 
-
+    let dv = 99;
+    if(ven.active && !scriptedBlack){
+      let dx=posX-ven.x, dy=posY-ven.y;
+      dv = Math.hypot(dx,dy) || 0.0001;
+      if(dv < 0.6){ caught(); return; }
+      dx/=dv; dy/=dv;
+      const vs = ven.speed*dt;
+      const nx = ven.x + dx*vs, ny = ven.y + dy*vs;
+      if(!isWall(nx, ven.y)) ven.x = nx;
+      if(!isWall(ven.x, ny)) ven.y = ny;
+    } else if(ven.active){ dv = Math.hypot(posX-ven.x, posY-ven.y); }
 
     for(const f of fridges){ if(!f.taken && Math.hypot(posX-f.x, posY-f.y) < 0.7) collect(f); }
 
-
-
     let humVol = 0.05;
-
-    if(ven.active){ const d = Math.hypot(posX-ven.x, posY-ven.y); const maxHear = 12; humVol = 0.07 + Math.max(0,(maxHear-d)/maxHear)*0.9; }
-
+    if(ven.active){ const maxHear=12; humVol = 0.07 + Math.max(0,(maxHear-dv)/maxHear)*0.9; }
     if(!scriptedBlack) setHum(humVol);
 
-
-
-    if(ven.active && !scriptedBlack){
-
-      const d = Math.hypot(posX-ven.x, posY-ven.y);
-
-      vignette.style.opacity = (d < 4) ? String(1 + (4-d)*0.04) : '1';
-
+    if(ven.active && !scriptedBlack && !blackoutActive){
+      if(dv<5.5 && Math.random() < ((5.5-dv)/5.5)*0.05) flicker(0.25+Math.random()*0.45, 60+Math.random()*80);
+      if(dv<2.7 && Math.random()<0.012) blackout();
+      if(dv<3.2){ const now=performance.now(); const interval=340+(dv/3.2)*300; if(now-lastThump>interval){ lastThump=now; thump(); } }
     }
 
+    applyVignette(ven.active?dv:null);
   }
-
-
 
   /* ---------- LOOP ---------- */
-
   function frame(t){
-
     if(!running) return;
-
     const dt = Math.min(50, t-lastT)/16.6667; lastT = t; gameTime += dt;
-
     update(dt);
-
+    if(!running) return;
     render3d();
-
+    maybeWhisper(t);
     rafId = requestAnimationFrame(frame);
-
   }
 
-
-
-  /* ---------- SPRITE PRERENDER ---------- */
-
-  function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
-
-
-
-  const fridgeSpr = document.createElement('canvas'); fridgeSpr.width = 64; fridgeSpr.height = 110;
-
-  (function(){
-
-    const c = fridgeSpr.getContext('2d');
-
-    c.fillStyle = '#cfd3d6'; roundRect(c,8,4,48,102,5); c.fill();
-
-    c.strokeStyle = '#7a7d80'; c.lineWidth = 2; roundRect(c,8,4,48,102,5); c.stroke();
-
-    c.strokeStyle = '#9aa0a4'; c.beginPath(); c.moveTo(8,44); c.lineTo(56,44); c.stroke();
-
-    c.fillStyle = '#6a6d70'; c.fillRect(48,12,4,24); c.fillRect(48,52,4,40);
-
-    c.fillStyle = 'rgba(120,170,200,0.10)'; roundRect(c,8,4,48,102,5); c.fill();
-
-  })();
-
-
-
-  const venSpr = document.createElement('canvas'); venSpr.width = 120; venSpr.height = 300;
-
-  const venCtx = venSpr.getContext('2d');
-
-  function drawVendor(open, rage){
-
-    const c = venCtx, W = venSpr.width, H = venSpr.height, cx = W/2;
-
-    c.clearRect(0,0,W,H);
-
-    c.fillStyle = '#e7e2d6';
-
-    c.fillRect(cx-20, 120, 6, 132);
-
-    c.fillRect(cx+14, 120, 6, 132);
-
-    roundRect(c, cx-14, 108, 28, 150, 8); c.fill();
-
-    c.fillRect(cx-10, 250, 7, 48);
-
-    c.fillRect(cx+3, 250, 7, 48);
-
-    c.fillRect(cx-5, 92, 10, 22);
-
-    const hw=48, hh=72, hx=cx-hw/2, hy=18;
-
-    c.fillStyle = '#dfe3e6'; roundRect(c,hx,hy,hw,hh,6); c.fill();
-
-    c.strokeStyle = '#888'; c.lineWidth = 2; roundRect(c,hx,hy,hw,hh,6); c.stroke();
-
-    const gap = 6 + open*30;
-
-    const ig = c.createRadialGradient(cx, hy+hh*0.55, 2, cx, hy+hh*0.55, gap*1.5);
-
-    ig.addColorStop(0, `rgba(${(120+rage*135)|0},0,0,${0.55+rage*0.45})`);
-
-    ig.addColorStop(1, 'rgba(0,0,0,0.96)');
-
-    c.fillStyle = ig; c.fillRect(cx-gap/2, hy+8, gap, hh-16);
-
-    c.fillStyle = '#cdd2d6'; c.fillRect(hx - open*18, hy+6, 8, hh-12);
-
-    c.fillStyle = '#777'; c.fillRect(hx+hw-6, hy+14, 3, hh-28);
-
+  /* ---------- WAKE-UP TAUNTS (you cannot leave, in-fiction) ---------- */
+  function wakeUpAttempt(){
+    wakeAttempts++;
+    const line = (wakeAttempts % 5 === 0) ? `i counted that. that's ${wakeAttempts}.` : pick(wakeTaunts);
+    flashMessage(line);
+    flicker(0.4, 120);
   }
 
-
-
-  /* ---------- AUDIO ---------- */
-
-  let drone, droneG, hum1, hum2, humG, humLP, fanSrc, fanG;
-
-  function startAudio(){
-
-    if(!audioCtx) return;
-
-    drone = audioCtx.createOscillator(); droneG = audioCtx.createGain();
-
-    drone.type='sine'; drone.frequency.value=42; droneG.gain.value=0.07;
-
-    drone.connect(droneG); droneG.connect(audioCtx.destination); drone.start();
-
-    humLP = audioCtx.createBiquadFilter(); humLP.type='lowpass'; humLP.frequency.value=220;
-
-    humG = audioCtx.createGain(); humG.gain.value=0.0001;
-
-    hum1 = audioCtx.createOscillator(); hum1.type='sawtooth'; hum1.frequency.value=58;
-
-    hum2 = audioCtx.createOscillator(); hum2.type='sine'; hum2.frequency.value=116.5;
-
-    const h1g = audioCtx.createGain(); h1g.gain.value=0.5;
-
-    const h2g = audioCtx.createGain(); h2g.gain.value=0.18;
-
-    hum1.connect(h1g); hum2.connect(h2g); h1g.connect(humLP); h2g.connect(humLP);
-
-    humLP.connect(humG); humG.connect(audioCtx.destination);
-
-    hum1.start(); hum2.start();
-
-    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*2, audioCtx.sampleRate);
-
-    const d = buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-
-    fanSrc = audioCtx.createBufferSource(); fanSrc.buffer=buf; fanSrc.loop=true;
-
-    const bp = audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=320; bp.Q.value=0.8;
-
-    fanG = audioCtx.createGain(); fanG.gain.value=0.0001;
-
-    fanSrc.connect(bp); bp.connect(fanG); fanG.connect(audioCtx.destination); fanSrc.start();
-
-  }
-
-  function setHum(vol){ if(!audioCtx||!humG) return; const t = audioCtx.currentTime; humG.gain.setTargetAtTime(Math.max(0.0001, vol), t, 0.12); if(fanG) fanG.gain.setTargetAtTime(Math.max(0.0001, vol*0.4), t, 0.12); }
-
-  function humSpike(){ if(humG) humG.gain.setTargetAtTime(0.85, audioCtx.currentTime, 0.05); }
-
-  function humMax(){ if(humG) humG.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.05); }
-
-  function humUnderDeath(){ setHum(0.22); }
-
-  function stopAudio(){ try{drone.stop();hum1.stop();hum2.stop();fanSrc.stop();}catch(e){} }
-
-  function playPickup(){
-
-    if(!audioCtx) return;
-
-    const t=audioCtx.currentTime;
-
-    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-
-    o.type='square'; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(60,t+0.18);
-
-    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.5,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.3);
-
-    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.32);
-
-    const o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
-
-    o2.type='sine'; o2.frequency.value=70;
-
-    g2.gain.setValueAtTime(0.0001,t); g2.gain.linearRampToValueAtTime(0.6,t+0.01); g2.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
-
-    o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t); o2.stop(t+0.22);
-
-  }
-
-
-
-  /* ---------- INPUT ---------- */
-
-  function kd(e){
-
-    const k = e.key.toLowerCase();
-
-    keys[k] = true;
-
-    if(['arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
-
-    if(k === 'q' && running) {
-
-      e.preventDefault();
-
-      wakeUpAttempt();
-
-    }
-
-    if(k === 'escape' && running) {
-
-      e.preventDefault();
-
-      quitGame();
-
-    }
-
-  }
-
-  function ku(e){ keys[e.key.toLowerCase()] = false; }
-
-  function mm(e){ if(document.pointerLockElement===canvas){ rotate(-e.movementX*0.0025); } }
-
-  function addInput(){ document.addEventListener('keydown', kd); document.addEventListener('keyup', ku); document.addEventListener('mousemove', mm); }
-
-  function removeInput(){ document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); document.removeEventListener('mousemove', mm); for(const k in keys) keys[k]=false; }
-
-  canvas.addEventListener('click', ()=>{ if(running && document.pointerLockElement!==canvas && canvas.requestPointerLock) canvas.requestPointerLock(); });
-
-
-
-  function resize(){ canvas.width = Math.max(160, Math.floor(window.innerWidth * 0.5)); canvas.height = Math.max(120, Math.floor(window.innerHeight * 0.5)); }
-
-  window.addEventListener('resize', ()=>{ if(gameActive) resize(); });
-
-
-
-  /* ---------- RENDER ---------- */
-
-  function render3d(){
-
-    const w = canvas.width, h = canvas.height;
-
-    let g = ctx.createLinearGradient(0,0,0,h/2); g.addColorStop(0,'#05070a'); g.addColorStop(1,'#0b0f14'); ctx.fillStyle=g; ctx.fillRect(0,0,w,h/2);
-
-    let g2 = ctx.createLinearGradient(0,h/2,0,h); g2.addColorStop(0,'#0a0c0f'); g2.addColorStop(1,'#151515'); ctx.fillStyle=g2; ctx.fillRect(0,h/2,w,h/2);
-
-    const zbuf = new Float32Array(w);
-
-    for(let x=0;x<w;x++){
-
-      const cameraX = 2*x/w - 1;
-
-      const rdx = dirX + planeX*cameraX, rdy = dirY + planeY*cameraX;
-
-      let mx = Math.floor(posX), my = Math.floor(posY);
-
-      const ddx = Math.abs(1/rdx), ddy = Math.abs(1/rdy);
-
-      let stepX, stepY, sdx, sdy;
-
-      if(rdx<0){ stepX=-1; sdx=(posX-mx)*ddx; } else { stepX=1; sdx=(mx+1-posX)*ddx; }
-
-      if(rdy<0){ stepY=-1; sdy=(posY-my)*ddy; } else { stepY=1; sdy=(my+1-posY)*ddy; }
-
-      let hit=0, side=0, guard=0;
-
-      while(!hit && guard++<80){
-
-        if(sdx<sdy){ sdx+=ddx; mx+=stepX; side=0; } else { sdy+=ddy; my+=stepY; side=1; }
-
-        if(mx<0||my<0||mx>=MW||my>=MH){ hit=2; break; }
-
-        if(map[mx][my]===1) hit=1;
-
+  /* ---------- CAUGHT -> RESTART x2, THEN BREAK CONTAINMENT ---------- */
+  function caught(){
+    if(ended) return;
+    ended = true; running = false;
+    sessionDeaths++;
+    mem.deaths++; if(found > mem.bestChamber) mem.bestChamber = found; saveMem(mem);
+    if(document.pointerLockElement) document.exitPointerLock();
+    chamberEl.textContent=''; messageEl.style.opacity='0'; whisperEl.style.opacity='0';
+    try{ playScream(); }catch(e){}
+    humMax();
+    const t0 = performance.now();
+    (function rush(now){
+      const p = Math.min(1, (now - t0)/1400);
+      render3d();
+      drawVendorFullscreen(p);
+      if(p < 1) requestAnimationFrame(rush);
+      else {
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(sessionDeaths >= 3) setTimeout(breakContainment, 500);
+        else setTimeout(()=>{ flashMessage(pick(restartTaunts)); setTimeout(restartGame, 1300); }, 300);
       }
-
-      let pwd = side===0 ? (sdx-ddx) : (sdy-ddy);
-
-      if(pwd<0.0001) pwd=0.0001;
-
-      zbuf[x] = pwd;
-
-      if(hit!==1) continue;
-
-      const lineH = Math.floor(h/pwd);
-
-      let dStart = Math.floor(-lineH/2 + h/2); if(dStart<0) dStart=0;
-
-      let dEnd   = Math.floor(lineH/2 + h/2);  if(dEnd>=h) dEnd=h-1;
-
-      let wallX = side===0 ? posY+pwd*rdy : posX+pwd*rdx; wallX -= Math.floor(wallX);
-
-      const fog = Math.max(0, 1 - pwd/14);
-
-      const base = side===1 ? 70 : 96;
-
-      const streak = 0.82 + 0.18*Math.sin(wallX*44 + (mx*7+my*13));
-
-      const shade = fog*streak;
-
-      const r=((base+18)*shade)|0, gg=((base+20)*shade)|0, b=((base+30)*shade)|0;
-
-      ctx.fillStyle = `rgb(${r},${gg},${b})`;
-
-      ctx.fillRect(x, dStart, 1, dEnd-dStart+1);
-
-    }
-
-    drawSprites(zbuf, w, h);
-
-    const bloom = ctx.createRadialGradient(w/2, h*0.52, 0, w/2, h*0.52, h*0.5);
-
-    bloom.addColorStop(0,'rgba(180,190,200,0.10)'); bloom.addColorStop(1,'rgba(0,0,0,0)');
-
-    ctx.fillStyle = bloom; ctx.fillRect(0,0,w,h);
-
+    })(t0);
   }
 
-  function drawSprites(zbuf, w, h){
-
-    const list = [];
-
-    for(const f of fridges){ if(!f.taken) list.push({x:f.x, y:f.y, type:'fridge'}); }
-
-    list.push({x:ven.x, y:ven.y, type:'vendor'});
-
-    for(const s of list){ s.d = (posX-s.x)**2 + (posY-s.y)**2; }
-
-    list.sort((a,b)=> b.d - a.d);
-
-    const invDet = 1/(planeX*dirY - dirX*planeY);
-
-    for(const s of list){
-
-      const spx = s.x - posX, spy = s.y - posY;
-
-      const tx = invDet*(dirY*spx - dirX*spy);
-
-      const ty = invDet*(-planeY*spx + planeX*spy);
-
-      if(ty <= 0.05) continue;
-
-      const screenX = Math.floor((w/2)*(1 + tx/ty));
-
-      let sprH, sprW, yOff, img;
-
-      if(s.type==='fridge'){
-
-        sprH = Math.abs(Math.floor(h/ty))*0.6; sprW = sprH*(fridgeSpr.width/fridgeSpr.height); yOff = sprH*0.18; img = fridgeSpr;
-
-      } else {
-
-        const rage = Math.min(1, found/6 + (ven.active?0.12:0));
-
-        drawVendor(0.35 + 0.4*(0.5+0.5*Math.sin(gameTime*0.16)) + rage*0.2, rage);
-
-        sprH = Math.abs(Math.floor(h/ty))*1.18; sprW = sprH*(venSpr.width/venSpr.height); yOff = 0; img = venSpr;
-
-      }
-
-      const drawStartY = Math.floor(h/2 - sprH/2 + yOff);
-
-      const drawStartX = Math.floor(screenX - sprW/2);
-
-      const iw = img.width, ih = img.height;
-
-      for(let stripe=0; stripe<sprW; stripe++){
-
-        const colX = drawStartX + stripe;
-
-        if(colX<0 || colX>=w) continue;
-
-        if(ty >= zbuf[colX]) continue;
-
-        const texX = Math.floor((stripe/sprW)*iw);
-
-        ctx.drawImage(img, texX, 0, 1, ih, colX, drawStartY, 1, sprH);
-
-      }
-
-    }
-
+  function restartGame(){
+    buildMap();
+    posX=12.5; posY=21.5; dirX=0; dirY=-1; planeX=0.66; planeY=0;
+    ven = { x:12, y:3, active:false, speed:0 };
+    fridges = [{x:3.5,y:3.5},{x:20.5,y:4.5},{x:3.5,y:20.5},{x:20.5,y:20.5},{x:8.5,y:13.5},{x:13.5,y:8.5}].map(f=>({...f, taken:false}));
+    found=0; ended=false; scriptedBlack=false; blackoutActive=false; gameTime=0;
+    lightLevel = Math.max(0.5, 1 - sessionDeaths*0.12);
+    hgBlack.style.transition='opacity 0.8s'; hgBlack.style.opacity='0';
+    chamberEl.textContent=''; messageEl.style.opacity='0';
+    whisperQueue.unshift(pick(rememberOpeners));
+    lastWhisperT = performance.now() - nextWhisperGap + 2200;
+    running=false;
+    if(document.pointerLockElement) document.exitPointerLock();
+    setTimeout(()=>{ startRunning(); }, 300);
   }
 
-  function drawVendorFullscreen(p){
-
-    const w = canvas.width, h = canvas.height;
-
-    drawVendor(0.6 + 0.4*p, Math.min(1, 0.5 + p));
-
-    const scale = 0.6 + p*3.6;
-
-    const dw = venSpr.width*scale, dh = venSpr.height*scale;
-
-    ctx.globalAlpha = Math.min(1, 0.4 + p);
-
-    ctx.drawImage(venSpr, w/2 - dw/2, h*0.5 - dh*0.5, dw, dh);
-
-    ctx.globalAlpha = 1;
-
-    const rg = ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,h*0.7);
-
-    rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(1,`rgba(${(100+p*100)|0},0,0,${0.3+0.5*p})`);
-
-    ctx.fillStyle = rg; ctx.fillRect(0,0,w,h);
-
+  /* ---------- VICTORY (all six) ---------- */
+  function victory(){
+    mem.escaped++; if(6 > mem.bestChamber) mem.bestChamber = 6; saveMem(mem);
+    running = false; cancelAnimationFrame(rafId); stopAudio(); removeInput();
+    if(document.pointerLockElement) document.exitPointerLock();
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+    container.style.display = 'none';
+    farewell.textContent = pick([
+      'you collected all six. the door opens. i remember the ones who leave.',
+      "six. you got out. i'll be here when you come back. you always come back.",
+      'the sixth chamber. you may go. i counted you anyway.'
+    ]);
+    farewell.style.display = 'block';
+    setTimeout(()=>{ farewell.style.display='none'; gameActive=false; try{ Render.run(render); Runner.run(matterRunner, engine); }catch(e){} }, 6000);
   }
 
-
-
-  /* ---------- MESSAGES ---------- */
-
-  function flashMessage(txt){
-
-    messageEl.textContent = txt;
-
-    messageEl.style.opacity = '1';
-
-    clearTimeout(flashMessage._t);
-
-    flashMessage._t = setTimeout(()=>{ messageEl.style.opacity='0'; }, 1900);
-
+  /* ---------- CONTAINMENT BREAK (the real ending) ---------- */
+  function breakContainment(){
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    isDead = true; gameActive = false;
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+    try{ document.getElementById('rouletteBtn').disabled = true; }catch(e){}
+    document.getElementById('screenCrack').style.visibility = 'visible';
+    document.body.style.filter = 'grayscale(100%) sepia(60%) hue-rotate(-30deg) brightness(0.5)';
+    const bc = document.getElementById('bloodCanvas'); bc.style.display = 'block'; startBloodAnimation(bc);
+    setTimeout(()=>{ try{ playHeartbeat(); }catch(e){} }, 400);
+    setTimeout(()=>{ document.getElementById('deathFade').style.opacity = '1'; }, 1500);
+    const gn = document.getElementById('guyName');
+    gn.textContent = 'THE VENDOR';
+    gn.style.display = 'block'; gn.style.fontSize = '14px';
+    gn.style.left = (window.innerWidth/2 - 46) + 'px';
+    gn.style.top  = (window.innerHeight/2 - 10) + 'px';
+    humUnderDeath();
+    removeInput();
+    container.style.opacity = '0';
+    setTimeout(()=>{
+      container.style.display = 'none';
+      farewell.textContent = pick([
+        "i'll remember this too. i remember everything.",
+        "three times. i kept all three. i keep everything.",
+        "the page will reset. you will reset. i will not."
+      ]);
+      farewell.style.display = 'block';
+    }, 520);
   }
 
-  const chamberLines = [ '', 'chamber one. five left.', 'chamber two.', 'chamber three. it heard that.', 'chamber four. faster now.', 'chamber five.', 'chamber six.' ];
-
-
-
-  /* ---------- INTRO (meta) ---------- */
-
+  /* ---------- INTRO (meta + memory) ---------- */
   function showIntro(){
-
-    const now = new Date();
-
-    let hh = now.getHours(), mm = now.getMinutes().toString().padStart(2,'0');
-
-    let ap = hh>=12 ? 'pm' : 'am'; let h12 = ((hh+11)%12)+1;
-
-    let lateLine = (hh>=0 && hh<5) ? "it's late. you should be asleep." : (hh>=22 ? "it's getting late." : "");
-
-    const fc = (typeof fridgesOwned==='number') ? fridgesOwned : 0;
-
-    const lines = [
-
-      "you shouldn't have clicked that.",
-
-      `it's ${h12}:${mm} ${ap} where you are.`,
-
-      lateLine,
-
-      fc>0 ? `you spawned ${fc} fridge${fc!==1?'s':''}. you left them falling.` : "you didn't even buy a fridge.",
-
-      "ren found all six.",
-
-      "ren is still down here.",
-
-      "find all six."
-
-    ].filter(Boolean);
-
-    introEl.innerHTML = lines.map((l,i)=>`<div class="hgLine" style="animation-delay:${i*0.9+0.3}s">${l}</div>`).join('') + `<div id="hgBegin" style="animation-delay:${lines.length*0.9+0.6}s">[ click to descend ]</div>`;
-
+    const lines = [];
+    if(returningFlag){
+      lines.push(pick(rememberOpeners));
+      const memLines = [];
+      if(mem.deaths>0) memLines.push(`you've ended here ${mem.deaths} time${mem.deaths!==1?'s':''}. i keep the count.`);
+      if(sinceText) memLines.push(`it's been ${sinceText} since you were last down here. i didn't move.`);
+      if(mem.escaped>0) memLines.push(`you got out ${mem.escaped} time${mem.escaped!==1?'s':''}. and yet, here you are.`);
+      else if(mem.visits>2) memLines.push(`you've never reached the sixth. i've watched every try.`);
+      if(mem.bestChamber>0 && mem.bestChamber<6) memLines.push(`your best was chamber ${mem.bestChamber}. it wasn't enough.`);
+      memLines.push(`this is visit ${mem.visits}. i was here for all of them.`);
+      shuffle(memLines);
+      lines.push(...memLines.slice(0,2));
+    } else {
+      lines.push("you shouldn't have clicked that.");
+      lines.push("i'll remember this. i'm the only thing on this site that can.");
+    }
+    lines.push(...metaPool.slice(0,2));
+    lines.push("find all six.");
+    whisperQueue = shuffle(metaPool.slice(2));
+    if(returningFlag){
+      if(mem.deaths>0) whisperQueue.push(`death number ${mem.deaths} happened right about... here.`);
+      whisperQueue.push(pick(rememberOpeners));
+    }
+    introEl.innerHTML = lines.map((l,i)=>`<div class="hgLine" style="animation-delay:${i*0.9+0.3}s">${l}</div>`).join('') + `<div id="hgBegin" style="animation-delay:${lines.length*0.9+0.6}s">[ ${returningFlag?'descend again':'click to descend'} ]</div>`;
     introEl.style.display = 'flex';
-
     const begin = ()=>{
-
+      try{ if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{}); }catch(e){}
       introEl.style.transition = 'opacity 0.8s'; introEl.style.opacity = '0';
-
       setTimeout(()=>{ introEl.style.display='none'; introEl.style.opacity='1'; introEl.style.transition=''; }, 820);
-
       introEl.removeEventListener('click', begin);
-
       startRunning();
-
     };
-
     introEl.addEventListener('click', begin);
-
   }
-
-
 
   function startRunning(){
-
     running = true; lastT = performance.now();
-
     if(canvas.requestPointerLock) canvas.requestPointerLock();
-
-    hintEl.textContent = '[wasd] move   [mouse] look   [q] wake up';
-
+    hintEl.textContent = '[wasd] move   [mouse] look   [f] steady the light';
     hintEl.style.opacity = '1';
-
-    setTimeout(()=>{ hintEl.style.opacity='0'; }, 6000);
-
+    setTimeout(()=>{ hintEl.style.opacity='0'; }, 6500);
     rafId = requestAnimationFrame(frame);
-
   }
-
-
 
   /* ---------- START ---------- */
-
   window.startHorrorGame = function(){
-
     if(gameActive) return;
-
     gameActive = true;
-
     try{ Render.stop(render); Runner.stop(matterRunner); }catch(e){}
-
     try{ audio.pause(); }catch(e){}
-
     document.body.style.transform = 'none';
-
+    mem = loadMem();
+    const prevVisits = mem.visits, prevLast = mem.lastVisit;
+    mem.visits = prevVisits + 1;
+    if(!mem.firstVisit) mem.firstVisit = Date.now();
+    mem.lastVisit = Date.now();
+    saveMem(mem);
+    returningFlag = prevVisits > 0;
+    sinceText = fmtSince(prevLast ? Date.now()-prevLast : 0);
+    metaPool = shuffle(buildMetaWhispers());
+    sessionDeaths=0; wakeAttempts=0; lightLevel=1; lightCooldown=0; lastThump=0;
+    lastWhisperT = performance.now(); nextWhisperGap = 12000 + Math.random()*8000;
     buildMap();
-
     posX=12.5; posY=21.5; dirX=0; dirY=-1; planeX=0.66; planeY=0;
-
     ven = { x:12, y:3, active:false, speed:0 };
-
     fridges = [{x:3.5,y:3.5},{x:20.5,y:4.5},{x:3.5,y:20.5},{x:20.5,y:20.5},{x:8.5,y:13.5},{x:13.5,y:8.5}].map(f=>({...f, taken:false}));
-
-    found=0; ended=false; scriptedBlack=false; gameTime=0;
-
-    chamberEl.textContent = ''; messageEl.style.opacity='0'; hgBlack.style.opacity='0';
-
-    vignette.style.opacity = '1'; farewell.style.display='none';
-
+    found=0; ended=false; scriptedBlack=false; blackoutActive=false; gameTime=0;
+    chamberEl.textContent=''; messageEl.style.opacity='0'; whisperEl.style.opacity='0';
+    hgBlack.style.transition='opacity 0.8s'; hgBlack.style.opacity='0';
+    vignette.style.opacity='1'; farewell.style.display='none';
     resize();
-
-    container.style.display = 'block'; container.style.opacity = '1';
-
+    container.style.display='block'; container.style.opacity='1';
     ensureAudioContext(); if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
-
     startAudio();
-
     addInput();
-
-    enableMaximumTrap();   // ACTIVATE THE TRAP
-
     showIntro();
-
   };
-
 })();
 
-
-
 /* ===== MUSIC FLASH + VISUALIZER ===== */
-
 const musicFlash = document.getElementById('musicFlash');
-
 const vizCanvas = document.getElementById("viz");
-
 const vizCtx = vizCanvas.getContext("2d");
-
 vizCanvas.width = 320; vizCanvas.height = 80;
-
 const dataArray = new Uint8Array(32);
-
 function drawVisualizer() {
-
   requestAnimationFrame(drawVisualizer);
-
   if (!analyser || isDead || gameActive) return;
-
   analyser.getByteFrequencyData(dataArray);
-
   vizCtx.fillStyle = "rgba(0,0,0,0.35)"; vizCtx.fillRect(0,0,vizCanvas.width,vizCanvas.height);
-
   const barWidth = vizCanvas.width / dataArray.length;
-
   let peak = 0;
-
   for (let i=0; i<dataArray.length; i++) {
-
     const v = dataArray[i]; peak = Math.max(peak, v);
-
     const barHeight = (v/255)*vizCanvas.height*1.2;
-
     if (v>200) { vizCtx.fillStyle = `rgba(255,0,0,0.4)`; vizCtx.fillRect(i*barWidth-2, vizCanvas.height-barHeight-(Math.random()*15), barWidth+4, barHeight); }
-
     vizCtx.fillStyle = `rgb(${200+(v/5)},0,0)`; vizCtx.fillRect(i*barWidth, vizCanvas.height-barHeight, barWidth+2, barHeight+Math.random()*5);
-
   }
-
   if (peak > 180) {
-
     const stretchY = 1 + ((peak-180)/30); const lean = (Math.random()-0.5)*10;
-
     vizCanvas.style.transform = `scaleY(${stretchY}) skewX(${lean}deg) scaleX(1.05)`;
-
     vizCanvas.style.filter = `drop-shadow(0px -10px ${peak/10}px red) blur(1px)`;
-
     document.getElementById("vizGlow").style.opacity = "1";
-
   } else {
-
     vizCanvas.style.transform = "none"; vizCanvas.style.filter = "none"; document.getElementById("vizGlow").style.opacity = "0.3";
-
   }
-
   if (peak > 230 && !isDead && !gameActive) {
-
     document.body.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
-
     spawnedFridges.forEach(f => {
-
       let yForce = (Math.random()*3+1); if (Math.random()>0.95) yForce=25;
-
       Matter.Body.setVelocity(f, { x: f.velocity.x + (Math.random()-0.5)*4, y: f.velocity.y - yForce });
-
       Matter.Body.setAngularVelocity(f, f.angularVelocity + (Math.random()-0.5)*0.4);
-
     });
-
     if (guyActivated) {
-
       ragdollParts.forEach(part => {
-
         const yForce = (Math.random()*3+1);
-
         Matter.Body.setVelocity(part, { x: part.velocity.x + (Math.random()-0.5)*4, y: part.velocity.y - yForce });
-
         Matter.Body.setAngularVelocity(part, part.angularVelocity + (Math.random()-0.5)*0.4);
-
       });
-
     }
-
     musicFlash.style.opacity = '1';
-
     setTimeout(() => { musicFlash.style.opacity = '0'; }, 150);
-
   } else if (!isDead && !gameActive) {
-
     document.body.style.transform = "none";
-
   }
-
   if (guyActivated && ragdollParts.length > 0) updateNamePosition();
-
   ragdollCtx.clearRect(0,0,ragdollBloodCanvas.width,ragdollBloodCanvas.height);
-
   for (let i=ragdollBloodParticles.length-1; i>=0; i--) {
-
     const p = ragdollBloodParticles[i];
-
     p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95+0.03; p.life--;
-
     if (p.life <= 0) { stampDriedBlood(p.x, p.y, p.size); ragdollBloodParticles.splice(i,1); continue; }
-
     ragdollCtx.beginPath(); ragdollCtx.arc(p.x,p.y,p.size,0,Math.PI*2); ragdollCtx.fillStyle = p.color; ragdollCtx.fill();
-
   }
-
 }
-
 drawVisualizer();
 
-
-
 window.addEventListener('resize', () => {
-
   ragdollBloodCanvas.width = window.innerWidth; ragdollBloodCanvas.height = window.innerHeight;
-
   driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
-
   resizePaintCanvas();
-
 });
-
 ragdollBloodCanvas.width = window.innerWidth; ragdollBloodCanvas.height = window.innerHeight;
-
 driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
-
 </script>
-
 </body>
-
 </html>
