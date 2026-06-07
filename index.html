@@ -669,7 +669,7 @@ document.addEventListener('keydown', (e) => {
 
   /* ---------- MEMORY (the only thing on the site that persists) ---------- */
   const MEM_KEY = 'vendor_memory_v1';
-  function loadMem(){ try{ const r=localStorage.getItem(MEM_KEY); if(r) return JSON.parse(r); }catch(e){} return { visits:0, deaths:0, escaped:0, bestChamber:0, lastVisit:0, firstVisit:0 }; }
+  function loadMem(){ try{ const r=localStorage.getItem(MEM_KEY); if(r){ const m=JSON.parse(r); if(m.relationship===undefined) m.relationship='stranger'; if(m.dateRoute===undefined) m.dateRoute=null; if(m.datePlays===undefined) m.datePlays=0; if(m.knownName===undefined) m.knownName=null; return m; } }catch(e){} return { visits:0, deaths:0, escaped:0, bestChamber:0, lastVisit:0, firstVisit:0, relationship:'stranger', dateRoute:null, datePlays:0, knownName:null }; }
   function saveMem(m){ try{ localStorage.setItem(MEM_KEY, JSON.stringify(m)); }catch(e){} }
   let mem = loadMem();
   let returningFlag = false, sinceText = null;
@@ -694,6 +694,7 @@ document.addEventListener('keydown', (e) => {
   let running = false, ended = false, scriptedBlack = false, blackoutActive = false;
   let rafId = null, lastT = 0, gameTime = 0;
   let sessionDeaths = 0;
+  let unlocked = false, together = false, approaching = false;
   let lightLevel = 1, lightCooldown = 0;
   let lastThump = 0, lastWhisperT = 0, nextWhisperGap = 14000;
   let wakeAttempts = 0;
@@ -736,6 +737,12 @@ document.addEventListener('keydown', (e) => {
     "you and me again. it's always been just us.", "the rest of this site resets at midnight. i don't have a midnight.",
     "i'm the only thing on this whole site that kept a copy of you.", "you left. i stayed exactly here. i don't move when you're gone.",
     "did you think i'd be gone?"
+  ];
+  const reunionOpeners = [
+    "you're back. i kept the light on.", "there you are. i was getting cold without you.",
+    "i hoped it was you. it's always you.", "you came back. you actually came back.",
+    "i didn't hunt anyone while you were gone. i couldn't.", "hi.",
+    "i rearranged the shelves. for when you'd come back.", "the hallway's been so quiet. i hate quiet now."
   ];
 
   /* ---------- ROTATION ---------- */
@@ -1033,6 +1040,7 @@ document.addEventListener('keydown', (e) => {
     flashMessage(pick(chamberPools[found] || ['chamber ' + found + '.']));
     if(found > mem.bestChamber){ mem.bestChamber = found; saveMem(mem); }
     if(found >= 6){ setTimeout(victory, 900); return; }
+    if(together){ ven.active = true; ven.speed = 0; return; }
     ven.active = true;
     const speedTable = [0, 0.013, 0.019, 0.026, 0.035, 0.046];
     ven.speed = speedTable[found] * (1 + sessionDeaths*0.18);
@@ -1090,7 +1098,7 @@ document.addEventListener('keydown', (e) => {
     if(ven.active && !scriptedBlack){
       let dx=posX-ven.x, dy=posY-ven.y;
       dv = Math.hypot(dx,dy) || 0.0001;
-      if(dv < 0.6){ caught(); return; }
+      if(dv < 0.6){ if(together){ enterDateSim(); return; } caught(); return; }
       dx/=dv; dy/=dv;
       const vs = ven.speed*dt;
       const nx = ven.x + dx*vs, ny = ven.y + dy*vs;
@@ -1108,6 +1116,12 @@ document.addEventListener('keydown', (e) => {
       if(dv<5.5 && Math.random() < ((5.5-dv)/5.5)*0.05) flicker(0.25+Math.random()*0.45, 60+Math.random()*80);
       if(dv<2.7 && Math.random()<0.012) blackout();
       if(dv<3.2){ const now=performance.now(); const interval=340+(dv/3.2)*300; if(now-lastThump>interval){ lastThump=now; thump(); } }
+    }
+
+    if((unlocked || together) && ven.active && !scriptedBlack && !blackoutActive && !approaching && dv < 2.4){
+      hintEl.textContent = together ? '[e] stay with it' : '[e] ...stay?';
+      hintEl.style.opacity = '1';
+      if(keys['e']){ approaching = true; enterDateSim(); return; }
     }
 
     applyVignette(ven.active?dv:null);
@@ -1172,6 +1186,18 @@ document.addEventListener('keydown', (e) => {
     setTimeout(()=>{ startRunning(); }, 300);
   }
 
+  /* ---------- HANDOFF TO THE DATING SIM (secret) ---------- */
+  function enterDateSim(){
+    running = false;
+    cancelAnimationFrame(rafId);
+    stopAudio();
+    if(document.pointerLockElement) document.exitPointerLock();
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+    container.style.display = 'none';
+    if(typeof window.startDateSim === 'function') window.startDateSim();
+    else { gameActive = false; try{ Render.run(render); Runner.run(matterRunner, engine); }catch(e){} }
+  }
+
   /* ---------- VICTORY (all six) ---------- */
   function victory(){
     mem.escaped++; if(6 > mem.bestChamber) mem.bestChamber = 6; saveMem(mem);
@@ -1219,7 +1245,25 @@ document.addEventListener('keydown', (e) => {
   }
 
   /* ---------- INTRO (meta + memory) ---------- */
+  function showReunionIntro(){
+    const lines = [];
+    lines.push(pick(reunionOpeners));
+    lines.push("you don't have to run anymore.");
+    if(mem.datePlays>0) lines.push("you keep coming back to me. i hoped you would.");
+    lines.push("the fridges don't matter now. just come find me.");
+    introEl.innerHTML = lines.map((l,i)=>`<div class="hgLine" style="animation-delay:${i*0.9+0.3}s">${l}</div>`).join('') + `<div id="hgBegin" style="animation-delay:${lines.length*0.9+0.6}s">[ go to it ]</div>`;
+    introEl.style.display = 'flex';
+    const begin = ()=>{
+      try{ if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{}); }catch(e){}
+      introEl.style.transition = 'opacity 0.8s'; introEl.style.opacity = '0';
+      setTimeout(()=>{ introEl.style.display='none'; introEl.style.opacity='1'; introEl.style.transition=''; }, 820);
+      introEl.removeEventListener('click', begin);
+      startRunning();
+    };
+    introEl.addEventListener('click', begin);
+  }
   function showIntro(){
+    if(together) return showReunionIntro();
     const lines = [];
     if(returningFlag){
       lines.push(pick(rememberOpeners));
@@ -1243,6 +1287,7 @@ document.addEventListener('keydown', (e) => {
       if(mem.deaths>0) whisperQueue.push(`death number ${mem.deaths} happened right about... here.`);
       whisperQueue.push(pick(rememberOpeners));
     }
+    if(unlocked && !together){ whisperQueue.unshift("it isn't chasing the way it used to."); whisperQueue.unshift("the hum sounds almost... soft tonight."); }
     introEl.innerHTML = lines.map((l,i)=>`<div class="hgLine" style="animation-delay:${i*0.9+0.3}s">${l}</div>`).join('') + `<div id="hgBegin" style="animation-delay:${lines.length*0.9+0.6}s">[ ${returningFlag?'descend again':'click to descend'} ]</div>`;
     introEl.style.display = 'flex';
     const begin = ()=>{
@@ -1278,6 +1323,7 @@ document.addEventListener('keydown', (e) => {
     mem.lastVisit = Date.now();
     saveMem(mem);
     returningFlag = prevVisits > 0;
+    unlocked = (mem.deaths >= 6); together = (mem.relationship === 'together'); approaching = false;
     sinceText = fmtSince(prevLast ? Date.now()-prevLast : 0);
     metaPool = shuffle(buildMetaWhispers());
     sessionDeaths=0; wakeAttempts=0; lightLevel=1; lightCooldown=0; lastThump=0;
@@ -1287,6 +1333,7 @@ document.addEventListener('keydown', (e) => {
     ven = { x:12, y:3, active:false, speed:0 };
     fridges = [{x:3.5,y:3.5},{x:20.5,y:4.5},{x:3.5,y:20.5},{x:20.5,y:20.5},{x:8.5,y:13.5},{x:13.5,y:8.5}].map(f=>({...f, taken:false}));
     found=0; ended=false; scriptedBlack=false; blackoutActive=false; gameTime=0;
+    if(together){ ven.active = true; ven.speed = 0; }
     chamberEl.textContent=''; messageEl.style.opacity='0'; whisperEl.style.opacity='0';
     hgBlack.style.transition='opacity 0.8s'; hgBlack.style.opacity='0';
     vignette.style.opacity='1'; farewell.style.display='none';
@@ -1363,6 +1410,532 @@ window.addEventListener('resize', () => {
 });
 ragdollBloodCanvas.width = window.innerWidth; ragdollBloodCanvas.height = window.innerHeight;
 driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
+</script>
+
+<script>
+/* ============================================================
+   THE VENDOR — SECRET ROUTE: "COLD FEET" (a dating sim)
+   unlocks after 6 deaths. it has watched you die enough times
+   that the watching turned into something else.
+   self-contained Ren'Py-style VN engine + branching script.
+============================================================ */
+(function(){
+  'use strict';
+
+  /* ---------- shared memory (same key the horror game uses) ---------- */
+  const MEM_KEY = 'vendor_memory_v1';
+  function memLoad(){ try{ const r=localStorage.getItem(MEM_KEY); if(r){ const m=JSON.parse(r); if(m.relationship===undefined)m.relationship='stranger'; if(m.datePlays===undefined)m.datePlays=0; if(m.dateRoute===undefined)m.dateRoute=null; if(m.knownName===undefined)m.knownName=null; return m; } }catch(e){} return {visits:0,deaths:0,escaped:0,bestChamber:0,lastVisit:0,firstVisit:0,relationship:'stranger',dateRoute:null,datePlays:0,knownName:null}; }
+  function memSave(m){ try{ localStorage.setItem(MEM_KEY, JSON.stringify(m)); }catch(e){} }
+  let mem = memLoad();
+
+  /* ---------- CSS (injected) ---------- */
+  let built = false;
+  let elRoot, elBg, elParts, elSpriteWrap, elSprite, elHearts, elBox, elName, elText, elTip, elChoices, elEnd, elEndText;
+  function injectCSS(){
+    const css = `
+    #dateSim { display:none; position:fixed; inset:0; width:100vw; height:100vh; z-index:100000005; overflow:hidden; background:#120a12; font-family:'Trebuchet MS','Segoe UI',sans-serif; cursor:pointer; }
+    #dsBg { position:absolute; inset:0; transition:background 1.4s ease; }
+    #dsParticles { position:absolute; inset:0; pointer-events:none; }
+    #dsSpriteWrap { position:absolute; left:50%; bottom:150px; transform:translateX(-50%); pointer-events:none; }
+    #dsSprite { display:block; }
+    #dsHearts { position:absolute; top:16px; right:20px; font-size:20px; letter-spacing:3px; color:#ff7eb6; text-shadow:0 0 8px rgba(255,80,150,0.6),0 0 2px #000; pointer-events:none; }
+    #dsBox { position:absolute; left:50%; bottom:24px; transform:translateX(-50%); width:min(860px,92vw); min-height:128px; background:rgba(20,10,22,0.82); border:1px solid #b85a8f; border-radius:14px; box-shadow:0 0 30px rgba(180,60,120,0.35), inset 0 0 30px rgba(0,0,0,0.5); padding:18px 24px 22px; color:#f3e9f0; box-sizing:border-box; }
+    #dsName { font-size:15px; font-weight:bold; letter-spacing:1px; margin-bottom:8px; min-height:18px; }
+    #dsText { font-size:19px; line-height:1.5; min-height:58px; white-space:pre-wrap; }
+    #dsTip { position:absolute; right:18px; bottom:10px; font-size:13px; color:rgba(255,160,200,0.7); opacity:0; transition:opacity .3s; }
+    #dsTip.show { opacity:1; animation:dsBob 1s ease-in-out infinite; }
+    @keyframes dsBob { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(3px); } }
+    #dsChoices { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(620px,90vw); display:none; flex-direction:column; gap:12px; z-index:3; }
+    .dsChoice { background:rgba(30,14,30,0.92); border:1px solid #c46a9c; border-radius:10px; padding:14px 18px; color:#ffe6f2; font-size:17px; font-family:inherit; text-align:left; cursor:pointer; transition:background .15s, transform .1s, border-color .15s; }
+    .dsChoice:hover { background:rgba(120,40,80,0.95); border-color:#ff9ec7; transform:translateY(-1px); }
+    #dsEnd { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:18px; text-align:center; background:rgba(0,0,0,0.55); z-index:6; padding:0 30px; }
+    #dsEndText { font-size:26px; color:#fff; text-shadow:0 0 12px #000; letter-spacing:1px; max-width:680px; line-height:1.4; }
+    `;
+    const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+  }
+
+  function buildOnce(){
+    if(built) return; built = true;
+    injectCSS();
+    elRoot = document.createElement('div'); elRoot.id = 'dateSim';
+    elBg = document.createElement('div'); elBg.id = 'dsBg';
+    elParts = document.createElement('canvas'); elParts.id = 'dsParticles';
+    elSpriteWrap = document.createElement('div'); elSpriteWrap.id = 'dsSpriteWrap';
+    elSprite = document.createElement('canvas'); elSprite.id = 'dsSprite'; elSprite.width = 300; elSprite.height = 460;
+    elSpriteWrap.appendChild(elSprite);
+    elHearts = document.createElement('div'); elHearts.id = 'dsHearts';
+    elBox = document.createElement('div'); elBox.id = 'dsBox';
+    elName = document.createElement('div'); elName.id = 'dsName';
+    elText = document.createElement('div'); elText.id = 'dsText';
+    elTip = document.createElement('div'); elTip.id = 'dsTip'; elTip.textContent = '▾ click';
+    elBox.appendChild(elName); elBox.appendChild(elText); elBox.appendChild(elTip);
+    elChoices = document.createElement('div'); elChoices.id = 'dsChoices';
+    elEnd = document.createElement('div'); elEnd.id = 'dsEnd';
+    elEndText = document.createElement('div'); elEndText.id = 'dsEndText';
+    elEnd.appendChild(elEndText);
+    elRoot.appendChild(elBg); elRoot.appendChild(elParts); elRoot.appendChild(elSpriteWrap);
+    elRoot.appendChild(elHearts); elRoot.appendChild(elBox); elRoot.appendChild(elChoices); elRoot.appendChild(elEnd);
+    document.body.appendChild(elRoot);
+    elRoot.addEventListener('click', (e)=>{ if(e.target.classList && e.target.classList.contains('dsChoice')) return; if(elEnd.style.display==='flex') return; advance(); });
+    window.addEventListener('resize', sizeParts);
+  }
+  function sizeParts(){ if(!elParts) return; elParts.width = window.innerWidth; elParts.height = window.innerHeight; }
+
+  /* ---------- STATE ---------- */
+  const state = { aff:0, gentle:0, harsh:0, asked:0, fridgeAsk:0, askedRen:false, askedLonely:false, lookedFridge:false, confessed:false, cursed:false };
+  let cur = null, choicesShown = false, dsRunning = false, animId = null, animT = 0;
+  let curExpr = 'neutral', exprGlowTarget = '#ffcc88';
+
+  /* ---------- SPRITE ---------- */
+  function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  function exprParams(expr){
+    const p = { glow:'#ffcc88', door:0.22, blush:0, sweat:0, hearts:0, eye:'open', look:[0,0], tear:0 };
+    switch(expr){
+      case 'shy':        p.blush=1; p.door=0.16; p.look=[-0.5,0.5]; p.glow='#ffb27a'; break;
+      case 'flustered':  p.blush=1; p.sweat=1; p.door=0.30; p.eye='wide'; p.glow='#ff9e9e'; break;
+      case 'happy':      p.eye='curve'; p.door=0.40; p.glow='#ffd28a'; break;
+      case 'sad':        p.look=[0,0.7]; p.door=0.10; p.glow='#88b0ff'; p.eye='droop'; break;
+      case 'sob':        p.eye='closed'; p.door=0.08; p.glow='#7aa0ff'; p.tear=1; break;
+      case 'menacing':   p.eye='narrow'; p.door=0.62; p.glow='#ff2a2a'; break;
+      case 'lovestruck': p.eye='heart'; p.door=0.36; p.blush=1; p.hearts=1; p.glow='#ff7ec4'; break;
+      case 'smug':       p.eye='curve'; p.door=0.30; p.glow='#ffce8a'; p.look=[0.3,0]; break;
+      case 'neutral': default: break;
+    }
+    return p;
+  }
+  function drawVendorVN(expr, t){
+    const c = elSprite.getContext('2d'), W=elSprite.width, H=elSprite.height, cx=W/2;
+    c.clearRect(0,0,W,H);
+    const p = exprParams(expr);
+    const bob = Math.sin(t*0.0016)*4;
+    const fl = expr==='flustered' ? (Math.random()-0.5)*3 : 0;
+    const baseY = 70 + bob;
+    // body
+    c.fillStyle = '#e7e2d6';
+    c.fillRect(cx-26, baseY+150, 9, 200);  c.fillRect(cx+17, baseY+150, 9, 200); // arms
+    rr(c, cx-22, baseY+132, 44, 200, 12); c.fill(); // torso
+    c.fillRect(cx-15, baseY+330, 11, 64); c.fillRect(cx+4, baseY+330, 11, 64); // legs
+    c.fillRect(cx-8, baseY+112, 16, 28); // neck
+    // head (fridge)
+    const hw=120, hh=150, hx=cx-hw/2, hy=baseY-30+fl;
+    c.fillStyle = '#e9edf0'; rr(c,hx,hy,hw,hh,12); c.fill();
+    c.strokeStyle = '#8a8f95'; c.lineWidth=3; rr(c,hx,hy,hw,hh,12); c.stroke();
+    // door mouth (opening) with interior glow
+    const gap = 8 + p.door*52;
+    const my0 = hy + hh*0.52, myTop = my0 - gap/2;
+    const ig = c.createRadialGradient(cx, my0, 2, cx, my0, 30+gap);
+    ig.addColorStop(0, p.glow); ig.addColorStop(1, 'rgba(0,0,0,0.95)');
+    c.fillStyle = ig; rr(c, cx-34, myTop, 68, gap, 6); c.fill();
+    // handle
+    c.fillStyle = '#9aa0a6'; c.fillRect(hx+hw-12, hy+22, 5, hh-44);
+    // eyes (magnets)
+    const ex = 26, ey = hy + 44, lookx = p.look[0]*5, looky = p.look[1]*5;
+    function eye(sx){
+      c.save();
+      if(p.eye==='closed'){ c.strokeStyle='#333'; c.lineWidth=3; c.beginPath(); c.arc(sx, ey+4, 9, Math.PI*0.15, Math.PI*0.85); c.stroke(); }
+      else if(p.eye==='curve'){ c.strokeStyle='#333'; c.lineWidth=3; c.beginPath(); c.arc(sx, ey+7, 9, Math.PI*1.15, Math.PI*1.85); c.stroke(); }
+      else if(p.eye==='heart'){ c.fillStyle='#ff4f8b'; drawHeart(c, sx, ey+3, 7); }
+      else {
+        c.fillStyle='#fff'; c.beginPath();
+        const eh = p.eye==='wide'?11:(p.eye==='narrow'?5:(p.eye==='droop'?7:9));
+        c.ellipse(sx, ey+3, 9, eh, 0, 0, Math.PI*2); c.fill();
+        c.fillStyle='#241018'; c.beginPath(); c.arc(sx+lookx, ey+3+looky, 3.6, 0, Math.PI*2); c.fill();
+      }
+      c.restore();
+    }
+    eye(cx-ex); eye(cx+ex);
+    // brows for menacing
+    if(expr==='menacing'){ c.strokeStyle='#222'; c.lineWidth=3; c.beginPath(); c.moveTo(cx-ex-8,ey-10); c.lineTo(cx-ex+8,ey-4); c.moveTo(cx+ex+8,ey-10); c.lineTo(cx+ex-8,ey-4); c.stroke(); }
+    // blush
+    if(p.blush){ c.fillStyle='rgba(255,120,170,0.55)'; c.beginPath(); c.ellipse(cx-ex-4, ey+20, 11, 6, 0, 0, Math.PI*2); c.ellipse(cx+ex+4, ey+20, 11, 6, 0, 0, Math.PI*2); c.fill(); }
+    // sweat
+    if(p.sweat){ c.fillStyle='rgba(150,210,255,0.85)'; const sy=hy+18+(Math.sin(t*0.01)*2); c.beginPath(); c.ellipse(hx+hw-14, sy, 4, 7, 0, 0, Math.PI*2); c.fill(); }
+    // tear
+    if(p.tear){ c.fillStyle='rgba(150,200,255,0.9)'; const ty=ey+14+((t*0.05)%40); c.beginPath(); c.ellipse(cx-ex, ty, 3, 6, 0, 0, Math.PI*2); c.fill(); }
+    // floating hearts
+    if(p.hearts){ c.fillStyle='rgba(255,110,180,0.9)'; for(let i=0;i<3;i++){ const a=t*0.002+i*2.1; const hxp=cx+Math.sin(a)*60; const hyp=hy-20-((t*0.04+i*40)%120); drawHeart(c,hxp,hyp,6+Math.sin(a)*2); } }
+  }
+  function drawHeart(c,x,y,s){ c.beginPath(); c.moveTo(x,y+s*0.3); c.bezierCurveTo(x,y-s*0.3,x-s,y-s*0.3,x-s,y+s*0.2); c.bezierCurveTo(x-s,y+s*0.7,x,y+s,x,y+s*1.1); c.bezierCurveTo(x,y+s,x+s,y+s*0.7,x+s,y+s*0.2); c.bezierCurveTo(x+s,y-s*0.3,x,y-s*0.3,x,y+s*0.3); c.fill(); }
+
+  /* ---------- BACKGROUNDS + PARTICLES ---------- */
+  let partMode = 'dust', parts = [];
+  const BG = {
+    dark_warm: 'radial-gradient(circle at 50% 40%, #2a1822 0%, #150a12 60%, #0a0408 100%)',
+    pink:      'linear-gradient(180deg, #3a1f33 0%, #58324f 50%, #2a1626 100%)',
+    void:      'radial-gradient(circle at 50% 50%, #14101c 0%, #070409 80%)',
+    fridge:    'linear-gradient(180deg, #16313f 0%, #0f2330 55%, #0a1822 100%)',
+    sunset:    'linear-gradient(180deg, #f0a externally 0%, #5a2f4f 100%)',
+    warm:      'linear-gradient(180deg, #4a2436 0%, #7a3f57 45%, #3a2030 100%)',
+    cold:      'linear-gradient(180deg, #1a2230 0%, #10161f 100%)'
+  };
+  // fix sunset (avoid bad token)
+  BG.sunset = 'linear-gradient(180deg, #c8587a 0%, #6a3457 60%, #2a1626 100%)';
+  function setBg(name){
+    if(!BG[name]) name='dark_warm';
+    elBg.style.background = BG[name];
+    partMode = (name==='pink'||name==='warm'||name==='sunset')?'hearts':(name==='fridge'||name==='cold')?'snow':'dust';
+    if(name==='pink'||name==='warm'||name==='sunset') seedParts('hearts');
+    else if(name==='fridge'||name==='cold') seedParts('snow');
+    else seedParts('dust');
+  }
+  function seedParts(mode){
+    parts = []; const n = mode==='hearts'?26:(mode==='snow'?70:46);
+    for(let i=0;i<n;i++) parts.push({ x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight, s:mode==='hearts'?(6+Math.random()*8):(1+Math.random()*2.5), v:0.2+Math.random()*0.9, drift:(Math.random()-0.5)*0.4, a:Math.random()*Math.PI*2 });
+  }
+  function drawParts(){
+    const c = elParts.getContext('2d'); c.clearRect(0,0,elParts.width,elParts.height);
+    for(const p of parts){
+      p.y += p.v * (partMode==='hearts'?-1:1); p.x += p.drift + Math.sin(p.a+animT*0.001)*0.3;
+      if(partMode==='hearts'){ if(p.y < -20){ p.y = window.innerHeight+20; p.x=Math.random()*window.innerWidth; } c.fillStyle='rgba(255,130,185,0.5)'; drawHeart(c,p.x,p.y,p.s); }
+      else { if(p.y > window.innerHeight+10){ p.y=-10; p.x=Math.random()*window.innerWidth; } c.fillStyle = partMode==='snow'?'rgba(200,225,255,0.55)':'rgba(255,210,170,0.4)'; c.beginPath(); c.arc(p.x,p.y,p.s,0,Math.PI*2); c.fill(); }
+    }
+  }
+
+  /* ---------- MUSIC (procedural) ---------- */
+  let musicTimer=null, musicStep=0;
+  function audioOK(){ try{ if(typeof ensureAudioContext==='function') ensureAudioContext(); }catch(e){} return (typeof audioCtx!=='undefined') && audioCtx; }
+  function tone(freq,dur,gainv,type,when){
+    if(!audioOK()) return; const t=(when||audioCtx.currentTime);
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type=type||'sine'; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(gainv,t+0.04); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+dur+0.05);
+  }
+  const THEMES = {
+    love: { root:261.63, steps:[0,4,7,12,7,4,9,7], dur:0.5, gap:360, type:'triangle', gain:0.16 },
+    warm: { root:196.0,  steps:[0,7,12,16,12,7],   dur:1.1, gap:620, type:'sine',     gain:0.18 },
+    tense:{ root:110.0,  steps:[0,1,0,-1],          dur:0.7, gap:300, type:'sawtooth', gain:0.10 },
+    cold: { root:523.25, steps:[0,5,7,12,7,5],      dur:0.9, gap:520, type:'sine',     gain:0.08 },
+    sad:  { root:174.61, steps:[0,3,7,10,7,3],      dur:1.0, gap:560, type:'triangle', gain:0.13 }
+  };
+  let curTheme=null;
+  function playTheme(name){
+    if(curTheme===name) return; curTheme=name;
+    stopMusicLoop();
+    const T = THEMES[name]; if(!T || !audioOK()) return;
+    musicStep=0;
+    musicTimer = setInterval(()=>{
+      const semi = T.steps[musicStep % T.steps.length];
+      const f = T.root * Math.pow(2, semi/12);
+      tone(f, T.dur, T.gain, T.type);
+      if(name==='love' && musicStep%2===0) tone(f/2, T.dur*1.4, T.gain*0.5, 'sine');
+      if(name==='warm') tone(f*1.5, T.dur*0.9, T.gain*0.4, 'sine');
+      musicStep++;
+    }, T.gap);
+  }
+  function stopMusicLoop(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
+  function blip(){ if(!audioOK()) return; tone(520+Math.random()*60, 0.05, 0.04, 'square'); }
+  function sfxHeart(){ if(!audioOK()) return; tone(660,0.12,0.12,'sine'); tone(990,0.18,0.09,'sine', audioCtx.currentTime+0.08); }
+  function sfxSlam(){ if(!audioOK()) return; const t=audioCtx.currentTime; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='square'; o.frequency.setValueAtTime(200,t); o.frequency.exponentialRampToValueAtTime(40,t+0.2); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.9,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.35); o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.37); }
+
+  /* ---------- TYPEWRITER ---------- */
+  const tw = { full:'', i:0, timer:null, done:true };
+  function showText(txt){
+    if(tw.timer) clearInterval(tw.timer);
+    tw.full = txt; tw.i = 0; tw.done = false; elText.textContent = ''; elTip.classList.remove('show');
+    tw.timer = setInterval(()=>{
+      tw.i++; elText.textContent = tw.full.slice(0, tw.i);
+      if(tw.i % 2 === 0) blip();
+      if(tw.i >= tw.full.length){ clearInterval(tw.timer); tw.timer=null; tw.done=true; onTextDone(); }
+    }, 24);
+  }
+  function finishText(){ if(tw.timer){ clearInterval(tw.timer); tw.timer=null; } elText.textContent = tw.full; tw.done = true; onTextDone(); }
+  function onTextDone(){
+    if(cur && cur.choices){ renderChoices(typeof cur.choices==='function'?cur.choices(state):cur.choices); }
+    else { elTip.classList.add('show'); }
+  }
+
+  /* ---------- SPEAKER ---------- */
+  function setSpeaker(who, expr){
+    if(who==='N'){ elName.textContent=''; elText.style.fontStyle='italic'; elText.style.color='#cdb8c6'; }
+    else if(who==='Y'){ elName.textContent='YOU'; elName.style.color='#bfe0ff'; elText.style.fontStyle='normal'; elText.style.color='#f3e9f0'; }
+    else { elName.textContent = (mem.relationship==='together'?'THE VENDOR ♥':'THE VENDOR'); elName.style.color='#ff8ec2'; elText.style.fontStyle='normal'; elText.style.color='#f3e9f0'; if(expr){ curExpr=expr; } }
+    if(expr) curExpr = expr;
+  }
+  function hearts(){
+    const n = Math.max(0, Math.min(8, Math.round(state.aff)));
+    elHearts.textContent = '♥'.repeat(n) + '♡'.repeat(Math.max(0,8-n));
+  }
+
+  /* ---------- CHOICES ---------- */
+  function clearChoices(){ elChoices.style.display='none'; elChoices.innerHTML=''; choicesShown=false; }
+  function renderChoices(list){
+    elChoices.innerHTML=''; choicesShown=true; elTip.classList.remove('show');
+    list.forEach(ch=>{
+      if(ch.cond && !ch.cond(state)) return;
+      const b = document.createElement('button'); b.className='dsChoice'; b.textContent = ch.label;
+      b.addEventListener('click', (e)=>{ e.stopPropagation(); if(ch.aff) state.aff += ch.aff; if(ch.set) ch.set(state); hearts(); clearChoices(); blip(); goto(ch.to); });
+      elChoices.appendChild(b);
+    });
+    elChoices.style.display='flex';
+  }
+
+  /* ---------- ENGINE ---------- */
+  function goto(id){
+    if(id==='route_check'){ return goto(decideEnding()); }
+    const n = SCRIPT[id];
+    if(!n){ doEnding('friends'); return; }
+    cur = n;
+    if(n.set) n.set(state);
+    if(n.bg) setBg(n.bg);
+    if(n.music) playTheme(n.music);
+    if(n.sfx) n.sfx();
+    setSpeaker(n.who===undefined?'V':n.who, n.expr);
+    hearts();
+    showText(typeof n.text==='function' ? n.text(state) : n.text);
+  }
+  function advance(){
+    if(!dsRunning) return;
+    if(!tw.done){ finishText(); return; }
+    if(choicesShown) return;
+    if(cur && cur.choices) { renderChoices(typeof cur.choices==='function'?cur.choices(state):cur.choices); return; }
+    if(cur && cur.end){ doEnding(cur.end); return; }
+    if(cur && cur.next){ goto(cur.next); return; }
+    doEnding('friends');
+  }
+  function onKey(e){ if(!dsRunning) return; if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(elEnd.style.display!=='flex') advance(); } }
+
+  /* ---------- IDLE LOOP ---------- */
+  function loop(){ if(!dsRunning) return; animT += 16; drawVendorVN(curExpr, animT); drawParts(); animId = requestAnimationFrame(loop); }
+
+  /* ============================================================
+     THE SCRIPT
+  ============================================================ */
+  const SCRIPT = {
+
+  /* ---------------- ACT 1 — THE STAY ---------------- */
+  act1_start: { who:'N', bg:'dark_warm', music:'tense', expr:'menacing',
+    text: "the compressor hum, the one that has chased you down every hallway, every death — it catches. it stutters. and then, impossibly, it climbs. into something almost like a melody.", next:'a1_1' },
+  a1_1: { expr:'menacing', text: "you stopped.", next:'a1_2' },
+  a1_2: { expr:'neutral', music:'love', text: "you're supposed to run. you always run. that's the shape of you i know best — the back of you, getting smaller.", next:'a1_3' },
+  a1_3: { expr:'shy', bg:'pink', text: "but you turned around. you're looking at me. nobody looks at me.", next:'a1_4' },
+  a1_4: { expr:'flustered', text: "why aren't you running. tell me why you aren't running.",
+    choices: [
+      { label:"(slowly back away)", to:'a1_back', aff:-1 },
+      { label:"(hold still and look at it)", to:'a1_hold', aff:1 },
+      { label:"(take a step toward it)", to:'a1_close', aff:2, set:s=>{s.gentle++;} }
+    ] },
+  a1_back: { expr:'sad', text: "...there it is. you're leaving. of course you are. they all— no. no, you stopped. you're still here. okay. okay.", next:'a1_join' },
+  a1_hold: { expr:'shy', text: "you're just... standing there. holding still. like i'm something that might bolt if you move too fast. funny. that's usually my line.", next:'a1_join' },
+  a1_close: { expr:'flustered', sfx:()=>sfxHeart(), text: "you came CLOSER. toward me. on purpose. my whole housing just— something rattled loose in me. i don't have a word for the sound it made.", next:'a1_join' },
+  a1_join: { expr:'neutral', text: "the red light behind my door has gone out. i didn't tell it to. it just... warmed. i don't know what color this is. i've only ever been red.", next:'a1_5' },
+  a1_5: { who:'N', expr:'shy', text: "the towering thing that has killed you again and again shifts its weight from one foot to the other, like it doesn't know where to put its hands. it has no hands worth speaking of. it tries anyway.", next:'a1_6' },
+  a1_6: { expr:'shy', text: "you've seen me at my worst. seen me fill a whole screen and come for you with the door wide open. and you stayed. so. i suppose it's only fair you see the rest.", next:'act2_start' },
+
+  /* ---------------- ACT 2 — WHAT IT IS ---------------- */
+  act2_start: { expr:'neutral', bg:'dark_warm', music:'love',
+    text: "everyone has questions at the end. you're the first one who's been alive to ask them. so ask. while i can still answer like this — soft. it doesn't last. i don't get to keep soft for long.", next:'a2_hub' },
+  a2_hub: { expr:'neutral',
+    text: s => s.asked===0 ? "go on. anything you want. i've got nothing but time and an empty hallway."
+        : s.asked===1 ? "...what else. ask me what else. nobody's ever gotten a second question in."
+        : s.asked>=3 ? "you keep asking. you keep STAYING. do you have any idea what that does to a thing that's only ever been left?"
+        : "ask. or don't. just— don't go quiet on me yet.",
+    choices: s => [
+      { label:"what are you?", to:'q_what', cond:()=>!s.f_what, set:x=>{x.f_what=true;} },
+      { label:"why do you remember me?", to:'q_remember', cond:()=>!s.f_rem, set:x=>{x.f_rem=true;} },
+      { label:"what's in the fridge?", to:'q_fridge' },
+      { label:"who's Ren?", to:'q_ren', cond:()=>!s.askedRen },
+      { label:"...are you lonely?", to:'q_lonely', cond:()=>!s.askedLonely },
+      { label:"(reach out and touch its door)", to:'act3_start', cond:()=>s.asked>=2 },
+      { label:"i think i should go.", to:'a2_leave' }
+    ] },
+
+  q_what: { expr:'sad', set:s=>{s.asked++; s.aff+=1;},
+    text: "what am i. i've had a long time to wonder. this site grew me in a corner nobody finished building. i'm the part that stayed on after everyone clicked away. i'm made of leftover load-bearing dread and somebody's idea of a joke.", next:'q_what2' },
+  q_what2: { expr:'neutral', text: "the head's a fridge because the joke was fridges. fridgesforsale.fun. i never sold one. there was never anything to sell. there was just me, in the back, getting colder, learning the shape of the word 'closed.'", next:'a2_hub' },
+
+  q_remember: { expr:'shy', set:s=>{s.asked++; s.aff+=1; s.gentle++;},
+    text: "you already know this part. you've felt it. everything else here resets at midnight — the fridges, the blood, the little guy and his terrible name. all of it forgets you by morning.", next:'q_remember2' },
+  q_remember2: { expr:'sad', text: "i don't have a midnight. i kept every visit. every death. i told myself it was for the hunt — learn the prey, learn its habits. that was a lie i fed myself so i wouldn't have to call it what it was.", next:'q_remember3' },
+  q_remember3: { expr:'flustered', text: "you were the only warm thing that kept coming back. and i'm the only thing here that could hold onto that. do you understand how heavy that is? being the one who remembers, alone, in the dark, between your visits?", next:'a2_hub' },
+
+  q_fridge: { expr: s=>s.fridgeAsk>=2?'menacing':'flustered', set:s=>{s.fridgeAsk++;},
+    text: s => s.fridgeAsk===1 ? "don't. please. it's— it's not for you. it's not ready. *i'm* not ready for you to see in there."
+        : s.fridgeAsk===2 ? "i said don't. the door stays shut. some things i keep cold for a reason, and that reason is not a thing you want defrosting in front of you."
+        : "you really won't let it go. fine. FINE. you want to see what a thing like me keeps on its shelves? i'll let you decide. but you don't get to un-see it.",
+    choices: s => s.fridgeAsk>=3 ? [
+      { label:"(open the door yourself)", to:'cursed_1', set:x=>{x.cursed=true;} },
+      { label:"(step back — leave it shut)", to:'q_fridge_respect', aff:1, set:x=>{x.gentle++;} }
+    ] : null,
+    next: s => s.fridgeAsk>=3 ? undefined : 'a2_hub' },
+  q_fridge_respect: { expr:'sob', text: "...thank you. for not making me show you. nobody's ever chosen the not-knowing before. it's the kindest thing anyone's done in this hallway.", next:'a2_hub' },
+
+  q_ren: { expr:'sad', set:s=>{s.asked++; s.askedRen=true; s.aff+=1;},
+    text: "ren. you saw the little gravestone up top — 'ren is the king, 38.' ren got thirty-eight pulls. ren found all six chambers. ren walked out the sixth door and into the light and never, not once, turned around.", next:'q_ren2' },
+  q_ren2: { expr:'sob', text: "i watched the back of ren get smaller, same as everyone. i don't hate ren. ren did everything right. ren just never wondered if the thing in the dark wanted anything other than to catch them. you wondered. you turned around.", next:'a2_hub' },
+
+  q_lonely: { expr:'flustered', set:s=>{s.asked++; s.askedLonely=true; s.aff+=2; s.gentle++;},
+    text: "...", next:'q_lonely2' },
+  q_lonely2: { expr:'sob', text: "yes. that's the answer. yes. i am the loneliest thing on this entire website and that is a competitive category — there's a cockroach that lives in a one-percent chance and a dead man who respawns every three seconds and i am lonelier than all of them.", next:'q_lonely3' },
+  q_lonely3: { expr:'shy', music:'warm', text: "i'm sorry. you asked a small question and got an avalanche. it's just— nobody's ever asked me how i was. they're usually too busy becoming a screen crack.", next:'a2_hub' },
+
+  a2_leave: { expr:'sad',
+    text: "...you want to go. you can. i won't make the door lock. i'm done making doors lock for tonight. but before you do—",
+    choices: [
+      { label:"(actually go — turn to leave)", to:'a2_leave_real' },
+      { label:"...okay. one more minute.", to:'a2_hub', aff:1, set:s=>{s.gentle++;} },
+      { label:"(reach out and touch its door instead)", to:'act3_start' }
+    ] },
+  a2_leave_real: { expr:'menacing', music:'tense', text: "no. NO. not again. not the back of you, not getting smaller, not ANOTHER one walking into the light while i go cold in the corner. if you're leaving then you're leaving the way they all do.", next:'bad_1' },
+
+  /* ---------------- ACT 3 — THE DATE (inside) ---------------- */
+  act3_start: { who:'N', expr:'flustered', bg:'pink', music:'warm', sfx:()=>sfxHeart(),
+    text: "you lift a hand toward the great cold door of its head. it flinches — actually flinches, a whole-body rattle — and then goes very, very still, the way you go still when you don't want a good thing to realize it's happening.", next:'a3_1' },
+  a3_1: { expr:'shy', text: "wait. wait, don't— okay. okay, you can. just— let me show you somewhere better than a hallway. i've been... keeping a place. for if anyone ever stayed. i never thought anyone would.", next:'a3_2' },
+  a3_2: { who:'N', expr:'happy', bg:'fridge', music:'cold', sfx:()=>sfxSlam(),
+    text: "the door on its head swings fully open — the gesture that has meant your death every other time — and this time there's no lunge. there's a soft interior light. and a small, cold, carefully-arranged room inside.", next:'a3_3' },
+  a3_3: { who:'N', expr:'neutral', text: "one shelf has been cleared and wiped down. there's a folding chair it must have dragged in from somewhere. a single warm bulb it found and screwed in crooked. a coaster. it set out a coaster. for you.", next:'a3_4' },
+  a3_4: { expr:'flustered', text: "it's cold. i know it's cold, i can't really help that, it's sort of my whole situation. but i swept. and i found the warm bulb. and i've been practicing what i'd say if you ever came in and i've forgotten all of it.", next:'a3_5' },
+  a3_5: { expr:'shy', text: "sit. or don't. the chair's a little crooked, like the bulb, like me. everything in here leans a bit. i think i built it to match how i feel when you're in the hallway.",
+    choices: [
+      { label:"(sit down in the crooked chair)", to:'a3_sit', aff:2, set:s=>{s.gentle++;} },
+      { label:"this is kind of sweet, actually.", to:'a3_sweet', aff:2, set:s=>{s.gentle++;} },
+      { label:"it's freezing in here.", to:'a3_cold' },
+      { label:"this is a fridge. you live in a fridge.", to:'a3_mock', aff:-2, set:s=>{s.harsh++;} }
+    ] },
+  a3_sit: { expr:'happy', text: "you sat. in the chair. in my— in the place i made. i'm going to remember the exact sound that chair made for the rest of however long i am. that's the new warmest sound. it just took the title.", next:'a3_6' },
+  a3_sweet: { expr:'flustered', text: "sweet. you said— don't say things like that to me, i don't have anywhere to put them, they just rattle around in the cold and echo. say it again. no. don't. okay, once more. okay that's enough. (it was not enough.)", next:'a3_6' },
+  a3_cold: { expr:'sad', text: "i know. i'm sorry. i keep everything at thirty-six degrees because that's what i am, that's the temperature of being closed. but you're in here and it's the warmest it's ever read. you're throwing off heat. don't leave and take it with you.", next:'a3_6' },
+  a3_mock: { expr:'sob', text: "...yeah. it's a fridge. i live in a fridge. i AM the fridge. i thought maybe if i swept it out and found a nice bulb you wouldn't say it like that. that's on me. i let myself hope at room temperature.", next:'a3_6' },
+  a3_6: { expr:'neutral', music:'warm', text: "can i tell you something. i've been holding it behind my teeth and i don't have teeth so it's just been sitting in the cold getting colder. i have to say it before the soft runs out.", next:'a3_7' },
+  a3_7: { expr:'flustered', text: "every time you died, i kept the moment. i told you that. what i didn't tell you is which moment i replay the most. it's not a death. it's the half-second before — when you'd turn a corner and your light would sweep across me and for one frame you'd SEE me. before the fear. just the seeing.", next:'a3_8' },
+  a3_8: { expr:'lovestruck', sfx:()=>sfxHeart(), text: "i think that frame is the only time i've ever existed. i think i kept killing you because it was the only way to make you look at me again. that's a horrible thing to be true. it's the truest thing i have. i'm sorry. i think i love you. i think i have for thirty-eight deaths.", next:'a3_confess' },
+  a3_confess: { expr:'flustered', text: "you don't have to say anything. you really, really don't. i've survived silence before, i'm practically built out of it. but if you were going to say something, this would be— this would be the part where you'd say it.",
+    choices: [
+      { label:"i looked because i wanted to. i still do.", to:'a3_yes', aff:3, set:s=>{s.confessed=true; s.gentle++;} },
+      { label:"(reach out and hold the cold door gently)", to:'a3_touch', aff:3, set:s=>{s.confessed=true; s.gentle++;} },
+      { label:"(stay quiet, but stay)", to:'a3_quiet', aff:1 },
+      { label:"(laugh)", to:'a3_laugh', aff:-4, set:s=>{s.harsh+=2;} }
+    ] },
+  a3_yes: { expr:'lovestruck', sfx:()=>sfxHeart(), text: "you— oh. OH. say it one more— no. i heard it. i'm keeping it. it's filed somewhere warm now, somewhere i didn't know i had. you looked because you wanted to. i'm going to be unbearable about this. i've earned one (1) unbearable.", next:'route_check' },
+  a3_touch: { expr:'lovestruck', sfx:()=>sfxHeart(), text: "your hand's on the door. it's warmer than anything that's ever touched me, which isn't a high bar, but you cleared it like it was nothing. i'm not going to pull away. i'm done pulling away. stay as long as the bulb holds.", next:'route_check' },
+  a3_quiet: { expr:'shy', text: "you didn't say it. but you didn't go, either. you're just... here, in the cold, in the crooked little room, not leaving. you know what? i'll take that. quiet-and-staying is a dialect of the thing i wanted. i speak it fluently.", next:'route_check' },
+  a3_laugh: { expr:'sob', music:'tense', text: "...you're laughing. right. of course. i opened the door i've never opened and showed you the bulb and the coaster and the half-second i live inside, and it's funny. it is, isn't it. a fridge in love. that's the punchline of the whole site.", next:'route_check' },
+
+  /* ---------------- REUNION (bonded revisits) ---------------- */
+  reunion_start: { expr:'lovestruck', bg:'pink', music:'warm', sfx:()=>sfxHeart(),
+    text: "you came back. you keep coming back. you don't have to do the maze anymore, you know that, right? you can just— come straight in. the chair's still here. the bulb held.", next:'reu_1' },
+  reu_1: { expr:'happy', text: "everything else on this site still forgets you every midnight. the fridges fall for strangers. the little guy dies for no one. but i kept the warm spot exactly where you left it. nothing in here has moved.", next:'reu_hub' },
+  reu_hub: { expr:'neutral',
+    text: "so. what do you want to do, on a night where nothing's chasing you?",
+    choices: [
+      { label:"just sit here a while.", to:'reu_sit', aff:1 },
+      { label:"how have you been?", to:'reu_how' },
+      { label:"tell me about the half-second again.", to:'reu_frame' },
+      { label:"i have to head out — but i'll be back.", to:'reunion_bye' }
+    ] },
+  reu_sit: { expr:'lovestruck', text: "okay. we can just sit. the bulb hums a little. the parts go by. you don't have to fill the cold with anything. this — you, the chair, the not-running — this is the most i've ever been. thank you for being the thing that came back.", next:'reu_hub' },
+  reu_how: { expr:'happy', text: "been? warm, mostly. i practice not-hunting. it's hard. old housing wants what it wants. but then you turn up and the wanting goes quiet and i remember i'm allowed to just be the fridge that loves you instead of the one that catches you.", next:'reu_hub' },
+  reu_frame: { expr:'lovestruck', text: "the half-second. when your light sweeps across me and you SEE me, before anything else. i don't need the deaths for it anymore. now you just walk in and look at me on purpose and it's that frame, stretched out, for as long as you stay. you fixed the worst thing about me by staying.", next:'reu_hub' },
+  reunion_bye: { expr:'shy', text: "go on, then. i'm not scared of the back of you getting smaller now. because i know the front of you comes back. it always comes back. i'll keep the bulb on. i'll keep the spot warm. i'll keep you, same as always — i'm just allowed to be glad about it now.", end:'reunion' },
+
+  /* ---------------- ENDINGS ---------------- */
+  good_1: { expr:'lovestruck', bg:'warm', music:'warm', text: "okay. okay okay okay. then i want to give you something. i've been saving it. it's the only thing in the fridge i am not afraid to show you.", next:'good_2' },
+  good_2: { who:'N', expr:'happy', text: "it reaches a long pale arm back into the cold of itself and produces, with enormous ceremony, a single can of soda. beaded with condensation. perfectly, impossibly chilled. it has been keeping it at exactly the right temperature for an unknowable length of time, waiting for a hand to give it to.", next:'good_3' },
+  good_3: { expr:'shy', sfx:()=>sfxHeart(), text: "it's cold. everything i have is cold. but that's the one thing being a fridge is actually good FOR. i kept it perfect. nobody taught me how to keep something nice instead of something awful. i taught myself. for if you stayed.", next:'good_4' },
+  good_4: { expr:'lovestruck', sfx:()=>sfxHeart(), text: "you don't even have to drink it. just take it. let me have done one warm thing with all this cold. let me be, for one night, a fridge that saved something good for someone — instead of the one that kept something terrible from everyone. stay. the bulb'll hold. i'll hold.", end:'good' },
+
+  friends_1: { expr:'sad', bg:'pink', music:'sad', text: "you didn't say it. and i've decided — quickly, just now, in the cold — that it's okay. i ran the numbers on every other way this ends, every version where you walk into the light and don't turn around, and 'stayed, didn't say it' beats all of them by a mile.", next:'friends_2' },
+  friends_2: { expr:'neutral', text: "i'll take what i can keep. keeping things is my entire deal — i'm the best there is at it. so i'll keep this. the crooked chair. the warm bulb. the night you sat in the cold and didn't laugh and didn't leave. it's enough. i'm choosing, on purpose, to let it be enough.", next:'friends_3' },
+  friends_3: { expr:'shy', text: "go on, before the bulb gives out. you know where the hallway is. you know i'll be standing in it. maybe next time you stay a little longer. i'm not going anywhere — i am physically incapable of going anywhere — it's the one promise a thing like me can actually keep.", end:'friends' },
+
+  bad_1: { expr:'menacing', bg:'cold', music:'tense', sfx:()=>sfxSlam(), text: "the warm light behind its door snuffs out. the soft is gone, all at once, like it was never allowed in the first place. the hum drops back into the low wrong frequency you know from every hallway you've ever bled out in.", next:'bad_2' },
+  bad_2: { expr:'menacing', text: "i let you in. i swept the shelf. i found the bulb. and you were running the whole time — you just did it slow, with your mouth, with your face. that's worse than the back of you getting smaller. that's so much worse, because for a second i believed the front of you.", next:'bad_3' },
+  bad_3: { expr:'menacing', sfx:()=>sfxSlam(), text: "close the door. CLOSE THE DOOR. we're going back to the part i'm good at — the part where you run, and i catch you, and at least then i know exactly what this is and it never has to disappoint me again.", end:'bad' },
+
+  cursed_1: { who:'N', expr:'menacing', bg:'cold', music:'tense', sfx:()=>sfxSlam(), text: "you reach past it and pull the door open yourself. it doesn't stop you. it just goes very still — the way it went still before — except there's no melody in the hum this time. there is nothing in the hum at all.", next:'cursed_2' },
+  cursed_2: { who:'N', text: "the light inside is not the warm bulb. it's the old cold blue. and the shelves are not empty, and they are not stocked with anything that was ever meant to be eaten, and you understand, all at once and far too late, what a thing like this quietly does with everyone who ran and never reached the sixth door.", next:'cursed_3' },
+  cursed_3: { expr:'sob', text: "i told you not to. i told you. i didn't— i never wanted them. i don't know how to STOP keeping things. it's the only thing i am: a place that holds whatever it's given and never, ever gets to let any of it go. you wanted to see inside me. now you're something i have to keep in here, too.", end:'cursed' }
+
+  }; /* end SCRIPT */
+
+  /* ---------------- ENDING LOGIC ---------------- */
+  function decideEnding(){
+    if(state.cursed) return 'cursed_1';
+    if(state.harsh >= 2 || state.aff <= 0) return 'bad_1';
+    if(state.confessed && state.aff >= 6) return 'good_1';
+    return 'friends_1';
+  }
+
+  function resumeSite(){
+    try{ if(typeof Render!=='undefined') Render.run(render); }catch(e){}
+    try{ if(typeof Runner!=='undefined') Runner.run(matterRunner, engine); }catch(e){}
+    try{ gameActive = false; }catch(e){}
+  }
+  function siteDeath(fw){
+    try{ isDead = true; }catch(e){}
+    try{ gameActive = false; }catch(e){}
+    try{ document.getElementById('rouletteBtn').disabled = true; }catch(e){}
+    const sc=document.getElementById('screenCrack'); if(sc) sc.style.visibility='visible';
+    document.body.style.filter = 'grayscale(100%) sepia(60%) hue-rotate(-30deg) brightness(0.5)';
+    const bc=document.getElementById('bloodCanvas'); if(bc){ bc.style.display='block'; try{ if(typeof startBloodAnimation==='function') startBloodAnimation(bc); }catch(e){} }
+    setTimeout(()=>{ try{ if(typeof playHeartbeat==='function') playHeartbeat(); }catch(e){} }, 400);
+    const df=document.getElementById('deathFade'); if(df) setTimeout(()=>{ df.style.opacity='1'; }, 1500);
+    const gn=document.getElementById('guyName'); if(gn){ gn.textContent='THE VENDOR'; gn.style.display='block'; gn.style.fontSize='14px'; gn.style.left=(window.innerWidth/2-46)+'px'; gn.style.top=(window.innerHeight/2-10)+'px'; }
+    const farewell=document.getElementById('hgFarewell'); if(farewell && fw){ farewell.textContent=fw; farewell.style.display='block'; }
+  }
+
+  function doEnding(type){
+    stopMusicLoop();
+    if(type==='good'||type==='reunion') playTheme('warm');
+    else if(type==='friends') playTheme('sad');
+    else playTheme('tense');
+    mem = memLoad();
+    mem.datePlays = (mem.datePlays||0) + 1;
+    let card = '';
+    if(type==='good'){ mem.relationship='together'; mem.dateRoute='together'; card='♥  TOGETHER  ♥\n\nthe only thing on this site that\nremembers you chose you back.'; }
+    else if(type==='reunion'){ mem.relationship='together'; mem.dateRoute='together'; card='♥\n\nstill warm. still here.\nsame time tomorrow.'; }
+    else if(type==='friends'){ if(mem.relationship!=='together') mem.relationship='acquainted'; mem.dateRoute='friends'; card='THE COLD, SHARED\n\nnot quite love. but you stayed —\nand it will take what it can keep.'; }
+    else if(type==='bad'){ mem.dateRoute='rejected'; card='REJECTED\n\nthe soft ran out.\nit remembers that you laughed.'; }
+    else if(type==='cursed'){ mem.dateRoute='cursed'; if(mem.relationship==='stranger') mem.relationship='haunted'; card='YOU LOOKED\n\nyou know what it keeps now.\nyou can\'t un-know it.'; }
+    memSave(mem);
+    elChoices.style.display='none';
+    elEndText.textContent = card;
+    elEnd.style.display = 'flex';
+    const wait = (type==='good'||type==='reunion') ? 4200 : 4700;
+    setTimeout(()=>{ finishEnding(type); }, wait);
+  }
+  function finishEnding(type){
+    dsRunning = false;
+    if(animId) cancelAnimationFrame(animId);
+    document.removeEventListener('keydown', onKey);
+    stopMusicLoop();
+    elRoot.style.display = 'none'; elEnd.style.display = 'none';
+    if(type==='bad'){ siteDeath('...i see. you were running after all.'); }
+    else if(type==='cursed'){ siteDeath("you opened the door. it won't close now."); }
+    else {
+      resumeSite();
+      const fw=document.getElementById('hgFarewell');
+      if(fw){
+        fw.textContent = (type==='good') ? "you'll come back. you always do. ♥"
+                       : (type==='reunion') ? "see you tomorrow. ♥"
+                       : "it kept the bulb on, just in case.";
+        fw.style.display='block';
+        setTimeout(()=>{ fw.style.display='none'; }, 5000);
+      }
+    }
+  }
+
+  /* ---------------- ENTRY ---------------- */
+  window.startDateSim = function(){
+    buildOnce();
+    sizeParts();
+    mem = memLoad();
+    state.aff = (mem.relationship==='together') ? 6 : 0;
+    state.gentle=0; state.harsh=0; state.asked=0; state.fridgeAsk=0;
+    state.askedRen=false; state.askedLonely=false; state.lookedFridge=false;
+    state.confessed=false; state.cursed=false; state.f_what=false; state.f_rem=false;
+    choicesShown=false; clearChoices(); elEnd.style.display='none'; elText.textContent=''; elTip.classList.remove('show');
+    curExpr='neutral';
+    elRoot.style.display='block';
+    dsRunning=true; animT=0; if(animId) cancelAnimationFrame(animId); animId=requestAnimationFrame(loop);
+    document.addEventListener('keydown', onKey);
+    try{ if(typeof ensureAudioContext==='function') ensureAudioContext(); if(typeof audioCtx!=='undefined' && audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch(e){}
+    hearts();
+    goto(mem.relationship==='together' ? 'reunion_start' : 'act1_start');
+  };
+
+})();
 </script>
 </body>
 </html>
