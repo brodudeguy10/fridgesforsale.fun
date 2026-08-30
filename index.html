@@ -93,18 +93,18 @@
     /* ===== TOUCH CONTROLS ===== */
     #hgTouch { display: none; position: absolute; inset: 0; z-index: 5; pointer-events: none; }
     #hgTouch.on { display: block; }
-    #hgStick { position: absolute; left: 20px; bottom: 26px; width: 148px; height: 148px; border-radius: 50%;
+    #hgStick { position: absolute; left: calc(18px + env(safe-area-inset-left)); bottom: calc(24px + env(safe-area-inset-bottom)); width: 148px; height: 148px; border-radius: 50%;
                border: 2px solid rgba(200,200,210,0.20); background: rgba(255,255,255,0.035);
                pointer-events: auto; touch-action: none; }
     #hgKnob { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px;
               border-radius: 50%; background: rgba(220,220,230,0.20); border: 1px solid rgba(220,220,230,0.34); }
-    #hgLight { position: absolute; right: 24px; bottom: 44px; width: 78px; height: 78px; border-radius: 50%;
+    #hgLight { position: absolute; right: calc(22px + env(safe-area-inset-right)); bottom: calc(42px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%;
                border: 2px solid rgba(196,0,0,0.45); background: rgba(40,0,0,0.30); color: #d0d0d0;
                font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; line-height: 1.2;
                display: flex; align-items: center; justify-content: center; text-align: center;
                pointer-events: auto; touch-action: none; user-select: none; }
     #hgLight:active { background: rgba(120,0,0,0.5); }
-    #hgStay { display: none; position: absolute; right: 20px; bottom: 142px; padding: 16px 22px;
+    #hgStay { display: none; position: absolute; right: calc(18px + env(safe-area-inset-right)); bottom: calc(140px + env(safe-area-inset-bottom)); padding: 16px 22px;
               border: 1px solid rgba(255,150,200,0.6); background: rgba(60,10,40,0.55); color: #ffd9ec;
               font-family: 'Courier New', monospace; font-size: 15px; letter-spacing: 2px;
               pointer-events: auto; touch-action: none; user-select: none; }
@@ -113,33 +113,66 @@
 
     /* ===== MOBILE ===== */
     #uiToggle { display: none; }
+    #mobileTray { display: none; }
+
     @media (max-width: 880px), (pointer: coarse) {
-      #header img { width: min(76vw, 290px); }
-      #uiToggle { display: flex; position: fixed; top: 10px; right: 10px; z-index: 10020;
+      /* the gif spins. rotating a wide banner sweeps a bounding box far
+         wider than the banner, which is how it ended up hanging off the
+         corner of the screen. no spin on small screens. */
+      #header { top: 8px; }
+      #header img { width: min(64vw, 250px); animation: none; }
+
+      #uiToggle { display: flex; position: fixed; top: 10px; right: 10px; z-index: 10030;
                   width: 46px; height: 46px; align-items: center; justify-content: center;
                   background: #14171c; color: #e8e8e8; border: 1px solid #3a3f47;
-                  font-family: monospace; font-size: 18px; cursor: pointer; }
-      #economyBox { top: auto; bottom: 218px; left: 10px; width: 140px; }
-      #rightUI { top: 74px; right: 10px; width: min(50vw, 220px); gap: 10px; }
-      #memorialText { font-size: 9px; }
-      #musicPlayer { width: calc(100vw - 20px); left: 10px; bottom: 10px; box-sizing: border-box; }
-      #viz { width: 100%; height: 52px; }
-      #vendorBox { bottom: 172px; width: 168px; height: 52px; font-size: 16px; }
-      #guyPrompt { display: none; }
-      #economyBox, #rightUI, #musicPlayer { transition: transform .28s ease, opacity .28s ease; }
-      body.ui-hidden #economyBox { transform: translateX(-140%); opacity: 0; pointer-events: none; }
-      body.ui-hidden #rightUI    { transform: translateX(140%);  opacity: 0; pointer-events: none; }
-      body.ui-hidden #musicPlayer{ transform: translateY(140%);  opacity: 0; pointer-events: none; }
-      body.ui-hidden #vendorBox  { bottom: 40%; }
-      #economyBox button, #shopMenu button, #rouletteBtn, #paintContainer button,
-      #controls button, #bulletCount { min-height: 36px; font-size: 14px; }
-      #hgMessage { font-size: 17px; }
-      #hgWhisper { font-size: 13px; bottom: 132px; }
-      #hgHint { bottom: 128px; font-size: 11px; padding: 0 60px; }
+                  font-family: monospace; font-size: 20px; cursor: pointer; }
+
+      /* one scrolling sheet instead of three absolutely positioned panels
+         fighting over the same 400 pixels. */
+      #mobileTray { display: block; position: fixed; left: 0; right: 0; bottom: 0;
+                    max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+                    background: rgba(8,10,13,0.97); border-top: 1px solid #2c313a;
+                    z-index: 10015; box-sizing: border-box;
+                    padding: 12px 12px calc(28px + env(safe-area-inset-bottom));
+                    transform: translateY(101%); transition: transform .28s ease; }
+      body:not(.ui-hidden) #mobileTray { transform: translateY(0); }
+
+      #mobileTray > * {
+        position: static !important; top: auto !important; left: auto !important;
+        right: auto !important; bottom: auto !important;
+        width: 100% !important; max-width: 100% !important;
+        margin: 0 0 12px 0 !important; transform: none !important;
+        opacity: 1 !important; box-sizing: border-box !important; }
+      #mobileTray #rightUI { display: flex; flex-direction: column; gap: 12px; }
+      #mobileTray #economyBox { gap: 8px; }
+      #mobileTray #viz { width: 100% !important; height: 56px; }
+      #mobileTray #memorialText { margin-bottom: 0 !important; font-size: 10px; line-height: 1.4; }
+      #mobileTray button, #mobileTray select { width: 100%; min-height: 40px; font-size: 15px;
+        box-sizing: border-box; margin: 0; }
+      #mobileTray #controls { display: flex; gap: 8px; }
+      #mobileTray #controls button { margin: 0; }
+      #mobileTray #paintContainer button { width: auto; flex: 1; }
+      #mobileTray label, #mobileTray #paintContainer > div { display: block; }
+
+      /* clear of the ragdoll in the bottom right and clear of the tray */
+      #vendorBox { top: 38%; bottom: auto; width: 180px; height: 56px; font-size: 16px; }
+      /* the js sets this inline, so it needs the hammer */
+      #guyPrompt { display: none !important; }
+
+      #hgWhisper { font-size: 13px; bottom: 236px; }
+      #hgMessage { font-size: 18px; }
       #hgIntro .hgLine { font-size: 16px; }
       #dsText { font-size: 17px !important; }
       .dsChoice { font-size: 16px !important; }
     }
+
+    /* width:100% plus horizontal padding on a content-box element is wider
+       than the screen, which is why the hint ran off the right edge. */
+    #hgHint { box-sizing: border-box; padding: 0 18px; line-height: 1.45; }
+    @media (max-width: 880px), (pointer: coarse) {
+      #hgHint { bottom: 208px; font-size: 11px; }
+    }
+
     #hgFarewell { display: none; position: fixed; top: 58%; left: 0; width: 100%; text-align: center; color: rgba(205,205,205,0.85); font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 1px; text-shadow: 0 0 6px #000; z-index: 10000002; pointer-events: none; padding: 0 30px; }
   </style>
 </head>
@@ -1237,11 +1270,17 @@ document.addEventListener('keydown', (e) => {
   }
 
   /* ---------- CANVAS / BUFFERS ---------- */
-  let imgData=null, buf32=null, zbuf=null, CW=0, CH=0, horizonY=0, viewPitch=0;
+  let imgData=null, buf32=null, zbuf=null, CW=0, CH=0, horizonY=0, viewPitch=0, projDist=0;
   function resize(){
-    const scale = IS_TOUCH ? 0.40 : 0.52;
-    const w = clamp(Math.floor(window.innerWidth*scale), 200, 760);
-    const h = clamp(Math.floor(window.innerHeight*scale), 140, 470);
+    /* drive resolution off a pixel budget, not a fixed fraction. a fixed
+       fraction gave a tall phone a 200px wide buffer, which is why it
+       looked like a screenshot of a screenshot. */
+    const VW = window.innerWidth, VH = window.innerHeight;
+    const budget = IS_TOUCH ? 210000 : 390000;
+    let scale = Math.sqrt(budget/(VW*VH));
+    scale = clamp(scale, 0.28, IS_TOUCH ? 0.68 : 0.60);
+    let w = clamp(Math.floor(VW*scale), 220, 820);
+    let h = clamp(Math.floor(VH*scale), 150, 620);
     if(w===CW && h===CH) return;
     canvas.width=w; canvas.height=h;
     ctx.imageSmoothingEnabled=false;
@@ -1249,6 +1288,10 @@ document.addEventListener('keydown', (e) => {
     buf32 = new Uint32Array(imgData.data.buffer);
     zbuf = new Float32Array(w);
     CW=w; CH=h;
+    /* wall height was tied to canvas height, so a 9:19.5 phone held
+       upright stretched everything into a tunnel. tie it to width and
+       hold a floor for portrait so you aren't staring at acres of lino. */
+    projDist = Math.max(w*0.75, h*0.72);
   }
   let resizeTimer=null;
   window.addEventListener('resize', ()=>{
@@ -1262,7 +1305,7 @@ document.addEventListener('keydown', (e) => {
     const w=CW, h=CH;
     const horizon = horizonY;
     const maxD = 4.5 + lightLevel*8;
-    const posZ = 0.5*h;
+    const posZ = 0.5*projDist;
     const invW = 1/w;
     const rdx0=dirX-planeX, rdy0=dirY-planeY, rdx1=dirX+planeX, rdy1=dirY+planeY;
     const dRX = (rdx1-rdx0)*invW, dRY = (rdy1-rdy0)*invW;
@@ -1283,9 +1326,10 @@ document.addEventListener('keydown', (e) => {
         fx+=sx; fy+=sy;
       }
     }
-    /* floor */
+    /* floor. p starts at 1 on the horizon row itself, so there is no
+       skipped row to paper over afterwards. */
     for(let y=horizon;y<h;y++){
-      const p = y-horizon; if(p===0){ continue; }
+      const p = y-horizon+1;
       const rowDist = posZ/p;
       let si = ((1 - rowDist/maxD)*(SHADES-1))|0;
       si = si<0?0:(si>SHADES-1?SHADES-1:si);
@@ -1300,12 +1344,6 @@ document.addEventListener('keydown', (e) => {
         fx+=sx; fy+=sy;
       }
     }
-    /* fill the single horizon row so it isn't a seam */
-    if(horizon>=0 && horizon<h){
-      const row=horizon*w, src=(horizon+1<h)?(horizon+1)*w:(horizon-1)*w;
-      for(let x=0;x<w;x++) buf32[row+x]=buf32[src+x];
-    }
-
     /* walls */
     for(let x=0;x<w;x++){
       const cameraX = 2*x*invW - 1;
@@ -1326,7 +1364,7 @@ document.addEventListener('keydown', (e) => {
       let pwd = side===0 ? (sdx-ddx) : (sdy-ddy);
       if(pwd<0.02) pwd=0.02;
       zbuf[x]=pwd;
-      const lineH = (h/pwd)|0;
+      const lineH = (projDist/pwd)|0;
       if(lineH<=0) continue;
       const half = lineH>>1;
       const dStart = horizon-half, dEnd = horizon+half;
@@ -1371,9 +1409,9 @@ document.addEventListener('keydown', (e) => {
       const screenX = ((w/2)*(1+tx/ty))|0;
       let img, sprH, sprW, yOff;
       if(s.t===0){
-        sprH = (h/ty*0.60)|0;
+        sprH = (projDist/ty*0.60)|0;
         sprW = (sprH*(fridgeSpr.width/fridgeSpr.height))|0;
-        img = fridgeSpr; yOff = (h/ty*0.20)|0;
+        img = fridgeSpr; yOff = (projDist/ty*0.20)|0;
       } else {
         const dd = Math.hypot(spx,spy);
         const prox = clamp((6-dd)/6, 0, 1);
@@ -1381,7 +1419,7 @@ document.addEventListener('keydown', (e) => {
         const open = clamp(0.28 + 0.4*(0.5+0.5*Math.sin(gameTime*(0.16+prox*0.5))) + rage*0.25, 0, 1.3);
         drawVendor(open, rage);
         img = venSpr;
-        sprH = (h/ty*1.18)|0;
+        sprH = (projDist/ty*1.18)|0;
         sprW = (sprH*(venSpr.width/venSpr.height))|0;
         yOff = 0;
       }
@@ -1410,7 +1448,7 @@ document.addEventListener('keydown', (e) => {
     /* flashlight cone */
     const r = h*(0.40 + lightLevel*0.62);
     const g = ctx.createRadialGradient(w/2, horizonY, 0, w/2, horizonY, r);
-    g.addColorStop(0,   'rgba(255,228,186,'+(0.11*lightLevel).toFixed(3)+')');
+    g.addColorStop(0,   'rgba(255,228,186,'+(0.17*lightLevel).toFixed(3)+')');
     g.addColorStop(0.45,'rgba(255,205,155,0.018)');
     g.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
@@ -2129,6 +2167,7 @@ document.addEventListener('keydown', (e) => {
     }
     lines.push(...metaPool.slice(0,2));
     lines.push("there are six down here. bring them to me.");
+    if(IS_TOUCH && window.innerHeight > window.innerWidth) lines.push("(turn your phone sideways.)");
     whisperQueue = shuffle(metaPool.slice(2));
     if(returningFlag){
       if(mem.deaths>0) whisperQueue.push("death number " + mem.deaths + " was about here.");
@@ -2147,7 +2186,7 @@ document.addEventListener('keydown', (e) => {
 
   function updateHint(){
     if(IS_TOUCH){
-      hintEl.textContent = 'left stick moves. drag to look. the circle refocuses your light.';
+      hintEl.textContent = 'left stick moves \u00b7 drag to look \u00b7 circle = light';
     } else if(document.pointerLockElement===canvas){
       hintEl.textContent = '[wasd] move   [mouse] look   [f] refocus light   [esc] try to leave';
     } else {
@@ -2217,7 +2256,19 @@ document.addEventListener('keydown', (e) => {
   const small  = window.innerWidth < 880;
   /* on a phone the three panels stack on top of each other and bury the
      grey box, so they start folded away behind the toggle. */
-  if(coarse || small) document.body.classList.add('ui-hidden');
+  if(coarse || small){
+    document.body.classList.add('ui-hidden');
+    /* pull the three floating panels into one scrolling sheet. they were
+       written as fixed desktop furniture and they will never not collide
+       while they stay that way. */
+    const tray = document.createElement('div');
+    tray.id = 'mobileTray';
+    document.body.appendChild(tray);
+    ['economyBox','rightUI','musicPlayer'].forEach(function(id){
+      const el = document.getElementById(id);
+      if(el) tray.appendChild(el);
+    });
+  }
   const toggle = document.getElementById('uiToggle');
   if(toggle) toggle.addEventListener('click', function(){
     document.body.classList.toggle('ui-hidden');
