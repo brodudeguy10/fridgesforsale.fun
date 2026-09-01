@@ -1,0 +1,4 @@
+# nothing here is meant to be found this way.
+
+User-agent: *
+Disallow: /deadair.html

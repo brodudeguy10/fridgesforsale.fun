@@ -1,0 +1,30 @@
+FLAT VERSION — no folders at all
+================================
+
+Every file goes in the root of your repo. Drag them all in at once.
+
+  index.html                        <- your fridge site, with RELAY
+  deadair.html                      <- the site
+  its_my_birthday.mp3
+  yahhh.mp3
+  thru_the_walls_v_edition.mp3
+  robots.txt
+
+That is the whole upload. Six files, one level, no directories.
+
+Type R-E-L-A-Y on the fridge site -> fades to black -> /deadair.html
+
+
+ONE THING WORTH KNOWING
+-----------------------
+If your GitHub repo is PUBLIC, everything in it is browsable at
+github.com/you/repo regardless of how hidden the page is on the site
+itself. The RELAY code and deadair.html would both be visible there
+to anyone who went looking through the repo.
+
+That does not affect search engines finding the live page - it won't
+be indexed either way - but if you want it properly unfindable,
+make the repo PRIVATE. GitHub Pages still publishes from a private
+repo on a free account.
+
+Settings -> General -> Danger Zone -> Change visibility.

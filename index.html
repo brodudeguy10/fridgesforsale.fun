@@ -9,7 +9,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="fridgesforsale.fun">
   <meta property="og:title" content="fridgesforsale.fun">
-  <meta property="og:description" content="Spawn fridges.">
+  <meta property="og:description" content="Spawn fridges. Pull the trigger. Do not click the grey box.">
   <meta property="og:url" content="https://fridgesforsale.fun/">
   <meta property="og:image" content="https://fridgesforsale.fun/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -93,73 +93,53 @@
     /* ===== TOUCH CONTROLS ===== */
     #hgTouch { display: none; position: absolute; inset: 0; z-index: 5; pointer-events: none; }
     #hgTouch.on { display: block; }
-    #hgStick { position: absolute; left: calc(18px + env(safe-area-inset-left)); bottom: calc(24px + env(safe-area-inset-bottom)); width: 148px; height: 148px; border-radius: 50%;
+    #hgStick { position: absolute; left: 20px; bottom: 26px; width: 148px; height: 148px; border-radius: 50%;
                border: 2px solid rgba(200,200,210,0.20); background: rgba(255,255,255,0.035);
                pointer-events: auto; touch-action: none; }
     #hgKnob { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px;
               border-radius: 50%; background: rgba(220,220,230,0.20); border: 1px solid rgba(220,220,230,0.34); }
-    #hgLight { position: absolute; right: calc(22px + env(safe-area-inset-right)); bottom: calc(42px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%;
+    #hgLight { position: absolute; right: 24px; bottom: 44px; width: 78px; height: 78px; border-radius: 50%;
                border: 2px solid rgba(196,0,0,0.45); background: rgba(40,0,0,0.30); color: #d0d0d0;
                font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; line-height: 1.2;
                display: flex; align-items: center; justify-content: center; text-align: center;
                pointer-events: auto; touch-action: none; user-select: none; }
     #hgLight:active { background: rgba(120,0,0,0.5); }
-    #hgStay { display: none; position: absolute; right: calc(18px + env(safe-area-inset-right)); bottom: calc(140px + env(safe-area-inset-bottom)); padding: 16px 22px;
+    #hgStay { display: none; position: absolute; right: 20px; bottom: 142px; padding: 16px 22px;
               border: 1px solid rgba(255,150,200,0.6); background: rgba(60,10,40,0.55); color: #ffd9ec;
               font-family: 'Courier New', monospace; font-size: 15px; letter-spacing: 2px;
               pointer-events: auto; touch-action: none; user-select: none; }
     #hgStay.on { display: block; }
     #hgStay:active { background: rgba(140,30,90,0.7); }
 
-    /* ===== MOBILE =====
-       same layout as the desktop site, same four corners, just shrunk.
-       --ui-scale is set in js from the viewport so the desktop
-       arrangement always fits without the panels touching. */
+    /* ===== MOBILE ===== */
     #uiToggle { display: none; }
-
     @media (max-width: 880px), (pointer: coarse) {
-      #header { top: calc(10px * var(--ui-scale, 1)); }
-      /* it spins, so its real footprint is the rotated bounding box, not
-         the banner. 26vw keeps that sweep out of the top corners and is
-         about the fraction of the screen it takes up on desktop anyway. */
-      #header img { width: min(calc(420px * var(--ui-scale, 1)), 26vw); }
-
-      #economyBox {
-        transform: scale(var(--ui-scale, 1)); transform-origin: top left;
-        top: calc(130px * var(--ui-scale, 1)); left: 10px; }
-
-      #rightUI {
-        transform: scale(var(--ui-scale, 1)); transform-origin: top right;
-        top: calc(110px * var(--ui-scale, 1)); right: 10px; }
-
-      #musicPlayer {
-        transform: scale(var(--ui-scale, 1)); transform-origin: bottom left;
-        left: 8px; bottom: 8px; }
-
-      /* the one thing that can't stay put: at desktop widths the music
-         player is nowhere near the middle, on a phone it is. */
-      #vendorBox { bottom: calc(14px + 205px * var(--ui-scale, 1)); }
-
-      #uiToggle { display: flex; position: fixed; top: 8px; right: 8px; z-index: 10030;
-                  width: 38px; height: 38px; align-items: center; justify-content: center;
-                  background: rgba(20,23,28,0.8); color: #cfcfcf; border: 1px solid #3a3f47;
-                  font-family: monospace; font-size: 17px; cursor: pointer; }
-
-      /* opacity, not translate: a transform here would wipe out the scale */
-      body.ui-hidden #economyBox,
-      body.ui-hidden #rightUI,
-      body.ui-hidden #musicPlayer,
-      body.ui-hidden #guyPrompt { opacity: 0; pointer-events: none; }
-      #economyBox, #rightUI, #musicPlayer { transition: opacity .22s ease; }
+      #header img { width: min(76vw, 290px); }
+      #uiToggle { display: flex; position: fixed; top: 10px; right: 10px; z-index: 10020;
+                  width: 46px; height: 46px; align-items: center; justify-content: center;
+                  background: #14171c; color: #e8e8e8; border: 1px solid #3a3f47;
+                  font-family: monospace; font-size: 18px; cursor: pointer; }
+      #economyBox { top: auto; bottom: 218px; left: 10px; width: 140px; }
+      #rightUI { top: 74px; right: 10px; width: min(50vw, 220px); gap: 10px; }
+      #memorialText { font-size: 9px; }
+      #musicPlayer { width: calc(100vw - 20px); left: 10px; bottom: 10px; box-sizing: border-box; }
+      #viz { width: 100%; height: 52px; }
+      #vendorBox { bottom: 172px; width: 168px; height: 52px; font-size: 16px; }
+      #guyPrompt { display: none; }
+      #economyBox, #rightUI, #musicPlayer { transition: transform .28s ease, opacity .28s ease; }
+      body.ui-hidden #economyBox { transform: translateX(-140%); opacity: 0; pointer-events: none; }
+      body.ui-hidden #rightUI    { transform: translateX(140%);  opacity: 0; pointer-events: none; }
+      body.ui-hidden #musicPlayer{ transform: translateY(140%);  opacity: 0; pointer-events: none; }
+      body.ui-hidden #vendorBox  { bottom: 40%; }
+      #economyBox button, #shopMenu button, #rouletteBtn, #paintContainer button,
+      #controls button, #bulletCount { min-height: 36px; font-size: 14px; }
+      #hgMessage { font-size: 17px; }
+      #hgWhisper { font-size: 13px; bottom: 132px; }
+      #hgHint { bottom: 128px; font-size: 11px; padding: 0 60px; }
+      #hgIntro .hgLine { font-size: 16px; }
+      #dsText { font-size: 17px !important; }
+      .dsChoice { font-size: 16px !important; }
     }
-
-    /* width:100% plus horizontal padding on a content-box element is wider
-       than the screen, which is why the hint ran off the right edge. */
-    #hgHint { box-sizing: border-box; padding: 0 18px; line-height: 1.45; }
-    @media (max-width: 880px), (pointer: coarse) {
-      #hgHint { bottom: 208px; font-size: 11px; }
-    }
-
     #hgFarewell { display: none; position: fixed; top: 58%; left: 0; width: 100%; text-align: center; color: rgba(205,205,205,0.85); font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 1px; text-shadow: 0 0 6px #000; z-index: 10000002; pointer-events: none; padding: 0 30px; }
   </style>
 </head>
@@ -718,6 +698,45 @@ function triggerGundham() {
   document.body.appendChild(img);
 }
 
+/* ===== RELAY =====
+   type R-E-L-A-Y anywhere on the page.
+   no link, no button, no hint in the markup. crawlers follow anchors,
+   they do not run keyboard handlers, so /deadair/ has no inbound path. */
+const RELAY_WORD = 'relay';
+const RELAY_DEST = '/deadair.html';
+let relayBuf = '';
+let relayTimer = null;
+let relayGoing = false;
+
+document.addEventListener('keydown', (e) => {
+  if (relayGoing) return;
+  if (typeof gameActive !== 'undefined' && gameActive) return;
+  if (typeof bsodActive !== 'undefined' && bsodActive) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key.length !== 1) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+
+  relayBuf += e.key.toLowerCase();
+  if (relayBuf.length > RELAY_WORD.length) relayBuf = relayBuf.slice(-RELAY_WORD.length);
+
+  clearTimeout(relayTimer);
+  relayTimer = setTimeout(() => { relayBuf = ''; }, 1500);
+
+  if (relayBuf === RELAY_WORD) {
+    clearTimeout(relayTimer);
+    relayBuf = '';
+    relayGoing = true;
+    try { if (typeof audio !== 'undefined' && audio) audio.pause(); } catch(err) {}
+    const veil = document.createElement('div');
+    veil.setAttribute('aria-hidden','true');
+    veil.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#000;opacity:0;transition:opacity .38s ease;pointer-events:none';
+    document.body.appendChild(veil);
+    requestAnimationFrame(() => { veil.style.opacity = '1'; });
+    setTimeout(() => { window.location.href = RELAY_DEST; }, 420);
+  }
+});
+
 /* ===== BSOD RANDOM EVENT + DEBUG TRIGGER ===== */
 let bsodQueued = false;
 let bsodActive = false;
@@ -1257,17 +1276,11 @@ document.addEventListener('keydown', (e) => {
   }
 
   /* ---------- CANVAS / BUFFERS ---------- */
-  let imgData=null, buf32=null, zbuf=null, CW=0, CH=0, horizonY=0, viewPitch=0, projDist=0;
+  let imgData=null, buf32=null, zbuf=null, CW=0, CH=0, horizonY=0, viewPitch=0;
   function resize(){
-    /* drive resolution off a pixel budget, not a fixed fraction. a fixed
-       fraction gave a tall phone a 200px wide buffer, which is why it
-       looked like a screenshot of a screenshot. */
-    const VW = window.innerWidth, VH = window.innerHeight;
-    const budget = IS_TOUCH ? 210000 : 390000;
-    let scale = Math.sqrt(budget/(VW*VH));
-    scale = clamp(scale, 0.28, IS_TOUCH ? 0.68 : 0.60);
-    let w = clamp(Math.floor(VW*scale), 220, 820);
-    let h = clamp(Math.floor(VH*scale), 150, 620);
+    const scale = IS_TOUCH ? 0.40 : 0.52;
+    const w = clamp(Math.floor(window.innerWidth*scale), 200, 760);
+    const h = clamp(Math.floor(window.innerHeight*scale), 140, 470);
     if(w===CW && h===CH) return;
     canvas.width=w; canvas.height=h;
     ctx.imageSmoothingEnabled=false;
@@ -1275,10 +1288,6 @@ document.addEventListener('keydown', (e) => {
     buf32 = new Uint32Array(imgData.data.buffer);
     zbuf = new Float32Array(w);
     CW=w; CH=h;
-    /* wall height was tied to canvas height, so a 9:19.5 phone held
-       upright stretched everything into a tunnel. tie it to width and
-       hold a floor for portrait so you aren't staring at acres of lino. */
-    projDist = Math.max(w*0.75, h*0.72);
   }
   let resizeTimer=null;
   window.addEventListener('resize', ()=>{
@@ -1292,7 +1301,7 @@ document.addEventListener('keydown', (e) => {
     const w=CW, h=CH;
     const horizon = horizonY;
     const maxD = 4.5 + lightLevel*8;
-    const posZ = 0.5*projDist;
+    const posZ = 0.5*h;
     const invW = 1/w;
     const rdx0=dirX-planeX, rdy0=dirY-planeY, rdx1=dirX+planeX, rdy1=dirY+planeY;
     const dRX = (rdx1-rdx0)*invW, dRY = (rdy1-rdy0)*invW;
@@ -1313,10 +1322,9 @@ document.addEventListener('keydown', (e) => {
         fx+=sx; fy+=sy;
       }
     }
-    /* floor. p starts at 1 on the horizon row itself, so there is no
-       skipped row to paper over afterwards. */
+    /* floor */
     for(let y=horizon;y<h;y++){
-      const p = y-horizon+1;
+      const p = y-horizon; if(p===0){ continue; }
       const rowDist = posZ/p;
       let si = ((1 - rowDist/maxD)*(SHADES-1))|0;
       si = si<0?0:(si>SHADES-1?SHADES-1:si);
@@ -1331,6 +1339,12 @@ document.addEventListener('keydown', (e) => {
         fx+=sx; fy+=sy;
       }
     }
+    /* fill the single horizon row so it isn't a seam */
+    if(horizon>=0 && horizon<h){
+      const row=horizon*w, src=(horizon+1<h)?(horizon+1)*w:(horizon-1)*w;
+      for(let x=0;x<w;x++) buf32[row+x]=buf32[src+x];
+    }
+
     /* walls */
     for(let x=0;x<w;x++){
       const cameraX = 2*x*invW - 1;
@@ -1351,7 +1365,7 @@ document.addEventListener('keydown', (e) => {
       let pwd = side===0 ? (sdx-ddx) : (sdy-ddy);
       if(pwd<0.02) pwd=0.02;
       zbuf[x]=pwd;
-      const lineH = (projDist/pwd)|0;
+      const lineH = (h/pwd)|0;
       if(lineH<=0) continue;
       const half = lineH>>1;
       const dStart = horizon-half, dEnd = horizon+half;
@@ -1396,9 +1410,9 @@ document.addEventListener('keydown', (e) => {
       const screenX = ((w/2)*(1+tx/ty))|0;
       let img, sprH, sprW, yOff;
       if(s.t===0){
-        sprH = (projDist/ty*0.60)|0;
+        sprH = (h/ty*0.60)|0;
         sprW = (sprH*(fridgeSpr.width/fridgeSpr.height))|0;
-        img = fridgeSpr; yOff = (projDist/ty*0.20)|0;
+        img = fridgeSpr; yOff = (h/ty*0.20)|0;
       } else {
         const dd = Math.hypot(spx,spy);
         const prox = clamp((6-dd)/6, 0, 1);
@@ -1406,7 +1420,7 @@ document.addEventListener('keydown', (e) => {
         const open = clamp(0.28 + 0.4*(0.5+0.5*Math.sin(gameTime*(0.16+prox*0.5))) + rage*0.25, 0, 1.3);
         drawVendor(open, rage);
         img = venSpr;
-        sprH = (projDist/ty*1.18)|0;
+        sprH = (h/ty*1.18)|0;
         sprW = (sprH*(venSpr.width/venSpr.height))|0;
         yOff = 0;
       }
@@ -1435,7 +1449,7 @@ document.addEventListener('keydown', (e) => {
     /* flashlight cone */
     const r = h*(0.40 + lightLevel*0.62);
     const g = ctx.createRadialGradient(w/2, horizonY, 0, w/2, horizonY, r);
-    g.addColorStop(0,   'rgba(255,228,186,'+(0.17*lightLevel).toFixed(3)+')');
+    g.addColorStop(0,   'rgba(255,228,186,'+(0.11*lightLevel).toFixed(3)+')');
     g.addColorStop(0.45,'rgba(255,205,155,0.018)');
     g.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
@@ -2154,7 +2168,6 @@ document.addEventListener('keydown', (e) => {
     }
     lines.push(...metaPool.slice(0,2));
     lines.push("there are six down here. bring them to me.");
-    if(IS_TOUCH && window.innerHeight > window.innerWidth) lines.push("(turn your phone sideways.)");
     whisperQueue = shuffle(metaPool.slice(2));
     if(returningFlag){
       if(mem.deaths>0) whisperQueue.push("death number " + mem.deaths + " was about here.");
@@ -2173,7 +2186,7 @@ document.addEventListener('keydown', (e) => {
 
   function updateHint(){
     if(IS_TOUCH){
-      hintEl.textContent = 'left stick moves \u00b7 drag to look \u00b7 circle = light';
+      hintEl.textContent = 'left stick moves. drag to look. the circle refocuses your light.';
     } else if(document.pointerLockElement===canvas){
       hintEl.textContent = '[wasd] move   [mouse] look   [f] refocus light   [esc] try to leave';
     } else {
@@ -2243,22 +2256,7 @@ document.addEventListener('keydown', (e) => {
   const small  = window.innerWidth < 880;
   /* on a phone the three panels stack on top of each other and bury the
      grey box, so they start folded away behind the toggle. */
-  /* the desktop panels need about 600x520 of room to sit in their corners
-     without touching. work out what fraction of that the screen can give
-     and scale everything by it. */
-  function setUiScale(){
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let s = 1;
-    if(coarse || vw < 880){
-      s = Math.min((vw - 16) / 600, (vh - 100) / 520);
-      s = Math.max(0.36, Math.min(1, s));
-    }
-    document.documentElement.style.setProperty('--ui-scale', String(Math.round(s*1000)/1000));
-  }
-  setUiScale();
-  window.addEventListener('resize', setUiScale);
-  window.addEventListener('orientationchange', function(){ setTimeout(setUiScale, 150); });
-
+  if(coarse || small) document.body.classList.add('ui-hidden');
   const toggle = document.getElementById('uiToggle');
   if(toggle) toggle.addEventListener('click', function(){
     document.body.classList.toggle('ui-hidden');
