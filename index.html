@@ -100,6 +100,34 @@
       body.ui-hidden #vendorBox  { bottom: 40%; }
       #economyBox button, #shopMenu button, #rouletteBtn, #paintContainer button,
       #controls button, #bulletCount { min-height: 36px; font-size: 14px; }
+
+      /* panels open on a phone: two tidy columns over a dimmed page, the
+         grey box under the left column, the music player along the bottom.
+         nothing overlaps, and anything too tall scrolls inside its column. */
+      body:not(.ui-hidden)::before { content: ''; position: fixed; inset: 0; background: rgba(5,7,10,0.74); z-index: 9990; pointer-events: none; }
+      #economyBox { top: 68px; bottom: auto; left: 8px; width: calc(50vw - 12px); max-height: calc(100vh - 300px); max-height: calc(100dvh - 300px); overflow-y: auto; overscroll-behavior: contain; }
+      #rightUI { top: 68px; right: 8px; width: calc(50vw - 12px); gap: 8px; max-height: calc(100vh - 250px); max-height: calc(100dvh - 250px); overflow-y: auto; overscroll-behavior: contain; }
+      #rightUI h1, #rightUI h2, #rightUI h3 { font-size: 15px; margin: 2px 0 6px; }
+      #rouletteContainer, #paintContainer { padding: 9px; font-size: 12px; }
+      #rouletteContainer select { width: 100%; }
+      #memorialText { margin-bottom: -4px; }
+      #musicPlayer { bottom: 8px; left: 8px; width: calc(100vw - 16px); padding: 8px; font-size: 12px; }
+      #musicPlayer .text-layer:first-child { font-size: 13px; margin-bottom: 2px !important; }
+      #nowPlaying { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #controls button { min-height: 34px; padding: 4px 12px; }
+      #viz { height: 34px; margin-top: 6px; }
+      body:not(.ui-hidden) #vendorBox { left: 8px; transform: none; bottom: 150px; width: calc(50vw - 12px); height: 44px; font-size: 15px; }
+      body:not(.ui-hidden) #guyName { display: none !important; }
+      #guyPrompt { display: none !important; }
+    }
+    /* phones on their side: short screens, so the columns get even shorter */
+    @media (pointer: coarse) and (max-height: 500px) {
+      #economyBox { top: 62px; max-height: calc(100vh - 178px); }
+      #rightUI { top: 62px; max-height: calc(100vh - 76px); }
+      #musicPlayer { width: min(46vw, 340px); }
+      #viz { display: none; }
+      body:not(.ui-hidden) #vendorBox { bottom: 10px; left: auto; right: 8px; width: 140px; }
+      #header img { width: min(40vw, 240px); }
     }
     #hgFarewell { display: none; position: fixed; top: 58%; left: 0; width: 100%; text-align: center; color: rgba(205,205,205,0.85); font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 1px; text-shadow: 0 0 6px #000; z-index: 10000002; pointer-events: none; padding: 0 30px; }
   </style>

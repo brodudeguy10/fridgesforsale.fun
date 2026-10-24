@@ -15,6 +15,8 @@ let root = null, busy = false, prevActive = false, musicWasOn = false;
 function css(){ if(document.getElementById('fp-css')) return; const l = document.createElement('link'); l.id = 'fp-css'; l.rel = 'stylesheet'; l.href = CSS; document.head.appendChild(l); }
 function button(){
   const eco = document.getElementById('economyBox'); if(!eco || document.getElementById('fpOpenBtn')) return;
+  /* the button's own look, without loading the whole casino stylesheet upstairs */
+  if(!document.getElementById('fp-btncss')){ const st = document.createElement('style'); st.id = 'fp-btncss'; st.textContent = '#fpOpenBtn{position:relative;background:linear-gradient(180deg,#2a1218,#120609)!important;color:#f7dc95!important;border:1px solid #c8902e!important;cursor:pointer;font-family:monospace;padding:5px 4px;line-height:1.2}#fpOpenBtn small{display:block;font-size:9px;color:#c8a868;letter-spacing:1px;margin-top:2px}#fpOpenBtn:hover{filter:brightness(1.25)}'; document.head.appendChild(st); }
   const b = document.createElement('button'); b.id = 'fpOpenBtn'; b.innerHTML = 'fridge casino<small>FRIDGE PALACE · open late</small>';
   b.onclick = open;
   const after = document.getElementById('fxOpenBtn');
