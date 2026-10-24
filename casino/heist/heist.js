@@ -525,7 +525,7 @@ class Heist {
     await this.until(()=>V.crate.opened, tok); if(!this.ok(tok)) return;
     C.arsenal.give('freon', true); C.arsenal.select('freon');
     C.hh.big('THE FREON CANNON', 'gus is going to be so mad', 'ice', 2800);
-    this.setObj('LOCKED IN', [{ t:'freeze the door hinges (hold fire)' }, { t:'then shoot them', opt:true }]);
+    this.setObj('LOCKED IN', [{ t:'freeze the two hinges on the left edge of the door (hold fire, get close)' }, { t:'then shoot them with a gun (1, 2, 3)', opt:true }]);
     C.audio.heist.heartbeat(false);
     let said = false;
     await this.until(()=>{ const fr = V.hinges.filter(h=>h.frozen).length, br = V.hinges.filter(h=>h.broken).length; const k = fr + ':' + br; if(k !== this._hk){ this._hk = k; this.setObj('LOCKED IN', [{ t:'freeze the door hinges · ' + fr + '/2', done:fr >= 2 }, { t:'shoot the frozen hinges · ' + br + '/2', done:br >= 2 }]); if(fr >= 1 && !said){ said = true; C.hud.say('', 'the hinge frosts over and goes brittle.', 2.5); } } return V.state === 'fallen'; }, tok);

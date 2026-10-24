@@ -79,12 +79,15 @@ export class Vault {
     /* hinge targets on the inside of the vault door */
     const hingeM = new THREE.MeshStandardMaterial({ color:0x6a6e74, roughness:0.3, metalness:1, emissive:0x000000 });
     [0.78, 1.88].forEach((y, i)=>{
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.34, 12), hingeM.clone()); m.position.set(29.76, y, K.VZ - K.VR + 0.26); m.rotation.z = Math.PI/2; room.add(m);
-      const ice = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), C.enemies ? C.enemies.iceM : new THREE.MeshStandardMaterial({ color:0xbfeeff, transparent:true, opacity:0.6 })); ice.visible = false; ice.position.copy(m.position); room.add(ice);
+      /* the hinge pin sticks out into the vault, past the door's collision box, so bullets and gas can reach it */
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.62, 12), hingeM.clone()); m.position.set(30.02, y, K.VZ - K.VR + 0.28); m.rotation.z = Math.PI/2; room.add(m);
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.42, 0.3), hingeM); plate.position.set(30.31, y, K.VZ - K.VR + 0.28); room.add(plate);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.06, 12), new THREE.MeshStandardMaterial({ color:0xc9a04a, metalness:1, roughness:0.3 })); cap.rotation.z = Math.PI/2; cap.position.set(30.35, y, K.VZ - K.VR + 0.28); room.add(cap); m.userData.parts = [plate, cap];
+      const ice = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), C.enemies ? C.enemies.iceM : new THREE.MeshStandardMaterial({ color:0xbfeeff, transparent:true, opacity:0.6 })); ice.visible = false; ice.position.set(30.3, y, K.VZ - K.VR + 0.28); room.add(ice);
       const hg = { m, ice, frost:0, frozen:false, broken:false, i };
       this.hinges.push(hg);
-      hg.target = C.combat.add({ kind:'hinge', get alive(){ return !hg.broken; }, center:()=>m.position.clone(),
-        ray:(o, d, maxT)=>{ if(hg.broken || this.state !== 'slammed') return null; const r = rayOBB(o.x, o.y, o.z, d.x, d.y, d.z, m.position.x, m.position.y, m.position.z, 0.14, 0.2, 0.14, 0, maxT); return r ? { t:r.t, n:r.n, part:'hinge' } : null; },
+      hg.target = C.combat.add({ kind:'hinge', get alive(){ return !hg.broken; }, center:()=>new THREE.Vector3(30.36, m.position.y, m.position.z),
+        ray:(o, d, maxT)=>{ if(hg.broken || this.state !== 'slammed') return null; const r = rayOBB(o.x, o.y, o.z, d.x, d.y, d.z, 30.25, m.position.y, m.position.z, 0.16, 0.24, 0.2, 0, maxT); return r ? { t:r.t, n:r.n, part:'hinge' } : null; },
         hit:info=>{ if(this.state !== 'slammed') return { hit:false }; if(hg.frozen){ this.breakHinge(hg); return { hit:true, kill:true }; } C.gore.sparks(info.point, 6, { speed:3 }); C.audio.heist && C.audio.heist.hit('metal', info.point); C.audio.heist && C.audio.heist.ricochet(info.point); C.bus.emit('hingeping'); return { hit:false }; },
         freeze:(v)=>{ if(this.state !== 'slammed' || hg.frozen) return; hg.frost += v; hg.m.material.emissive.setRGB(0, hg.frost/60*0.4, hg.frost/60*0.6); if(hg.frost >= 60){ hg.frozen = true; hg.ice.visible = true; C.audio.heist && C.audio.heist.hit('ice', m.position); C.bus.emit('hingefrozen', { i }); } } });
     });
@@ -195,7 +198,7 @@ export class Vault {
   }
   breakHinge(hg){
     const C = this.C; if(hg.broken) return;
-    hg.broken = true; hg.m.visible = false; hg.ice.visible = false;
+    hg.broken = true; hg.m.visible = false; hg.ice.visible = false; (hg.m.userData.parts || []).forEach(p=>p.visible = false);
     C.gore.iceBurst(hg.m.position.clone().setY(hg.m.position.y - 0.6), 10);
     C.gore.sparks(hg.m.position, 12, { speed:5 });
     C.audio.heist && C.audio.heist.hit('ice', hg.m.position); C.audio.heist && C.audio.heist.hit('metal', hg.m.position);
