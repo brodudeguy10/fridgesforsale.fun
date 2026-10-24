@@ -33,12 +33,19 @@ html.vendor-open, html.vendor-open body{ overflow:hidden !important; overscroll-
 #vBase.on{ display:block; }
 #vbView{ position:absolute; inset:0; width:100%; height:100%; display:block;
   image-rendering:pixelated; image-rendering:crisp-edges; }
-#vbVig, #vbRed, #vbHide, #vbFrost, #vbScare, #vbCount, #vbMsg, #vbWhisper, #vbPrompt, #vbHint, #vbStam, #vbNote, #vbFreeze, #vbDebug, #vbMap{ pointer-events:none; }
+#vbVig, #vbRed, #vbSteam, #vbHide, #vbFrost, #vbScare, #vbCount, #vbMsg, #vbWhisper, #vbPrompt, #vbHint, #vbStam, #vbNote, #vbFreeze, #vbDebug, #vbMap{ pointer-events:none; }
 #vbVig{ position:absolute; inset:0; opacity:.7;
   background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 38%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.95) 100%); }
 #vbRed{ position:absolute; inset:0; opacity:0;
   background:radial-gradient(ellipse at 50% 50%, rgba(80,0,0,0) 35%, rgba(120,0,0,0.55) 80%, rgba(60,0,0,0.9) 100%); }
 
+#vbSteam{ position:absolute; inset:0; opacity:0; transition:opacity 1.6s ease-out;
+  background:radial-gradient(ellipse at 50% 70%, rgba(220,225,230,0.55) 0%, rgba(200,205,210,0.25) 45%, rgba(200,205,210,0) 75%); }
+#vbSteam.on{ opacity:1; transition:opacity .25s; }
+#vbNote.news{ background:#d9d2bc; font-family:var(--vb-type); }
+#vbNote.news #vbNoteHead{ color:#1a1612; font-size:15px; letter-spacing:2px; border-bottom:2px solid #1a1612; padding-bottom:4px; }
+#vbNote.news #vbNoteBody{ font-family:var(--vb-type); font-size:15px; line-height:1.35; }
+#vbNote.news::before{ display:none; }
 /* hiding: you see out through the crack in the door */
 #vbHide{ display:none; position:absolute; inset:0;
   background:linear-gradient(90deg, #000 0%, #000 43%, rgba(0,0,0,0.75) 46%, rgba(0,0,0,0) 48.5%, rgba(0,0,0,0) 51.5%, rgba(0,0,0,0.75) 54%, #000 57%, #000 100%); }
@@ -113,6 +120,8 @@ html.vendor-open, html.vendor-open body{ overflow:hidden !important; overscroll-
   padding:10px 22px; cursor:pointer; letter-spacing:2px; min-height:44px; opacity:.75; transition:opacity .2s, color .2s; }
 .vbMenu button:hover, .vbMenu button:focus-visible{ opacity:1; color:#fff; outline:none; }
 .vbMenu button:hover::before{ content:'> '; color:var(--vb-red); }
+.vbMenu button.wait{ opacity:.4; font-size:13px; cursor:wait; }
+.vbMenu button.wait::before{ content:'' !important; }
 #vbTitle{ background:radial-gradient(ellipse at 50% 60%, #120a0a 0%, #000 70%); }
 #vbTitle h1{ font-family:var(--vb-type); font-weight:normal; font-size:clamp(34px, 7vw, 78px); letter-spacing:clamp(6px, 1.4vw, 16px);
   margin:0; color:#d8d2c0; text-shadow:0 0 22px rgba(196,26,18,0.25); animation:vbBreath 6s ease-in-out infinite; }

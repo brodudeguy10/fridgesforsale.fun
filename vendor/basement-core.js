@@ -26,6 +26,7 @@ function buildDOM(){
     <canvas id="vbView"></canvas>
     <div id="vbVig"></div>
     <div id="vbRed"></div>
+    <div id="vbSteam"></div>
     <div id="vbHide"><div id="vbFrost"></div></div>
     <canvas id="vbScare"></canvas>
     <div id="vbCount"></div>
@@ -50,7 +51,7 @@ function buildDOM(){
         <h1>THE VENDOR</h1>
         <div class="vbSub">the back room</div>
         <div class="vbMenu">
-          <button data-act="go">go down</button>
+          <button data-act="go" id="vbGo">go down</button>
           <button data-act="settings">settings</button>
           <button data-act="up">back upstairs</button>
         </div>
@@ -94,7 +95,7 @@ function buildDOM(){
   document.body.appendChild(root);
   view = el('vbView'); vctx = view.getContext('2d', { alpha:false });
   scareCv = el('vbScare'); sctx = scareCv.getContext('2d');
-  ['vbVig','vbRed','vbHide','vbFrost','vbCount','vbMsg','vbWhisper','vbPrompt','vbHint','vbStam','vbNote','vbNoteHead','vbNoteBody','vbNoteFoot',
+  ['vbVig','vbRed','vbSteam','vbHide','vbFrost','vbCount','vbMsg','vbWhisper','vbPrompt','vbHint','vbStam','vbNote','vbNoteHead','vbNoteBody','vbNoteFoot',
    'vbTouch','vbStickZone','vbLookZone','vbStick','vbKnob','vbBtnUse','vbBtnLight','vbBtnShake','vbBtnPause',
    'vbTitle','vbTitleTally','vbRotate','vbIntro','vbPause','vbPauseHead','vbPauseSay','vbResume','vbLeave','vbSens','vbVol','vbQual','vbInv','vbShakeOpt','vbHap',
    'vbDeath','vbDeathTally','vbDeathLine','vbDeathSub','vbDeathMenu','vbWin','vbWinLine','vbWinSub','vbFreeze','vbDebug','vbMap']
@@ -125,6 +126,9 @@ let found = 0, escape = false, exposure = 0, fear = 0, stingerCD = 0;
 let blackoutUntil = 0, sauceUntil = 0, tapeUntil = -999, tapeX = 0, tapeY = 0, radioOn = false, sauceUsed = false;
 let sessionDeaths = 0, leaveTries = 0, whisperAt = 0, whisperQ = [];
 let interactTarget = null, god = false, showMap = false;
+let radioStation = 0, wurstRingUntil = -1, evAt = 0, evDone = {}, steamUntil = 0, lastZone = 0, typed = '';
+const seenFrame = {}, seenAcc = {};
+let SEEN_WALL = null;
 
 /* ============================================================
    MAP + LIGHT PRECOMPUTE
@@ -149,6 +153,11 @@ function los(ax,ay,bx,by){
 function initMap(){
   if(M) return;
   M = B.buildMap();
+  SEEN_WALL = {};
+  SEEN_WALL[T.m_look] = 'look'; SEEN_WALL[T.m_noise] = 'noise'; SEEN_WALL[T.m_seven] = 'seven'; SEEN_WALL[T.m_ren] = 'ren';
+  SEEN_WALL[T.m_sauce] = 'sauce'; SEEN_WALL[T.m_sold] = 'sold'; SEEN_WALL[T.m_counts] = 'counts'; SEEN_WALL[T.m_hank] = 'hank';
+  SEEN_WALL[T.m_quiet] = 'quiet'; SEEN_WALL[T.tally] = 'tally';
+  SEEN_WALL[T.h_fridge] = 'h_fridge'; SEEN_WALL[T.h_behind] = 'h_behind'; SEEN_WALL[T.h_box] = 'h_box';
   cellList = [];
   for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++) if(!M.wall[y*W+x]) cellList.push([x+0.5,y+0.5]);
   LR = new Float32Array(VW1*(H+1)); LG = new Float32Array(VW1*(H+1)); LB = new Float32Array(VW1*(H+1));
@@ -214,6 +223,11 @@ function setupRun(){
   motes = [];
   for(let i=0;i<34;i++) motes.push({ x:P.x+(Math.random()-0.5)*6, y:P.y+(Math.random()-0.5)*6, z:0.15+Math.random()*0.7, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, vz:(Math.random()-0.5)*0.02 });
   whisperQ = []; whisperAt = gameT + 18;
+  radioStation = 0; wurstRingUntil = -1; evAt = gameT + 30 + Math.random()*15; evDone = {}; steamUntil = 0; lastZone = 0;
+  for(const k in seenAcc) delete seenAcc[k];
+  /* now and then, before the first tag, it's on its break in the office chair */
+  ven.onBreak = !tagMode && mem.deaths >= 1 && Math.random() < 0.14;
+  if(ven.onBreak){ ven.x = 6.5; ven.y = 31.75; ven.ghost = 1; ven.ghostUntil = 1e9; ven.glimpseAt = 1e9; }
   ui.vbHide.classList.remove('on');
   hideText();
   B.bakeTally(mem.deaths);
@@ -271,7 +285,7 @@ const WHISPER_ACTIVE = [
   "i moved.",
   "shh.",
   "everything down here was somebody's.",
-  "hank used to do this shift.",
+  "somebody used to work this shift. not anymore.",
   "i don't sell. i keep.",
   "you smell like upstairs.",
   "it's thirty six degrees down here.",
@@ -388,7 +402,7 @@ function updateLights(dt){
     let target = L.dead ? 0 : L.i;
     if(blk) target = 0;
     if(!L.dead && !blk){
-      if(L.k === 'tube' && Math.random() < 0.004*dt*60) L.flickT = 0.08 + Math.random()*0.25;
+      if(L.k === 'tube' && Math.random() < 0.004*dt*60){ L.flickT = 0.08 + Math.random()*0.25; if(d2(L.x,L.y,P.x,P.y) < 64) A.zap(L.x, L.y); }
       if(L.dying && Math.random() < 0.02*dt*60) L.flickT = 0.05 + Math.random()*0.4;
       if(venNear){
         const dd = d2(L.x, L.y, vx, vy);
@@ -512,6 +526,7 @@ function render(){
     if(pd < 0.03) pd = 0.03;
     zb[x] = pd;
     if(!hit || pd > MAXD) continue;
+    if(pd < 4.6 && (x & 7) === 0 && x > w*0.22 && x < w*0.78 && SEEN_WALL[t] && (!B.hiddenMsg[t] || sauce)) seenFrame[t] = 1;
     let tex = (sauce && HT[t]) ? HT[t] : WT[t];
     if(!tex) tex = WT[1];
     let wx = side === 0 ? py + pd*rdy : px + pd*rdx;
@@ -575,12 +590,16 @@ function gatherSprites(){
   }
   for(const p of props){
     let s = null;
+    if(p.sauceOnly && (gameT >= sauceUntil || p.used)) continue;
     switch(p.t){
       case 'sauce': s = p.used ? S.sauceGone : S.sauce; break;
       case 'magnet': s = p.used ? null : S.magnet; break;
       default: s = S[p.t];
     }
-    pushSprite(s, p.x, p.y, { em: p.t === 'desk' ? (radioOn ? 1 : 0.6) : (p.t === 'boiler' ? 0.8 + Math.sin(gameT*7)*0.1 + Math.random()*0.1 : 1) });
+    if(p.t === 'unit00'){ pushSprite(s, p.x, p.y, { ec:[200,90,255], em:1, alpha:0.55 + 0.2*Math.sin(gameT*3) }); continue; }
+    const o = { em: p.t === 'desk' ? (radioOn ? 1 : 0.6) : (p.t === 'boiler' ? 0.8 + Math.sin(gameT*7)*0.1 + Math.random()*0.1 : 1) };
+    if(p.z !== undefined) o.z = p.z;
+    pushSprite(s, p.x, p.y, o);
   }
   for(const hd of hides) pushSprite(hd.k === 'f' ? (hd.used ? S.hideFOpen : S.hideF) : (hd.used ? S.lockerOpen : S.locker), hd.x, hd.y);
   for(const t of tags) pushSprite(t.taken ? S.tagShut : S.tag, t.x, t.y, { em: t.taken ? 0 : 0.75 + 0.25*Math.sin(gameT*1.3 + t.x) });
@@ -829,6 +848,7 @@ function teleport(intoView){
 }
 function startHunting(){
   if(ven.state !== 'dormant') return;
+  ven.onBreak = false;
   ven.state = 'stalk'; ven.ghost = 0;
   const c = randomCellNear(P.x, P.y, 14, 30, true);
   if(c){ ven.x = c[0]; ven.y = c[1]; }
@@ -843,6 +863,17 @@ function updateVendor(dt){
 
   /* ---- asleep: it shows up at the end of a corridor, then doesn't ---- */
   if(ven.state === 'dormant'){
+    if(ven.onBreak){
+      ven.phase = 0; ven.door = 0;
+      const pdb = Math.sqrt(d2(P.x,P.y,ven.x,ven.y));
+      if(pdb < 6 && inView(ven.x, ven.y) && centred(ven.x, ven.y, 0.25)){
+        ven.onBreak = false; ven.ghost = 0.99; ven.ghostUntil = gameT + 0.25; ven.glimpseAt = gameT + 20;
+        V.see('event:break'); A.stinger(); stingerCD = 10;
+        setTimeout(()=>{ if(mode==='play') whisper("i was on my break."); }, 1400);
+      }
+      ven.inView = false;
+      return;
+    }
     if(ven.ghost <= 0 && gameT > ven.glimpseAt){
       for(let i=0;i<60;i++){
         const c = cellList[(Math.random()*cellList.length)|0];
@@ -1017,6 +1048,7 @@ function updatePlayer(dt){
   if(want > 0.05) moveCircle(P, mvx*spd*dt, mvy*spd*dt, 0.22, true);
   const moved = Math.hypot(P.x-ox, P.y-oy);
   P.moving = moved > 0.0008;
+  if(P.moving) P.lastMoveT = gameT;
 
   /* head bob, breath, flashlight sway */
   if(P.moving){ P.bob += dt*(P.sprinting ? 13 : 8.5); P.bobAmt += (1-P.bobAmt)*Math.min(1,dt*6); }
@@ -1111,7 +1143,12 @@ function findInteract(){
   for(const t of tags) if(!t.taken) consider({ kind:'tag', t }, t.x, t.y, 1.25, 'take the tag');
   for(const hd of hides) if(!hd.used) consider({ kind:'hide', hd }, hd.x, hd.y, 1.3, hd.k === 'f' ? 'get in the fridge' : 'get in the locker');
   for(const p of props){
-    if(p.use === 'radio') consider({ kind:'radio', p }, p.x, p.y, 1.35, radioOn ? 'turn the radio off' : 'turn the radio on');
+    if(p.use === 'radio') consider({ kind:'radio', p }, p.x, p.y, 1.35, radioStation === 0 ? 'turn the radio on' : (radioStation === 1 ? 'change the station' : 'turn the radio off'));
+    if(p.use === 'wurst') consider({ kind:'wurst', p }, p.x, p.y, 1.3, gameT < wurstRingUntil ? 'answer it' : 'look at the bratwurst', 0.45);
+    if(p.use === 'watch' && !p.used) consider({ kind:'watch', p }, p.x, p.y, 1.15, 'pick up the watch', 0.45);
+    if(p.use === 'miasma') consider({ kind:'miasma', p }, p.x, p.y, 1.25, 'smell it', 0.45);
+    if(p.use === 'paper') consider({ kind:'paper', p }, p.x, p.y, 1.3, 'read the paper', 0.45);
+    if(p.use === 'unit00' && !p.used && gameT < sauceUntil) consider({ kind:'unit00', p }, p.x, p.y, 1.25, 'take the tag');
     if(p.use === 'tape' && gameT > tapeUntil + 30) consider({ kind:'tape', p }, p.x, p.y, 1.2, 'press play');
     if(p.use === 'sauce' && !p.used) consider({ kind:'sauce', p }, p.x, p.y, 1.2, 'drink it');
     if(p.use === 'magnet' && !p.used) consider({ kind:'magnet', p }, p.x, p.y, 1.1, 'pick up the E', 0.4);
@@ -1128,27 +1165,56 @@ function interact(){
     case 'hide': enterHide(o.hd); break;
     case 'unhide': exitHide(); break;
     case 'radio':
-      radioOn = !radioOn; A.radio(o.p.x, o.p.y, radioOn); A.click(radioOn);
-      if(radioOn){ V.patch(m=>{ m.radio++; }); whisper(pick(["that station doesn't exist down here.","sixty nine point four two zero. nothing plays on it.","it only knows the one song. it's not a song."])); }
+      radioStation = (radioStation + 1) % 3; radioOn = radioStation > 0;
+      A.radio(o.p.x, o.p.y, radioOn, radioStation); A.click(radioOn);
+      if(radioStation === 1){ V.patch(m=>{ m.radio++; }); V.see('used:radio'); whisper(pick(["that station doesn't exist down here.","sixty nine point four two zero. nothing plays on it.","it only knows the one song. it's not a song."])); }
+      if(radioStation === 2){ V.see('used:radio2'); whisper(pick(["that one isn't for listening to.","you'd have to see that one to get it."])); }
       noise(P.x, P.y, 5);
+      break;
+    case 'wurst':
+      if(gameT < wurstRingUntil){
+        wurstRingUntil = -1; if(o.p.ring) o.p.ring.stop(0.05);
+        V.see('used:phone');
+        showNote({ h:'INCOMING', b:"it's you. later.\ndon't drink the sauce.", f:"you already drank it. didn't you." });
+        A.near('vn_click');
+      } else flash(pick(["it's a bratwurst. it's warm.", "there's no wire coming out of it."]), 2200);
+      break;
+    case 'watch':
+      o.p.used = true; V.see('used:watch'); A.near('quartz', { gain:0.9 });
+      showNote({ h:'WATCH', b:'gold. heavy for its size.\nthe second hand ticks\nonce a second.', f:'real ones sweep.' });
+      break;
+    case 'miasma':
+      V.see('used:miasma'); A.near('spray');
+      flash(pick(['formaldehyde. and something sweet under it.', 'it smells like a waiting room.']), 2600);
+      break;
+    case 'paper':
+      V.see('used:paper'); A.near('paper');
+      ui.vbNote.classList.add('news');
+      showNote({ h:'GUNSMOKE PRESS', b:'SHOPKEEPER MISSING\nbasement searched.\nnothing found but stock.', f:'five cents' });
+      setTimeout(()=>ui.vbNote.classList.remove('news'), 3600);
+      break;
+    case 'unit00':
+      o.p.used = true; V.see('tag:00'); A.tag();
+      showNote({ h:'UNIT 00', b:'you.', f:'not for sale' });
+      setTimeout(()=>{ if(mode==='play') whisper("put that back."); }, 2600);
       break;
     case 'tape':
       tapeX = o.p.x; tapeY = o.p.y;
       { const len = A.tape(tapeX, tapeY) || 6; tapeUntil = gameT + len; }
-      V.patch(m=>{ m.tapes++; });
+      V.patch(m=>{ m.tapes++; }); V.see('used:tape');
       startHunting();
       ven.lastX = tapeX; ven.lastY = tapeY; ven.knowT = gameT;
       setTimeout(()=>{ if(mode==='play') whisper(pick(["turn that off.","that's the one from upstairs. the screaming one.","i can hear that through the ceiling every day. not down here too."])); }, 1500);
       break;
     case 'sauce':
       o.p.used = true; sauceUsed = true; sauceUntil = gameT + 32;
-      A.gulp(); V.patch(m=>{ m.sauce++; });
+      A.gulp(); A.near('sauce_trip', { gain:0.6 }); V.patch(m=>{ m.sauce++; }); V.see('used:sauce');
       flash('you drink it.', 2000);
       setTimeout(()=>{ if(mode==='play') whisper("oh. you can see me now.", 5200); }, 2600);
       break;
     case 'magnet':
-      o.p.used = true; A.click(true); V.buzz(15);
-      V.patch(m=>{ m.hasE = true; });
+      o.p.used = true; A.magnet(); V.buzz(15);
+      V.patch(m=>{ m.hasE = true; }); V.see('used:magnet');
       flash('a magnet. the letter E.', 2200);
       setTimeout(()=>{ if(mode==='play') whisper(ven.state === 'dormant' ? "that's mine." : "that's mine. give it back. later. not now."); }, 2400);
       break;
@@ -1163,6 +1229,7 @@ function takeTag(t){
   A.tag(t.x, t.y); A.killFridge(t);
   V.buzz(15);
   showNote(t.note);
+  V.see('tag:' + t.note.h.replace(/\D/g, ''));
   showCount();
   V.patch(m=>{ m.tagsTotal++; if(found > m.bestChamber) m.bestChamber = found; });
   noise(t.x, t.y, 6);
@@ -1230,7 +1297,7 @@ function enterHide(hd){
   P.preX = P.x; P.preY = P.y;
   P.x = hd.x + hd.fx*0.05; P.y = hd.y + hd.fy*0.05;
   P.ang = Math.atan2(hd.fy, hd.fx); P.pitch = 0;
-  A.hideDoor(false);
+  A.hideDoor(false, hd.k);
   ui.vbHide.classList.add('on'); ui.vbHide.classList.toggle('locker', hd.k === 'l');
   ui.vbFrost.style.opacity = '0';
   if(saw){ ven.hideTarget = hd; }
@@ -1250,10 +1317,133 @@ function exitHide(){
   P.hidden = null;
   P.x = hd.x + hd.fx*0.85; P.y = hd.y + hd.fy*0.85;
   if(isWall(P.x, P.y)){ P.x = P.preX; P.y = P.preY; }
-  A.hideDoor(true);
+  A.hideDoor(true, hd.k);
   ui.vbHide.classList.remove('on');
   if(ven.hideTarget === hd) ven.hideTarget = null;
   noise(P.x, P.y, 5);
+}
+
+/* ============================================================
+   EVENTS
+   every half a minute or so, something happens. what can happen
+   depends on where you are and how far along you are.
+============================================================ */
+function nearestFridgeProp(maxD){
+  let best = null, bd = maxD*maxD;
+  for(const p of props){ if(p.t !== 'display') continue; const dd = d2(p.x,p.y,P.x,P.y); if(dd < bd && !inView(p.x,p.y)){ bd = dd; best = p; } }
+  for(const hd of hides){ if(hd.used || hd.k !== 'f') continue; const dd = d2(hd.x,hd.y,P.x,P.y); if(dd < bd && !inView(hd.x,hd.y)){ bd = dd; best = hd; } }
+  return best;
+}
+function behind(dist){ return { x: P.x - Math.cos(P.ang)*dist, y: P.y - Math.sin(P.ang)*dist }; }
+const EVENTS = {
+  knock(){
+    const f = nearestFridgeProp(9); if(!f) return false;
+    A.at('fridge_knock', f.x, f.y, { occ: !los(P.x,P.y,f.x,f.y), gain:0.9 });
+    if(f.k === 'f' && Math.random() < 0.5) setTimeout(()=>{ f.used = true; A.at('hide_fridge_out', f.x, f.y, { gain:0.6 }); }, 2600);
+    return true;
+  },
+  echo(){
+    /* your own footsteps, a few more of them than you took */
+    if(P.moving || gameT - (P.lastMoveT||0) > 1.2) return false;
+    for(let k=0;k<3;k++) setTimeout(()=>{ if(mode !== 'play') return; const b = behind(2.2 + k*0.4); A.stepAt(surfaceAt(b.x, b.y), b.x, b.y); }, 380 + k*470);
+    return true;
+  },
+  breath(){
+    if(ven.state === 'dormant' || ven.inView || d2(P.x,P.y,ven.x,ven.y) < 36) return false;
+    const b = behind(1.1);
+    if(isWall(b.x, b.y)) return false;
+    A.at('ven_breath', b.x, b.y, { hrtf:true, gain:1, ref:0.8 });
+    fear = Math.min(1, fear + 0.35);
+    return true;
+  },
+  radio(){
+    if(radioOn || evDone.radio || d2(P.x,P.y,6.5,30.5) > 256) return false;
+    radioStation = 1; radioOn = true; A.radio(6.5, 30.5, true, 1);
+    return true;
+  },
+  surge(){
+    const live = lights.filter(L=>L.k === 'tube' && !L.dead && !L.keep && d2(L.x,L.y,P.x,P.y) < 64);
+    if(!live.length) return false;
+    const L = pick(live);
+    A.at('power_surge', L.x, L.y, { gain:0.8 });
+    L.flickT = 2;
+    setTimeout(()=>{ L.dead = true; A.pop(L.x, L.y); }, 2050);
+    return true;
+  },
+  steam(){
+    if(lastZone !== 2 && lastZone !== 3) return false;
+    const a = P.ang + (Math.random()-0.5)*1.2, x = P.x + Math.cos(a)*3, y = P.y + Math.sin(a)*3;
+    A.at('steam', isWall(x,y) ? P.x : x, isWall(x,y) ? P.y : y, { gain:0.8 });
+    steamUntil = gameT + 3.2;
+    ui.vbSteam.classList.add('on'); setTimeout(()=>ui.vbSteam.classList.remove('on'), 2600);
+    return true;
+  },
+  shelf(){
+    if(lastZone !== 5 || evDone.shelf) return false;
+    const c = randomCellNear(P.x, P.y, 4, 9, true); if(!c) return false;
+    A.at('shelf_crash', c[0], c[1], { gain:0.9 });
+    noise(c[0], c[1], 14);
+    return true;
+  },
+  stairs(){
+    if(evDone.stairs || d2(P.x,P.y,10.5,2) > 144) return false;
+    A.at('stairs_fall', 10.5, 0.8, { gain:0.9, ref:2 });
+    setTimeout(()=>{ if(mode==='play') whisper("the little man fell down the stairs again."); }, 3200);
+    return true;
+  },
+  vigil(){
+    /* a light far off goes out. when it comes back on, it's standing under it. */
+    if(ven.state !== 'dormant' || ven.onBreak) return false;
+    const far = lights.filter(L=>!L.dead && L.k === 'bulb' && d2(L.x,L.y,P.x,P.y) > 49 && d2(L.x,L.y,P.x,P.y) < 225 && inView(L.x, L.y, 0.9));
+    if(!far.length) return false;
+    const L = pick(far);
+    L.flickT = 0.7;
+    setTimeout(()=>{ if(ven.state !== 'dormant' || mode !== 'play') return; ven.x = L.x; ven.y = L.y + 0.3; ven.ghost = 1; ven.ghostUntil = gameT + 0.9; }, 750);
+    return true;
+  },
+  name(){
+    const n = mem.playerName; if(!n || evDone.name || ven.state === 'dormant') return false;
+    whisper(n.toLowerCase() + '.', 3000);
+    return true;
+  },
+  move(){
+    /* it moves one of the tagged fridges somewhere else */
+    if(evDone.move || found < 2 || tagMode) return false;
+    const cand = tags.filter(t=>!t.taken && !inView(t.x,t.y) && d2(t.x,t.y,P.x,P.y) > 64);
+    if(!cand.length) return false;
+    const t = pick(cand);
+    const spots = shuffle(B.SPOTS.slice()).filter(sp=>!tags.some(o=>d2(o.x,o.y,sp[0],sp[1]) < 4) && d2(sp[0],sp[1],P.x,P.y) > 64 && !inView(sp[0], sp[1]));
+    if(!spots.length) return false;
+    t.x = spots[0][0]; t.y = spots[0][1];
+    A.moveFridge(t);
+    setTimeout(()=>{ if(mode==='play') whisper("i moved one."); }, 1200);
+    return true;
+  },
+  phone(){
+    const w = props.find(p=>p.t === 'wurst');
+    if(!w || evDone.phone || d2(w.x,w.y,P.x,P.y) > 225) return false;
+    w.ring = A.at('phone_ring', w.x, w.y, { gain:0.8, ref:1.5 });
+    wurstRingUntil = gameT + 6;
+    return true;
+  },
+  drag(){
+    if(ven.state === 'dormant') return false;
+    A.at('ven_drag', ven.x, ven.y, { hrtf:true, occ:!los(P.x,P.y,ven.x,ven.y), gain:0.8 });
+    return true;
+  }
+};
+const EV_WEIGHT = { knock:3, echo:2, breath:3, radio:1.5, surge:2, steam:2, shelf:2, stairs:1, vigil:2, name:1, move:2.5, phone:1.5, drag:1.5 };
+function updateEvents(){
+  if(gameT < evAt || P.hidden) return;
+  evAt = gameT + Math.max(14, 30 + Math.random()*22 - found*2.5);
+  const names = shuffle(Object.keys(EVENTS));
+  let total = 0; names.forEach(n=>total += EV_WEIGHT[n]);
+  /* weighted order: try them until one fits the moment */
+  names.sort((a,b)=>Math.random()*EV_WEIGHT[b] - Math.random()*EV_WEIGHT[a]);
+  for(const n of names){
+    if(evDone[n] === 'once') continue;
+    if(EVENTS[n]()){ evDone[n] = (n === 'stairs' || n === 'shelf' || n === 'radio' || n === 'name' || n === 'move' || n === 'phone') ? 'once' : (evDone[n]||0) + 1; break; }
+  }
 }
 
 /* ============================================================
@@ -1287,6 +1477,9 @@ function frame(t){
     if(mode !== 'play') return;
     updateLights(dt);
     updateWhispers();
+    updateEvents();
+    const zone = M.zone[(P.y|0)*W + (P.x|0)];
+    if(zone && zone !== lastZone){ lastZone = zone; V.see('room:' + zone); }
     /* interact prompt */
     interactTarget = findInteract();
     if(interactTarget){
@@ -1308,8 +1501,13 @@ function frame(t){
     for(const tg of tags) tg.occ = !los(P.x, P.y, tg.x, tg.y);
     A.update({ px:P.x, py:P.y, dx:Math.cos(P.ang), dy:Math.sin(P.ang),
       ven:{ x:ven.x, y:ven.y, active: ven.state !== 'dormant', ghost: ven.ghost, rage: ven.rage, occ: !los(P.x,P.y,ven.x,ven.y) },
-      found, escape, exposure, fear, stamina:P.stamina, hidden: !!P.hidden, tube: tb });
+      found, escape, exposure, fear, stamina:P.stamina, hidden: !!P.hidden, tube: tb, zone: lastZone });
     render();
+    for(const k in seenFrame){
+      seenAcc[k] = (seenAcc[k] || 0) + dt;
+      if(seenAcc[k] > 0.35 && seenAcc[k] < 1) V.see('wall:' + SEEN_WALL[k]);
+      delete seenFrame[k];
+    }
     /* dynamic resolution */
     const ft = performance.now() - t;
     fpsEMA += (ft - fpsEMA)*0.05;
@@ -1324,7 +1522,7 @@ function frame(t){
     }
   }
 }
-function shortLabel(k){ return ({tag:'TAKE', hide:'HIDE', unhide:'OUT', radio:'RADIO', tape:'PLAY', sauce:'DRINK', door:'DOOR', magnet:'TAKE'})[k] || 'USE'; }
+function shortLabel(k){ return ({tag:'TAKE', hide:'HIDE', unhide:'OUT', radio:'RADIO', tape:'PLAY', sauce:'DRINK', door:'DOOR', magnet:'TAKE', wurst: gameT < wurstRingUntil ? 'ANSWER' : 'LOOK', watch:'TAKE', miasma:'SMELL', paper:'READ', unit00:'TAKE'})[k] || 'USE'; }
 function drawMap(){
   const c = ui.vbMap, s = 6; c.width = W*s; c.height = H*s;
   const x = c.getContext('2d');
@@ -1537,6 +1735,10 @@ function kd(e){
     if(k === 'f'){ toggleLight(); return; }
     if(k === 'r'){ shakeLight(); return; }
     if(k === 'e' || k === 'enter'){ interact(); return; }
+    if(k.length === 1){
+      typed = (typed + k).slice(-4);
+      if(typed === 'hank' && V.saw('wall:hank')){ typed = ''; V.see('typed:hank'); blackout(0.5); setTimeout(()=>{ if(mode==='play') whisper("don't."); }, 600); }
+    }
     if(V.debug && k === 'm'){ showMap = !showMap; ui.vbMap.classList.toggle('on', showMap); return; }
     if(V.debug && k === 'g'){ god = !god; return; }
     keys[k] = true;
@@ -1669,6 +1871,9 @@ function wireMenus(){
     if(!b) return;
     e.preventDefault();
     const act = b.getAttribute('data-act');
+    if(b.disabled) return;
+    if(act === 'go'){ V.SND.play('ui_down', { gain:0.8 }); }
+    else A.ui('ui_click');
     if(act === 'go') goDown();
     else if(act === 'settings'){ openPause(true); }
     else if(act === 'up') leave();
@@ -1737,9 +1942,34 @@ function goFullscreen(){
 }
 function lockLandscape(){ try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }
 
+let readyIv = 0, titleAmb = null;
+/* the title and the intro aren't silent: the building is already there */
+function titleAmbience(on){
+  if(on && !titleAmb){
+    const a = V.SND.play('bed_base', { loop:true, gain:0.0001 }), b = V.SND.play('ven_hum', { loop:true, gain:0.0001, rate:0.94 });
+    if(!a && !b) return;
+    if(a) a.gain(0.35, 1.5); if(b){ b.gain(0.05, 2.5); }
+    titleAmb = [a, b];
+  } else if(!on && titleAmb){
+    titleAmb.forEach(h=>{ if(h){ h.gain(0.0001, 0.6); setTimeout(()=>h.stop(0.1), 2500); } });
+    titleAmb = null;
+  }
+}
 function showTitle(){
   mode = 'title';
   screens('vbTitle');
+  const go = document.getElementById('vbGo');
+  clearInterval(readyIv);
+  const check = ()=>{
+    const ok = V.SND.essentialReady();
+    go.disabled = !ok;
+    go.classList.toggle('wait', !ok);
+    go.textContent = ok ? 'go down' : 'the lights are coming on ' + Math.round(V.SND.progress()*100) + '%';
+    if(ok){ clearInterval(readyIv); titleAmbience(true); }
+  };
+  V.SND.start();
+  check();
+  readyIv = setInterval(check, 200);
   const m = mem;
   const tl = ui.vbTitleTally;
   tl.textContent = '';
@@ -1786,6 +2016,7 @@ function showIntro(){
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
 function startPlay(){
   screens(null);
+  titleAmbience(false);
   setupRun();
   if(!A.start()) console.warn('no audio');
   A.setFridges(tags);
@@ -1811,6 +2042,7 @@ function retry(){
 ============================================================ */
 function teardown(resumeSite){
   running = false; cancelAnimationFrame(rafId);
+  titleAmbience(false);
   duck(false);
   mode = 'off';
   removeInput();
@@ -1835,6 +2067,7 @@ V.endBasementToSite = leave;
 
 V.startBasement = function(o){
   o = o || {};
+  ['tape_ic','radio_cp','radio_signal','phone_ring','quartz','spray','paper','sauce_trip'].forEach(n=>V.SND && V.SND.need(n));
   buildDOM();
   initMap();
   tagMode = !!o.tag;
@@ -1863,6 +2096,6 @@ V.startBasement = function(o){
 
 /* test hooks, used by the debug console and by nothing else */
 V._basement = { get state(){ return { mode, found, escape, exposure, fear, ven:{ state:ven.state, x:ven.x, y:ven.y }, P:{ x:P.x, y:P.y, ang:P.ang, hidden:!!P.hidden }, CW, CH, tags: tags.map(t=>({x:t.x,y:t.y,taken:t.taken})) }; },
-  caught, takeTag:(i)=>takeTag(tags[i]), teleportPlayer:(x,y,a)=>{ P.x=x; P.y=y; if(a!==undefined) P.ang=a; }, startPlay, setGod:(v)=>{ god=v; }, ven, P, interact, render:()=>render() };
+  caught, EVENTS, takeTag:(i)=>takeTag(tags[i]), teleportPlayer:(x,y,a)=>{ P.x=x; P.y=y; if(a!==undefined) P.ang=a; }, startPlay, setGod:(v)=>{ god=v; }, ven, P, interact, render:()=>render() };
 
 })();

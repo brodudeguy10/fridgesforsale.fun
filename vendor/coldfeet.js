@@ -61,77 +61,38 @@ function sizeAll(){
 /* ============================================================
    SOUND (soft, procedural, through the shared bus)
 ============================================================ */
-let musicTimer = 0, musicName = null, humNodes = null;
-function ac(){ return V.ac(); }
-function dest(){ const b = V.bus(); return b ? b.master : null; }
-function tone(f, dur, g, type, when){
-  const c = ac(), d = dest(); if(!c || !d) return;
-  const t = when || c.currentTime;
-  const o = c.createOscillator(), gg = c.createGain();
-  o.type = type || 'sine'; o.frequency.value = f;
-  gg.gain.setValueAtTime(0.0001, t); gg.gain.linearRampToValueAtTime(g, t + Math.min(0.04, dur*0.3)); gg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(gg); gg.connect(d); o.start(t); o.stop(t + dur + 0.05);
-}
-const THEMES = {
-  room:  { notes:[0,7,12,16, 12,7,4,7], root:130.81, gap:900, dur:2.2, type:'sine', g:0.05, pad:true },
-  love:  { notes:[12,16,19,24, 19,16,14,16, 12,11,12,7], root:261.63, gap:520, dur:1.4, type:'triangle', g:0.045 },
-  sad:   { notes:[12,10,7,3, 7,5,3,0], root:220, gap:820, dur:1.8, type:'triangle', g:0.04 },
-  tense: { notes:[0,1,0,-1, 0,6], root:65.41, gap:640, dur:1.4, type:'sawtooth', g:0.03 },
-  dark:  { notes:[0,-1], root:49, gap:2200, dur:3, type:'sine', g:0.05 }
-};
+let musicName = null, musicH = null, humH = null;
+const SND = V.SND;
 function music(name){
   if(name === musicName) return;
   musicName = name;
-  clearInterval(musicTimer); musicTimer = 0;
+  if(musicH){ const h = musicH; musicH = null; h.gain(0.0001, 0.5); setTimeout(()=>h.stop(0.1), 2000); }
   if(!name || name === 'none') return;
-  const T = THEMES[name]; if(!T) return;
-  let i = 0;
-  musicTimer = setInterval(()=>{
-    const semi = T.notes[i % T.notes.length];
-    const f = T.root * Math.pow(2, semi/12);
-    tone(f, T.dur, T.g, T.type);
-    if(T.pad && i % 4 === 0){ tone(T.root/2, T.dur*3, T.g*0.8, 'sine'); tone(T.root*0.75, T.dur*3, T.g*0.5, 'sine'); }
-    if(name === 'love' && i % 3 === 0) tone(f/2, T.dur*1.2, T.g*0.5, 'sine');
-    i++;
-  }, T.gap);
+  const h = SND.play('mus_' + name, { loop:true, gain:0.0001 });
+  if(h){ h.gain(name === 'dark' ? 0.5 : 0.55, 0.8); musicH = h; }
 }
 function hum(on){
-  const c = ac(), d = dest(); if(!c || !d) return;
-  if(on && !humNodes){
-    const g = c.createGain(); g.gain.value = 0.0001; g.connect(d);
-    const o1 = c.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 55;
-    const o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.value = 110.3;
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
-    const lfo = c.createOscillator(); lfo.frequency.value = 0.21; const lg = c.createGain(); lg.gain.value = 0.006;
-    lfo.connect(lg); lg.connect(g.gain);
-    o1.connect(lp); o2.connect(lp); lp.connect(g);
-    o1.start(); o2.start(); lfo.start();
-    g.gain.setTargetAtTime(0.022, c.currentTime, 1.2);
-    humNodes = { g, o:[o1,o2,lfo], o1 };
-  } else if(!on && humNodes){
-    const h = humNodes; humNodes = null;
-    h.g.gain.setTargetAtTime(0.0001, c.currentTime, 0.4);
-    setTimeout(()=>h.o.forEach(o=>{ try{ o.stop(); }catch(e){} }), 1500);
-  }
+  if(on && !humH){ humH = SND.play('vn_hum', { loop:true, gain:0.0001 }); if(humH) humH.gain(0.22, 1.2); }
+  else if(!on && humH){ const h = humH; humH = null; h.gain(0.0001, 0.4); setTimeout(()=>h.stop(0.1), 1600); }
 }
 function humWindDown(sec){
-  const c = ac(); if(!c || !humNodes) return;
-  humNodes.o1.frequency.setTargetAtTime(18, c.currentTime, sec/3);
-  humNodes.g.gain.setTargetAtTime(0.0001, c.currentTime + sec*0.6, sec/4);
+  /* pulling the plug: the motor slows to nothing */
+  if(!humH) return;
+  humH.rate(0.15, sec/3); humH.gain(0.0001, sec/2.5);
 }
+let blipN = 0;
 function blip(who){
-  const c = ac(); if(!c) return;
-  if(who === 'V') tone(118 + Math.random()*26, 0.07, 0.05, 'square');
-  else if(who === 'Y') tone(520 + Math.random()*40, 0.03, 0.012, 'sine');
+  if(who === 'V'){ if(blipN++ % 3 === 0) SND.play('vn_v', { gain:0.5, jitter:0.05 }); }
+  else if(who === 'Y') SND.play('vn_y', { gain:0.35 });
 }
 const SFX = {
-  heart(){ tone(660, 0.12, 0.06); const c = ac(); if(c) tone(990, 0.18, 0.045, 'sine', c.currentTime + 0.08); },
-  slam(){ const c = ac(); if(!c) return; tone(70, 0.4, 0.4, 'square'); tone(40, 0.6, 0.3); },
-  click(){ tone(2200, 0.03, 0.04, 'square'); },
-  open(){ const c = ac(); if(!c) return; tone(140, 0.6, 0.06, 'sawtooth'); tone(180, 0.8, 0.04, 'sawtooth', c.currentTime + 0.2); },
-  pop(){ tone(180, 0.1, 0.2); tone(90, 0.2, 0.2); },
-  hiss(){ const c = ac(), d = dest(); if(!c || !d) return; const s = c.createBufferSource(); s.buffer = V.noiseBuffer(2, 'white'); const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000; const g = c.createGain(); g.gain.setValueAtTime(0.06, c.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 1.2); s.connect(f); f.connect(g); g.connect(d); s.start(); s.stop(c.currentTime + 1.3); },
-  scratch(){ if(V.B && V.B.A && V.B.A.scratch) V.B.A.scratch(dest()); }
+  heart(){ SND.play('vn_heart', { gain:0.6 }); },
+  slam(){ SND.play('vn_slam', { gain:0.8 }); },
+  click(){ SND.play('vn_click', { gain:0.5 }); },
+  open(){ SND.play('vn_open', { gain:0.7 }); },
+  pop(){ SND.play('vn_pop', { gain:0.8 }); },
+  hiss(){ SND.play('vn_hiss', { gain:0.7 }); },
+  scratch(){ SND.play('scratch', { gain:0.5 }); }
 };
 
 /* ============================================================
@@ -589,6 +550,7 @@ function keyH(e){
 ============================================================ */
 function open(o){
   build();
+  SND.start();
   opts = o || {};
   const m = V.loadMem();
   vendorName = m.vendorName || null; playerName = m.playerName || null; hasE = !!m.gaveE;
@@ -698,9 +660,17 @@ const DATE = {
       { label:"the tags. what are they?", to:'q_tags', cond:()=>!s.q_tags },
       { label:"you remember me.", to:'q_rem', cond:()=>!s.q_rem },
       { label:"who's ren?", to:'q_ren', cond:()=>!s.q_ren },
-      { label:"who's hank?", to:'q_hank', cond:()=>!s.q_hank },
+      { label:"who's hank?", to:'q_hank', cond:()=>!s.q_hank && V.sawAny(['wall:hank','tag:26']) },
       { label:"you can hear the music upstairs?", to:'q_music', cond:()=>!s.q_music },
-      { label:"seven. why seven?", to:'q_seven', cond:()=>!s.q_seven },
+      { label:"seven. why seven?", to:'q_seven', cond:()=>!s.q_seven && V.sawAny(['wall:tally','wall:seven']) },
+      { label:"somebody wrote 'it counts' on a wall.", to:'q_counts', cond:()=>!s.q_counts && V.saw('wall:counts') },
+      { label:"a wall down there says don't look at you.", to:'q_look', cond:()=>!s.q_look && V.saw('wall:look') },
+      { label:"another one said stay in the dark.", to:'q_quiet', cond:()=>!s.q_quiet && V.saw('wall:quiet') },
+      { label:"one of the walls said you're not a fridge.", to:'q_notfridge', cond:()=>!s.q_notfridge && V.sawAny(['wall:h_fridge','wall:h_behind','wall:h_box']) },
+      { label:"a tag said your crisper drawer's full of teeth.", to:'q_teeth', cond:()=>!s.q_teeth && V.saw('tag:31') },
+      { label:"the radio was doing morse.", to:'q_radio', cond:()=>!s.q_radio && V.saw('used:radio') },
+      { label:"there was a seventh tag. unit zero.", to:'q_zero', cond:()=>!s.q_zero && V.saw('tag:00') },
+      { label:"you were sitting in the office chair.", to:'q_break', cond:()=>!s.q_break && V.saw('event:break') },
       { label:"are you lonely?", to:'q_lonely', cond:()=>!s.q_lonely },
       { label:"what's inside you?", to:'q_fridge', cond:()=>!s.fridgeLocked },
       { label:"(touch the door of its head)", to:'act3', cond:()=>s.asked >= 2 },
@@ -732,6 +702,21 @@ const DATE = {
 
   q_seven: { expr:'think', set:s=>{ s.q_seven = 1; s.asked++; s.aff++; }, text:"the wall by the door has room for six marks. i put a little heart where the seventh goes.", next:'q_seven2' },
   q_seven2: { expr:'shy', text:"i put the heart there before you got that far. i don't know why i did it first.", next:'hub' },
+
+  q_counts: { expr:'think', set:s=>{ s.q_counts = 1; s.asked++; }, text:()=>V.sawAny(['wall:hank','tag:26']) ? "hank wrote that. before he went home." : "somebody who used to work down here wrote that.", next:'q_counts2' },
+  q_counts2: { expr:'neutral', text:"it's true. i count. tiles, tags, you. the wall by the stairs is me counting.", next:'hub' },
+  q_look: { expr:'sad', set:s=>{ s.q_look = 1; s.asked++; }, text:"that one's advice. it's good advice. you didn't take it.", next:'q_look2' },
+  q_look2: { expr:'shy', text:"you looked anyway. a lot. i noticed.", next:'hub' },
+  q_quiet: { expr:'pleased', set:s=>{ s.q_quiet = 1; s.asked++; s.aff++; }, text:"also good advice. the light's how i find people. you left yours on most of the time.", next:'hub' },
+  q_notfridge: { expr:'flustered', set:s=>{ s.q_notfridge = 1; s.asked++; }, text:"you drank the sauce. you drank the sauce off the crate.", next:'q_notfridge2' },
+  q_notfridge2: { expr:'think', text:"that writing's only there when you've had it. i don't know who wrote it. i'd like it gone.", next:'q_notfridge3' },
+  q_notfridge3: { expr:'neutral', text:"i'm a fridge. the door opens. there's a light. it's a fridge.", next:'hub' },
+  q_teeth: { expr:'pleased', set:s=>{ s.q_teeth = 1; s.asked++; s.aff++; }, text:()=>V.sawAny(['wall:hank','tag:26']) ? "magnets. it's magnets. hank wrote it in the dark." : "magnets. it's magnets. whoever wrote that had the lights off.", next:'hub' },
+  q_radio: { expr:'blank', set:s=>{ s.q_radio = 1; s.asked++; }, text:"three. eight. r. e. n.", next:'q_radio2' },
+  q_radio2: { expr:'neutral', text:"i don't touch the radio.", next:'hub' },
+  q_zero: { expr:'blank', set:s=>{ s.q_zero = 1; s.asked++; }, fx:'glitch', text:"that one isn't stock.", next:'q_zero2' },
+  q_zero2: { expr:'shy', text:"put it back if you've still got it. it's yours, but put it back.", next:'hub' },
+  q_break: { expr:'flustered', set:s=>{ s.q_break = 1; s.asked++; s.aff++; }, text:"everybody gets a break. i sit in the chair. i don't know what else a break is.", next:'hub' },
 
   q_lonely: { expr:'flustered', set:s=>{ s.q_lonely = 1; s.asked++; s.aff+=2; }, text:"...", next:'q_lonely2' },
   q_lonely2: { expr:'sad', text:"there's a cockroach that comes through sometimes. i don't think it counts.", next:'q_lonely3' },
@@ -928,12 +913,12 @@ const TOPICS = [
   { id:'falling', lines:[ ['neutral',"they drop fridges up there. hundreds."], ['think',"none of them ever come down here. they're gone by morning."], ['sad',"i don't know where they go. somewhere that isn't here."] ] },
   { id:'song', lines:[ ['happy',"i learned the screaming song. the one from upstairs."], ['shy',"listen."], ['N',"It hums. It's a compressor, so it's mostly one note. You can tell which song it is anyway."], ['pleased',"the one about a basement. i still think it's about me."] ] },
   { id:'tags', lines:[ ['neutral',"i put the tags back on the six."], ['think',"blank, same as before. you can take them again. it's a game now. i'll chase you. nicely."] ] },
-  { id:'hank', lines:[ ['think',"hank's handwriting is on every box down here."], ['neutral',"he dotted his i's with little circles."], ['blank',"i don't have his last day. it's the only one i don't have."] ] },
+  { id:'hank', cond:()=>V.sawAny(['wall:hank','tag:26']), lines:[ ['think',"hank's handwriting is on every box down here."], ['neutral',"he dotted his i's with little circles."], ['blank',"i don't have his last day. it's the only one i don't have."] ] },
   { id:'bulb', lines:[ ['neutral',"the bulb's been on since you first came in."], ['think',"it's a sixty watt. it'll go eventually."], ['pleased',"i've got more. i took them from upstairs. nobody counts bulbs."] ] },
   { id:'magnets', cond:()=>!hasE, lines:[ ['neutral',"i've got three magnets. S. A. L."], ['sad',"there was an E. it came off years ago. it's down there somewhere."], ['think',"i've looked. i look with my door. it doesn't open very far."] ] },
   { id:'sale', cond:()=>hasE, lines:[ ['pleased',"S. A. L. E."], ['happy',"i look at it in the steel on the wall. backwards it says ELAS. that's fine too."] ] },
   { id:'dark', lines:[ ['neutral',"when you're not here i turn the bulb off."], ['shy',"the chair's still there in the dark. i check with my hand."] ] },
-  { id:'tiles', lines:[ ['think',"i counted the tiles in the laundry."], ['neutral',"four hundred and twelve. there's one missing."], ['sad',"i don't know who took it. i've got everything else anyone ever took."] ] },
+  { id:'tiles', cond:()=>V.saw('room:4'), lines:[ ['think',"i counted the tiles in the laundry."], ['neutral',"four hundred and twelve. there's one missing."], ['sad',"i don't know who took it. i've got everything else anyone ever took."] ] },
   { id:'upstairs', lines:[ ['think',"what's it like up there."] ], choices:[
       { label:"bright.", reply:[['pleased',"i figured. it comes under the door."]] },
       { label:"loud.", reply:[['happy',"that's the song."]] },
@@ -947,20 +932,25 @@ const TOPICS = [
   { id:'hands', lines:[ ['neutral',"i've got very long fingers."], ['shy',"i hold the cord with them sometimes. when it's quiet. it hums in my hand."] ] },
   { id:'nametalk', cond:()=>!!vendorName, lines:[ ['happy',"{name}."], ['think',"i say it sometimes. to see if it sounds like me yet."], ['pleased',"it's getting there."] ] },
   { id:'smell', lines:[ ['neutral',"you smell like upstairs. dust and something warm."], ['think',"i don't have a smell. i have a temperature."] ] },
-  { id:'water', lines:[ ['think',"the wet room floods a little more every month."], ['neutral',"it's up to the second plank of the crate."], ['shy',"if it gets to the door i'll move the chair."] ] },
-  { id:'radio', lines:[ ['neutral',"the radio in the office plays one thing."], ['think',"dots and dashes. three. eight. r. e. n."], ['blank',"i don't touch the radio."] ] },
+  { id:'water', cond:()=>V.saw('room:7'), lines:[ ['think',"the wet room floods a little more every month."], ['neutral',"it's up to the second plank of the crate."], ['shy',"if it gets to the door i'll move the chair."] ] },
+  { id:'radio', cond:()=>V.saw('used:radio'), lines:[ ['neutral',"the radio in the office plays one thing."], ['think',"dots and dashes. three. eight. r. e. n."], ['blank',"i don't touch the radio."] ] },
   { id:'relay', cond:()=>V.loadMem().relayVisits > 0, lines:[ ['think',"there's a door up there you open by typing."], ['neutral',"i can hear static behind it. a city. somebody's music, far off."], ['shy',"i don't go through doors i can't see."] ] },
   { id:'glimpse', lines:[ ['shy',"before. at the end of the corridors. you'd see me for a second."], ['flustered',"that was me saying hi. i didn't know another way."] ] },
   { id:'coldhands', lines:[ ['sad',"your hands go white at the ends in here."], ['shy',"bring a coat next time. i'll hang it on the hook."] ] },
   { id:'favourite', lines:[ ['think',"you know which part i still like best."], ['lovestruck',"you come round a corner and your light lands on me. still. even now."] ] },
   { id:'count', lines:[ ['neutral',"there are {deaths} marks on the wall by the door."], ['shy',"i'm not adding any more. i put a little roof over the last one."] ] },
+  { id:'watch', cond:()=>V.saw('used:watch'), lines:[ ['think',"you picked up the watch on the showroom floor."], ['neutral',"it's fake. the hand ticks. real ones go round smooth."], ['pleased',"somebody tried to sell it to me once. i don't buy. i keep."] ] },
+  { id:'paper', cond:()=>V.saw('used:paper'), lines:[ ['neutral',"the newspaper in the office. it's old."], ['think',"shopkeeper missing. they searched the basement. nothing but stock."], ['blank',"i was the stock."] ] },
+  { id:'miasma', cond:()=>V.saw('used:miasma'), lines:[ ['think',"the bottle on the washer. you smelled it."], ['neutral',"formaldehyde and something sweet. i don't know where it came from. somebody's hobby."] ] },
+  { id:'phone', cond:()=>V.saw('used:phone'), lines:[ ['flustered',"you answered a bratwurst."], ['think',"i heard it ring. i don't have a bratwurst. i checked my shelves."] ] },
+  { id:'tape', cond:()=>V.saw('used:tape'), lines:[ ['sad',"you played the tape in the laundry."], ['neutral',"the screaming one. down here too now."], ['shy',"it's not that bad. the drums are fast. i like the fast part."] ] },
   { id:'snack', lines:[ ['think',"i found a jar of pickles at the back of me."], ['neutral',"i don't know when it's from. the lid says 19 something."], ['pleased',"they're still good. everything in here keeps."] ] },
   { id:'door', lines:[ ['neutral',"i leave my door open a crack now. all the time."], ['shy',"the light gets out. you can see it from the stairs. that's on purpose."] ] }
 ];
 const QUESTIONS = [
   { label:"how cold is it in there?", lines:[['neutral',"thirty six."],['pleased',"same as yesterday."]] },
   { label:"do you dream?", lines:[['think',"i defrost sometimes. things drip. i don't know if that counts."]] },
-  { label:"what happened to hank?", lines:[['blank',"he went home."],['blank',"he went home."],['neutral',"next question."]] },
+  { label:"what happened to hank?", cond:()=>V.sawAny(['wall:hank','tag:26']), lines:[['blank',"he went home."],['blank',"he went home."],['neutral',"next question."]] },
   { label:"can you come upstairs?", lines:[['sad',"the cord's not long enough."],['shy',"i measured."]] },
   { label:"are you happy?", lines:[['think',"the bulb's on and you're in the chair."],['happy',"yes."]] },
   { label:"why the coat?", lines:[['neutral',"it was on the hook when i woke up."],['pleased',"it's got pockets. i keep the tags in them."]] },
@@ -1033,7 +1023,7 @@ function buildCheckin(o){
     ] };
   S.ci_talk = { call:()=>queueTopic() };
   S.ci_ask = { expr:'pleased', text:"go on.",
-    choices: QUESTIONS.map((q,i)=>({ label:q.label, to:'qa_'+i+'_0' })).concat([{ label:"never mind.", to:'ci_hub' }]) };
+    choices: QUESTIONS.map((q,i)=>({ label:q.label, to:'qa_'+i+'_0', cond:q.cond })).concat([{ label:"never mind.", to:'ci_hub' }]) };
   QUESTIONS.forEach((q,i)=>Object.assign(S, lineNodes('qa_'+i+'_', q.lines, 'ci_hub')));
   S.ci_sit = { who:'N', expr:'shy', text:"You sit. It sits. The bulb hums. The compressor kicks on, runs for a while, and stops.", next:'ci_sit2' };
   S.ci_sit2 = { expr:'happy', speed:'slow', text:"...", next:'ci_sit3' };

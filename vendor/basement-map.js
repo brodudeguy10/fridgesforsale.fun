@@ -165,6 +165,12 @@ const PROPS = [
   {t:'hook',    x:44.5,y:28.6,s:0,r:0.1},{t:'hook', x:36.5,y:36.4,s:0,r:0.1},
   {t:'hook',    x:40.5,y:36.5,s:0,r:0.1},
   {t:'stack',   x:46.4,y:27.6,s:1,r:0.38},{t:'stack', x:35.6,y:37.4,s:1,r:0.38},
+  // easter eggs
+  {t:'wurst',   x:33.85,y:11.05,s:0,r:0.1, use:'wurst', z:0.42},
+  {t:'watch',   x:23.4, y:27.7, s:0,r:0.1, use:'watch'},
+  {t:'miasma',  x:37.5, y:15.85,s:0,r:0.1, use:'miasma', z:0.45},
+  {t:'paper',   x:2.5,  y:28.75,s:0,r:0.1, use:'paper', z:0.65},
+  {t:'unit00',  x:40.5, y:32.6, s:0,r:0.2, use:'unit00', sauceOnly:1},
   // crawlspace: the E that fell off its door
   {t:'magnet',  x:4.5, y:9.35,s:0,r:0.1, use:'magnet'},
   // wet room

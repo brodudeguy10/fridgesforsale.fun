@@ -27,7 +27,7 @@ const MEM_DEFAULTS = {
   checkins:0, lastCheckin:0, seenTopics:[], affection:0,
   unplugged:false, unplugCount:0,
   gifts:[], tagsTotal:0, sauce:0, tapes:0, radio:0,
-  lastRoute:null, sevenSeen:false, hasE:false, gaveE:false, tagModeWins:0, tagModeLosses:0
+  lastRoute:null, sevenSeen:false, hasE:false, gaveE:false, seen:{}, tagModeWins:0, tagModeLosses:0
 };
 function fresh(){ const m = {}; for(const k in MEM_DEFAULTS) m[k] = Array.isArray(MEM_DEFAULTS[k]) ? [] : MEM_DEFAULTS[k]; return m; }
 V.loadMem = function(){
@@ -38,6 +38,7 @@ V.loadMem = function(){
   for(const k in f) if(m[k] === undefined) m[k] = f[k];
   if(!Array.isArray(m.seenTopics)) m.seenTopics = [];
   if(!Array.isArray(m.gifts)) m.gifts = [];
+  if(!m.seen || typeof m.seen !== 'object' || Array.isArray(m.seen)) m.seen = {};
   return m;
 };
 V.saveMem = function(m){ try{ localStorage.setItem(MEM_KEY, JSON.stringify(m)); }catch(e){} V.mem = m; };
@@ -46,6 +47,18 @@ V.mem = V.loadMem();
    never stomp on each other's numbers. */
 V.patch = function(fn){ const m = V.loadMem(); try{ fn(m); }catch(e){ console.warn(e); } V.saveMem(m); return m; };
 V.isTogether = function(){ return V.loadMem().relationship === 'together'; };
+/* things you've seen down there. the VN only lets you ask about what you
+   actually came across: a wall, a tag, a thing you used. */
+const seenCache = {};
+V.see = function(key){
+  if(seenCache[key]) return false;
+  seenCache[key] = 1;
+  let isNew = false;
+  V.patch(m=>{ if(!m.seen[key]){ m.seen[key] = Date.now(); isNew = true; } });
+  return isNew;
+};
+V.saw = function(key){ return !!V.loadMem().seen[key]; };
+V.sawAny = function(keys){ const s = V.loadMem().seen; return keys.some(k=>!!s[k]); };
 
 /* ---------- SETTINGS ---------- */
 const SET_DEFAULTS = { sens:1, vol:0.9, quality:'auto', invertY:false, shake:true, haptics:true };
