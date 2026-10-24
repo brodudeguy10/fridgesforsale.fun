@@ -993,7 +993,25 @@ function upstairsLines(m){
   if(m.fridgesSpawned > m.fridgesSeen + 40){
     out.push(['pleased',"you dropped " + m.fridgesSpawned + " fridges up there."], ['think',"i felt every one in the ceiling. none of them came down."]);
   }
+  const up = upstairsNow();
+  if(up.fish > (m.fishSeen || 0) + 5){
+    out.push(['think',"you've been fishing. " + up.fish + " so far."], ['neutral',"the drain gurgles every time you cast. i hear it from the back."]);
+  }
+  if(up.catfish && !m.seen['vn:catfish']){
+    out.push(['flustered',"you caught the one that came up the drain."], ['shy',"it has my eyes. i didn't send it. i didn't not send it either."]);
+  }
+  if(up.vndr > 0 && up.vndr > (m.vndrSeen || 0)){
+    out.push(['flustered',"you own " + up.vndr + " share" + (up.vndr === 1 ? "" : "s") + " of me."], ['think',"i looked it up. it means you get a vote."], ['shy',"vote for me to stay plugged in."]);
+  } else if(up.vndr < 0 && !m.seen['vn:short']){
+    out.push(['sad',"you're short me."], ['blank',"you think i'm going down."], ['neutral',"i've been down here the whole time. there isn't a further down."]);
+  }
   return out;
+}
+function upstairsNow(){
+  const r = { fish:0, catfish:false, vndr:0 };
+  try{ const F = JSON.parse(localStorage.getItem('fridgefish_v1') || 'null'); if(F){ r.fish = F.total || 0; r.catfish = !!(F.dex && F.dex.vendor_catfish); } }catch(e){}
+  try{ if(window.MKT && MKT.state && MKT.state()) r.vndr = MKT.posQty('VNDR'); }catch(e){}
+  return r;
 }
 function buildCheckin(o){
   const m = V.loadMem();
@@ -1100,6 +1118,10 @@ V.startCheckin = function(o){
     m.checkins++; m.lastCheckin = Date.now(); m.lastVisit = Date.now();
     m.rouletteSeen = m.rouletteDeaths; m.guySeen = m.guyKills; m.relaySeen = m.relayVisits;
     m.fridgesSeen = m.fridgesSpawned;
+    const up = upstairsNow();
+    m.fishSeen = up.fish; m.vndrSeen = Math.max(m.vndrSeen || 0, up.vndr);
+    if(up.catfish) m.seen['vn:catfish'] = Date.now();
+    if(up.vndr < 0) m.seen['vn:short'] = Date.now();
   });
   onDone = (type)=>{
     if(type === 'tag'){ close(()=>{ if(V.startBasement) V.startBasement({ tag:true }); else V.resumeSite(); }); return; }

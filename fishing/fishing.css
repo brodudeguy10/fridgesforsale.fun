@@ -1,0 +1,46 @@
+/* ===== FRIDGE FISHING ===== */
+#fishing{ position:fixed; inset:0; z-index:100040; display:none; background:#000; color:#e8e8e8; font:13px/1.35 "Courier New",monospace; user-select:none; -webkit-user-select:none; touch-action:none; }
+#fishing.on{ display:block; }
+#fishing *{ box-sizing:border-box; }
+#fs-cv{ position:absolute; inset:0; display:block; touch-action:none; }
+#fishing button, #fishing select{ font:inherit; color:#eee; background:rgba(10,14,20,.85); border:1px solid #445; padding:5px 10px; border-radius:0; cursor:pointer; min-height:32px; }
+#fishing button:hover{ background:rgba(40,50,64,.9); }
+#fishing button.k{ background:#d8a020; color:#111; border-color:#d8a020; font-weight:bold; }
+#fishing button[disabled]{ opacity:.5; cursor:default; }
+#fs-hud{ position:absolute; left:0; right:0; top:0; display:flex; gap:6px; align-items:center; padding:calc(8px + env(safe-area-inset-top,0px)) calc(8px + env(safe-area-inset-right,0px)) 8px calc(8px + env(safe-area-inset-left,0px)); background:linear-gradient(#000c, #0000); flex-wrap:wrap; pointer-events:none; }
+#fs-hud > *{ pointer-events:auto; }
+#fs-hud .sp{ flex:1; }
+#fs-env, #fs-rod{ color:#aab; font-size:12px; text-shadow:0 1px 2px #000; }
+#fs-close{ font-weight:bold; min-width:40px; }
+#fs-tabs{ position:absolute; left:50%; transform:translateX(-50%); bottom:calc(10px + env(safe-area-inset-bottom,0px)); display:flex; gap:4px; }
+#fs-tabs button{ letter-spacing:1px; font-weight:bold; font-size:12px; }
+#fs-tabs button.on{ background:#d8a020; color:#111; border-color:#d8a020; }
+#fs-panel{ display:none; position:absolute; left:50%; transform:translateX(-50%); top:calc(56px + env(safe-area-inset-top,0px)); bottom:calc(60px + env(safe-area-inset-bottom,0px)); width:min(920px, calc(100vw - 16px)); background:rgba(6,9,14,.94); border:1px solid #334; overflow:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
+#fs-panel .ph{ position:sticky; top:0; background:#0b0f16; padding:8px 10px; border-bottom:1px solid #334; display:flex; gap:10px; align-items:center; flex-wrap:wrap; z-index:1; }
+#fs-panel .ph span{ color:#99a; flex:1; }
+#fs-panel .dm{ color:#889; }
+#fs-panel .rt{ font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+#fs-panel .empty{ padding:30px; color:#778; text-align:center; }
+#fs-panel .cool{ padding:6px; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:6px; }
+#fs-panel .ci{ display:flex; align-items:center; gap:8px; background:#0e131b; border:1px solid #222a36; padding:4px 8px 4px 4px; }
+#fs-panel .ci > div{ flex:1; font-size:12px; }
+#fs-panel .dex{ padding:6px; display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
+#fs-panel .dx{ background:#0c1017; border:1px solid #1d2430; padding:6px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px; }
+#fs-panel .dx.got{ border-color:#2c3646; }
+#fs-panel .dx b{ font-size:12px; }
+#fs-panel .dx small{ color:#889; font-size:10px; }
+#fs-panel .dx p{ margin:2px 0 0; font-size:10px; color:#99a; line-height:1.3; }
+#fs-panel .tk{ padding:6px 10px 14px; }
+#fs-panel h4{ margin:12px 0 6px; color:#d8a020; letter-spacing:2px; font-size:12px; }
+#fs-panel .ti{ display:flex; gap:10px; align-items:center; padding:6px 0; border-bottom:1px solid #1a2029; }
+#fs-panel .ti > div{ flex:1; font-size:12px; }
+#fs-card{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); padding:16px; }
+#fs-card .cd{ position:relative; background:#0b0f16; border:2px solid; padding:14px 16px; max-width:380px; width:100%; text-align:center; animation:fscard .35s ease-out; }
+#fs-card canvas{ width:260px; height:160px; max-width:100%; }
+#fs-card h2{ margin:4px 0; font-size:20px; letter-spacing:1px; }
+#fs-card .meta{ color:#99a; font-size:12px; }
+#fs-card p{ color:#ccd; font-size:13px; margin:10px 0; }
+#fs-card .btns{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+#fs-card .new{ position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:#ffd400; color:#000; font-weight:bold; padding:2px 10px; letter-spacing:3px; }
+@keyframes fscard{ from{ transform:scale(.85); opacity:0; } to{ transform:none; opacity:1; } }
+@media (max-width:600px){ #fs-env{ width:100%; order:9; } #fs-rod{ display:none; } #fs-tabs button{ padding:5px 8px; font-size:11px; } }

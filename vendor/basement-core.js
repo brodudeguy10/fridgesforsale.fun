@@ -2096,6 +2096,6 @@ V.startBasement = function(o){
 
 /* test hooks, used by the debug console and by nothing else */
 V._basement = { get state(){ return { mode, found, escape, exposure, fear, ven:{ state:ven.state, x:ven.x, y:ven.y }, P:{ x:P.x, y:P.y, ang:P.ang, hidden:!!P.hidden }, CW, CH, tags: tags.map(t=>({x:t.x,y:t.y,taken:t.taken})) }; },
-  caught, EVENTS, takeTag:(i)=>takeTag(tags[i]), teleportPlayer:(x,y,a)=>{ P.x=x; P.y=y; if(a!==undefined) P.ang=a; }, startPlay, setGod:(v)=>{ god=v; }, ven, P, interact, render:()=>render() };
+  caught, EVENTS, takeTag:(i)=>takeTag(tags[i]), teleportPlayer:(x,y,a)=>{ P.x=x; P.y=y; if(a!==undefined) P.ang=a; }, startPlay, setGod:(v)=>{ god=v; }, ven, P, interact, render:()=>render(), pause:()=>pause() };
 
 })();

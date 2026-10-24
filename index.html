@@ -104,6 +104,8 @@
     #hgFarewell { display: none; position: fixed; top: 58%; left: 0; width: 100%; text-align: center; color: rgba(205,205,205,0.85); font-family: 'Courier New', monospace; font-size: 16px; letter-spacing: 1px; text-shadow: 0 0 6px #000; z-index: 10000002; pointer-events: none; padding: 0 30px; }
   </style>
   <link rel="stylesheet" href="vendor/vendor.css">
+  <link rel="stylesheet" href="market/market.css">
+  <link rel="stylesheet" href="fishing/fishing.css">
 </head>
 <body>
 
@@ -143,9 +145,12 @@
     Autoclicker (50F)<br>
     <button onclick="buyAutoclicker()">Buy</button><br><br>
     Autoclicker II (1000F)<br>
-    <button id="buyAutoclicker2" onclick="buyAutoclicker2()">Buy</button>
+    <button id="buyAutoclicker2" onclick="buyAutoclicker2()">Buy</button><br><br>
+    Fishing Rod (100F)<br>
+    <button id="fsShopRod" onclick="window.FISHING && FISHING.buyRod('twig')">Buy</button>
   </div>
   <button onclick="fireFridgeCannon()">fridge cannon</button>
+  <button id="fxOpenBtn" onclick="window.openFridgeMarket && openFridgeMarket()">fridge market</button>
 </div>
 
 <div id="rightUI">
@@ -246,7 +251,9 @@ function spawnFridge() {
   if(!physicsOK) return;
   fridgesOwned++; updateCounter();
   const img = fridgeImages[Math.floor(Math.random()*fridgeImages.length)];
-  const fridge = Bodies.rectangle(Math.random()*window.innerWidth, 50, 100, 150, { restitution:0.6, friction:0.2, render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } } });
+  /* some of them come out wrong. those ones are listed on the exchange. */
+  const fridge = window.FV ? FV.body(Math.random()*window.innerWidth, 50, { restitution:0.6 })
+                           : Bodies.rectangle(Math.random()*window.innerWidth, 50, 100, 150, { restitution:0.6, friction:0.2, render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } } });
   World.add(world, fridge); spawnedFridges.push(fridge); trimFridges();
 }
 const mouse = Mouse.create(render.canvas);
@@ -275,9 +282,11 @@ function fireFridgeCannon() {
   if(!physicsOK) return;
   const img = fridgeImages[Math.floor(Math.random()*fridgeImages.length)];
   const startX = 0, startY = window.innerHeight * 0.5 + (Math.random()-0.5)*200;
-  const cannonFridge = Bodies.rectangle(startX, startY, 100, 150, { restitution:0.4, friction:0.1, render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } } });
+  const cannonFridge = window.FV ? FV.body(startX, startY, { restitution:0.4 })
+                                 : Bodies.rectangle(startX, startY, 100, 150, { restitution:0.4, friction:0.1, render: { sprite: { texture: img, xScale:0.35, yScale:0.35 } } });
   const forceMagnitude = 0.08 * (window.innerWidth / 20);
-  Matter.Body.applyForce(cannonFridge, cannonFridge.position, { x: forceMagnitude, y: (Math.random()-0.5)*0.03 });
+  const massK = (cannonFridge.mass || 15)/15; /* odd-sized fridges fly like the normal ones */
+  Matter.Body.applyForce(cannonFridge, cannonFridge.position, { x: forceMagnitude*massK, y: (Math.random()-0.5)*0.03*massK });
   fridgesOwned++; updateCounter(); World.add(world, cannonFridge); spawnedFridges.push(cannonFridge); trimFridges();
 }
 
@@ -754,7 +763,7 @@ document.addEventListener('keydown', (e) => {
   document.addEventListener('gesturestart', e => e.preventDefault());
   let lastTap = 0;
   document.addEventListener('touchend', function(e){
-    if(document.documentElement.classList.contains('vendor-open')) return;
+    if(document.documentElement.classList.contains('vendor-open') || document.documentElement.classList.contains('overlay-open')) return;
     const now = Date.now();
     if(now - lastTap < 320) e.preventDefault();
     lastTap = now;
@@ -843,5 +852,29 @@ driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.inn
 <script src="vendor/basement-audio.js"></script>
 <script src="vendor/basement-core.js"></script>
 <script src="vendor/coldfeet.js"></script>
+
+<!-- THE EXCHANGE, THE POND, 4:20 -->
+<script src="market/engine.js"></script>
+<script src="market/variants.js"></script>
+<script src="market/ui.js"></script>
+<script src="fishing/fish-data.js"></script>
+<script src="fishing/fishing.js"></script>
+<script src="extras/dogg.js"></script>
+<script>
+/* one place that touches the fridge count for the market and the pond.
+   spending removes the newest bodies, same as the autoclickers do. */
+window.FRIDGE_BANK = {
+  count: function(){ return fridgesOwned; },
+  spend: function(n){
+    n = Math.floor(n); if(!(n > 0) || n > fridgesOwned) return false;
+    const k = Math.min(n, spawnedFridges.length);
+    spawnedFridges.splice(spawnedFridges.length - k, k).forEach(function(f){ try{ Matter.World.remove(world, f); }catch(e){} });
+    fridgesOwned -= n; updateCounter(); return true;
+  },
+  give: function(n){ n = Math.floor(n); if(n > 0){ fridgesOwned += n; updateCounter(); } }
+};
+try{ if(window.FV && physicsOK) FV.attach(engine, render); }catch(e){ console.warn(e); }
+try{ if(window.MKT) MKT.start({ count: FRIDGE_BANK.count, spend: FRIDGE_BANK.spend, give: FRIDGE_BANK.give }); }catch(e){ console.warn(e); }
+</script>
 </body>
 </html>

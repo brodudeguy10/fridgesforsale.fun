@@ -1,0 +1,180 @@
+/* ============================================================
+   FRIDGE FISH: the data
+   rar: 0 common · 1 uncommon · 2 rare · 3 epic · 4 legendary · 5 mythic
+   diff: 1-100, how hard the reel is
+   beh: smooth · dart · sinker · floater · mixed · heavy · glitch
+   loc: puddle · crisper · drain · abyss
+   cond: every key listed must hold (see FISHDATA.COND in fishing.js)
+   art: shape, body, trim, fin, eye, pat, extra
+============================================================ */
+(function(){
+'use strict';
+const F = [
+/* ---------- common ---------- */
+{ id:'fridgelet', name:'Fridgelet', rar:0, diff:8, beh:'smooth', loc:['puddle','crisper'], val:3, size:[6,14],
+  art:{ shape:'mini', body:'#e9ecef', trim:'#9aa3ad', fin:'#c9d1d9', eye:'#111', pat:'none' }, blurb:'a mini fridge that never grew up. they school in the hundreds. nobody has ever eaten one.' },
+{ id:'icecube_guppy', name:'Ice Cube Guppy', rar:0, diff:10, beh:'floater', loc:['puddle','crisper','abyss'], val:2, size:[3,7],
+  art:{ shape:'round', body:'#cfefff', trim:'#8fd3ff', fin:'#e8f8ff', eye:'#234', pat:'frost' }, blurb:'melts a little every time you hold it. put it back fast or keep a towel.' },
+{ id:'crisper_carp', name:'Crisper Carp', rar:0, diff:14, beh:'sinker', loc:['puddle','crisper'], val:4, size:[18,40],
+  art:{ shape:'wide', body:'#9fd38a', trim:'#5e9c4b', fin:'#c8eab8', eye:'#111', pat:'stripes' }, blurb:'lives in the bottom drawer. eats lettuce that went soft three weeks ago.' },
+{ id:'butter_bass', name:'Butter Shelf Bass', rar:0, diff:16, beh:'smooth', loc:['puddle'], val:5, size:[20,45],
+  art:{ shape:'tall', body:'#ffe9a8', trim:'#d9b54a', fin:'#fff4cc', eye:'#111', pat:'none', extra:'handle' }, blurb:'the little door on its side is always closed. the butter in there is older than you.' },
+{ id:'ketchup_perch', name:'Ketchup Door Perch', rar:0, diff:12, beh:'dart', loc:['puddle'], val:4, size:[12,28],
+  art:{ shape:'tall', body:'#e34b3c', trim:'#9e2318', fin:'#ff8a7a', eye:'#fff', pat:'none', extra:'handle' }, blurb:'hangs out in the door with the condiments. squirts when squeezed.' },
+{ id:'leftover_loach', name:'Leftover Loach', rar:0, diff:9, beh:'sinker', loc:['puddle','drain'], val:2, size:[10,24],
+  art:{ shape:'eel', body:'#b59a6d', trim:'#7c6544', fin:'#d6c19b', eye:'#111', pat:'spots' }, blurb:'smells like thursday. it is never thursday.' },
+{ id:'tupper_tetra', name:'Tupperware Tetra', rar:0, diff:11, beh:'dart', loc:['puddle','crisper'], val:3, size:[5,11],
+  art:{ shape:'flat', body:'#f2f2f2', trim:'#4aa3ff', fin:'#9fd0ff', eye:'#111', pat:'none' }, blurb:'its lid never matches. it has looked for the matching lid its whole life.' },
+{ id:'burn_flounder', name:'Freezer Burn Flounder', rar:0, diff:13, beh:'sinker', loc:['puddle','abyss'], val:3, size:[15,35],
+  art:{ shape:'flat', body:'#d9dde3', trim:'#9aa4b0', fin:'#eef2f6', eye:'#111', pat:'frost' }, blurb:'both eyes on one side. covered in ice crystals that taste like nothing.' },
+{ id:'magnet_minnow', name:'Magnet Minnow', rar:0, diff:10, beh:'mixed', loc:['puddle','crisper'], val:3, size:[4,9],
+  art:{ shape:'mini', body:'#f5f5f5', trim:'#bbbbbb', fin:'#dddddd', eye:'#111', pat:'none', extra:'magnets' }, blurb:'sticks to the hook, sticks to the boat, sticks to your keys. collect all the letters.' },
+{ id:'drip_dace', name:'Defrost Drip Dace', rar:0, diff:12, beh:'floater', loc:['puddle','drain'], val:3, size:[8,18], cond:['rain'],
+  art:{ shape:'round', body:'#a9d7f5', trim:'#4f8fbf', fin:'#d5ecfb', eye:'#123', pat:'none' }, blurb:'only shows up when it rains. drips on the floor. you will step in it in socks.' },
+{ id:'sticky_sunfish', name:'Sticky Note Sunfish', rar:0, diff:9, beh:'floater', loc:['puddle'], val:3, size:[8,16], cond:['day'],
+  art:{ shape:'flat', body:'#ffec5c', trim:'#d6be1f', fin:'#fff6a8', eye:'#111', pat:'none', extra:'label' }, blurb:'has a note on it that says BUY MILK. nobody bought milk.' },
+{ id:'soda_bluegill', name:'Baking Soda Bluegill', rar:0, diff:15, beh:'smooth', loc:['puddle','crisper'], val:4, size:[10,22],
+  art:{ shape:'chest', body:'#ff8c1a', trim:'#3355cc', fin:'#ffd199', eye:'#111', pat:'none' }, blurb:'absorbs odors. this one has absorbed so many it smells like the whole house.' },
+{ id:'milk_mullet', name:'Expired Milk Mullet', rar:0, diff:17, beh:'mixed', loc:['puddle','drain'], val:3, size:[15,30],
+  art:{ shape:'tall', body:'#fbfbf4', trim:'#6aa0d8', fin:'#e6f0fa', eye:'#111', pat:'spots' }, blurb:'business in the front, chunks in the back. do not open the cap.' },
+{ id:'humming_herring', name:'Humming Herring', rar:0, diff:14, beh:'smooth', loc:['puddle','crisper','drain'], val:3, size:[12,26], cond:['night'],
+  art:{ shape:'long', body:'#c3c9d1', trim:'#7d8794', fin:'#e1e5ea', eye:'#111', pat:'stripes' }, blurb:'hums at 60 hertz all night. you stop hearing it until it stops.' },
+{ id:'gasket_sardine', name:'Rubber Seal Sardine', rar:0, diff:11, beh:'dart', loc:['crisper','abyss'], val:3, size:[6,12],
+  art:{ shape:'long', body:'#5b5f66', trim:'#2c2f33', fin:'#8a9099', eye:'#fff', pat:'none' }, blurb:'packed tight. the seal is broken on every single one of them.' },
+{ id:'bulb_lantern', name:'Lightbulb Lanternfish', rar:0, diff:18, beh:'floater', loc:['puddle','abyss'], val:6, size:[8,16], cond:['night'],
+  art:{ shape:'round', body:'#fff3c4', trim:'#e0c560', fin:'#fff9e0', eye:'#111', pat:'glow', extra:'antenna', glow:'rgba(255,240,170,0.55)' }, blurb:'turns on when you open the door. you can never catch it turning off.' },
+{ id:'shelf_shrimp', name:'Wire Shelf Shrimp', rar:0, diff:7, beh:'sinker', loc:['crisper','drain'], val:2, size:[3,8],
+  art:{ shape:'flat', body:'#d6d9dd', trim:'#7c828a', fin:'#f0f2f4', eye:'#111', pat:'stripes' }, blurb:'see-through. made of wire. leaves lines on everything it sits on.' },
+
+/* ---------- uncommon ---------- */
+{ id:'compressor_catfish', name:'Compressor Catfish', rar:1, diff:28, beh:'heavy', loc:['puddle','crisper','drain'], val:18, size:[30,70],
+  art:{ shape:'wide', body:'#3f454d', trim:'#1f2328', fin:'#6c7480', eye:'#ffd400', pat:'none', extra:'whiskers' }, blurb:'lives at the back, near the floor. kicks on at 3am and wakes the whole house.' },
+{ id:'coil_cod', name:'Condenser Coil Cod', rar:1, diff:26, beh:'smooth', loc:['crisper','drain'], val:16, size:[25,55],
+  art:{ shape:'long', body:'#2a2a2a', trim:'#555', fin:'#777', eye:'#f33', pat:'stripes' }, blurb:'black grid down its back. covered in dust. nobody has ever cleaned one.' },
+{ id:'filter_walleye', name:'Water Filter Walleye', rar:1, diff:30, beh:'dart', loc:['crisper'], val:22, size:[25,50],
+  art:{ shape:'tall', body:'#dde6ee', trim:'#3b7dd8', fin:'#a9c9f0', eye:'#fff', pat:'none', extra:'dispenser' }, blurb:'the light on its side has said CHANGE FILTER for four years.' },
+{ id:'icemaker_mackerel', name:'Ice Maker Mackerel', rar:1, diff:32, beh:'mixed', loc:['crisper','abyss'], val:24, size:[20,40],
+  art:{ shape:'long', body:'#bfe6ff', trim:'#3c7fb0', fin:'#e3f4ff', eye:'#123', pat:'frost' }, blurb:'drops one cube every forty minutes, loudly, while you are on the phone.' },
+{ id:'sxs_sole', name:'Side-by-Side Sole', rar:1, diff:29, beh:'smooth', loc:['puddle','crisper'], val:20, size:[30,60],
+  art:{ shape:'sxs', body:'#c9ced4', trim:'#6f7780', fin:'#e4e7ea', eye:'#111', pat:'none', extra:'handle' }, blurb:'two halves that never agree on anything. the left half is colder.' },
+{ id:'chest_grouper', name:'Chest Freezer Grouper', rar:1, diff:34, beh:'heavy', loc:['puddle','drain'], val:28, size:[50,110],
+  art:{ shape:'chest', body:'#f4f4f4', trim:'#b8bcc2', fin:'#dfe2e6', eye:'#111', pat:'none' }, blurb:'every garage has one. every one of them has a mystery meat at the bottom.' },
+{ id:'dorm_dory', name:'Dorm Room Dory', rar:1, diff:24, beh:'dart', loc:['puddle'], val:15, size:[15,30],
+  art:{ shape:'mini', body:'#2b2b2b', trim:'#111', fin:'#4a4a4a', eye:'#fff', pat:'none', extra:'label' }, blurb:'covered in stickers. holds one energy drink and a lemon. forgets everything.' },
+{ id:'thermo_trout', name:'Thermostat Trout', rar:1, diff:27, beh:'mixed', loc:['crisper','drain'], val:19, size:[22,45],
+  art:{ shape:'long', body:'#e9e2d4', trim:'#a5946d', fin:'#f6f1e7', eye:'#111', pat:'spots', extra:'dial' }, blurb:'set to 3. nobody knows if 3 is cold or warm. nobody has ever changed it.' },
+{ id:'drawer_pike', name:'Deli Drawer Pike', rar:1, diff:33, beh:'dart', loc:['crisper'], val:24, size:[30,65], cond:['dusk'],
+  art:{ shape:'long', body:'#cfe0c4', trim:'#6c8f5b', fin:'#e7f0e1', eye:'#111', pat:'stripes', extra:'teeth' }, blurb:'hunts at dusk. bites the cheese. leaves the plastic.' },
+{ id:'hinge_halibut', name:'Rusty Hinge Halibut', rar:1, diff:31, beh:'sinker', loc:['puddle','drain'], val:21, size:[35,80],
+  art:{ shape:'flat', body:'#a8652f', trim:'#5d3416', fin:'#c88a52', eye:'#111', pat:'rust' }, blurb:'creaks every time it turns. sounds exactly like a door at 2am.' },
+{ id:'yogurt_yellowtail', name:'Yogurt Lid Yellowtail', rar:1, diff:23, beh:'floater', loc:['puddle','crisper'], val:14, size:[15,32], cond:['dawn'],
+  art:{ shape:'round', body:'#ffffff', trim:'#ffcc33', fin:'#ffe58a', eye:'#111', pat:'none' }, blurb:'out at dawn. you have to lick it. you know you do.' },
+{ id:'frost_prawn', name:'Frost Prawn', rar:1, diff:25, beh:'floater', loc:['abyss','crisper'], val:17, size:[6,14], cond:['cold'],
+  art:{ shape:'mini', body:'#e8f7ff', trim:'#9ad6ff', fin:'#ffffff', eye:'#09f', pat:'frost' }, blurb:'only bites in cold weather. glows faintly blue. snaps when bent.' },
+{ id:'freon_fry', name:'Freon Fry', rar:1, diff:35, beh:'glitch', loc:['drain','abyss'], val:26, size:[4,9],
+  art:{ shape:'round', body:'#b9ffcf', trim:'#4fd67b', fin:'#e0ffe9', eye:'#111', pat:'glow', glow:'rgba(120,255,170,0.45)' }, blurb:'banned in 1996. still out there. do not breathe near it.' },
+{ id:'recall_ray', name:'Recall Notice Ray', rar:1, diff:30, beh:'smooth', loc:['puddle','drain'], val:20, size:[40,90], cond:['rth'],
+  art:{ shape:'flat', body:'#f3f0e6', trim:'#c33', fin:'#faf8f2', eye:'#111', pat:'none', extra:'label' }, blurb:'only shows up while the market is open. it is very sorry about the humming.' },
+
+/* ---------- rare ---------- */
+{ id:'smart_swordfish', name:'Smart Fridge Swordfish', rar:2, diff:48, beh:'dart', loc:['crisper','abyss'], val:85, size:[60,140],
+  art:{ shape:'long', body:'#1c2733', trim:'#0e151d', fin:'#38506a', eye:'#8ef', pat:'screen', extra:'sword', glow:'rgba(110,230,255,0.45)' }, blurb:'has a screen on its side that shows the weather and asks to update. it is always updating.' },
+{ id:'wine_wrasse', name:'Wine Cooler Wrasse', rar:2, diff:44, beh:'smooth', loc:['crisper'], val:90, size:[30,60], cond:['night'],
+  art:{ shape:'tall', body:'#4a1422', trim:'#2a0a12', fin:'#7a2c3e', eye:'#fd8', pat:'stripes', extra:'glass' }, blurb:'glass belly, eight bottles inside, all of them cheap. only comes out after dinner.' },
+{ id:'retro_puffer', name:'Retro Pastel Pufferfish', rar:2, diff:46, beh:'mixed', loc:['puddle','crisper'], val:110, size:[20,45],
+  art:{ shape:'round', body:'#9fe3d0', trim:'#5ba892', fin:'#ffd1dc', eye:'#111', pat:'pastel', extra:'chrome' }, blurb:'rounded corners, chrome handle, puffs up when nervous. your grandma had one in mint.' },
+{ id:'neon_tetrafridge', name:'Neon Tetra-Fridge', rar:2, diff:50, beh:'dart', loc:['puddle'], val:120, size:[8,16], cond:['night'],
+  art:{ shape:'mini', body:'#1a0a24', trim:'#ff3df2', fin:'#3df2ff', eye:'#fff', pat:'glow', glow:'rgba(255,60,240,0.6)' }, blurb:'lives behind a bar that closed in 2009. still open, as far as it knows.' },
+{ id:'steel_sturgeon', name:'Stainless Steel Sturgeon', rar:2, diff:52, beh:'heavy', loc:['crisper','abyss'], val:150, size:[80,200],
+  art:{ shape:'long', body:'#c0c6cc', trim:'#80878f', fin:'#dde1e5', eye:'#111', pat:'brushed', extra:'handle' }, blurb:'shows every fingerprint. ancient. its eggs sell for more than the fridge.' },
+{ id:'frenchdoor_flyer', name:'French Door Flying Fish', rar:2, diff:55, beh:'floater', loc:['puddle','crisper'], val:140, size:[25,50], cond:['clear'],
+  art:{ shape:'sxs', body:'#e5e7ea', trim:'#8c939b', fin:'#ffffff', eye:'#111', pat:'none', extra:'wings' }, blurb:'opens both doors and glides. only on clear days. the drawer underneath is a third wing.' },
+{ id:'dispenser_angler', name:'Ice Dispenser Angler', rar:2, diff:56, beh:'sinker', loc:['abyss','drain'], val:160, size:[40,90], cond:['night'],
+  art:{ shape:'tall', body:'#1b2430', trim:'#0b1016', fin:'#2d3c50', eye:'#9ff', pat:'none', extra:'lure', glow:'rgba(150,240,255,0.55)' }, blurb:'dangles a glowing ice dispenser in the dark. you press it. you always press it.' },
+{ id:'gasket_gar', name:'Gasket Gar', rar:2, diff:49, beh:'dart', loc:['drain'], val:100, size:[50,120],
+  art:{ shape:'eel', body:'#3a3f36', trim:'#1e221b', fin:'#5d6655', eye:'#fd2', pat:'spots', extra:'teeth' }, blurb:'long, black, rubbery. seals itself around your arm. let go of the rod and it lets go of you.' },
+{ id:'freon_barracuda', name:'Freon Barracuda', rar:2, diff:60, beh:'dart', loc:['abyss'], val:180, size:[70,150],
+  art:{ shape:'long', body:'#bff5d8', trim:'#3fae74', fin:'#e6fff1', eye:'#111', pat:'stripes', extra:'teeth', glow:'rgba(120,255,180,0.35)' }, blurb:'fast, cold, illegal in nine countries. leaves a frost trail you can follow if you are quick.' },
+{ id:'energystar_starfish', name:'Energy Star Starfish', rar:2, diff:40, beh:'sinker', loc:['puddle','crisper'], val:75, size:[15,30], cond:['day'],
+  art:{ shape:'round', body:'#2f7fd6', trim:'#164a85', fin:'#8ec2ff', eye:'#fff', pat:'none', extra:'star' }, blurb:'not a fish. certified efficient anyway. saves you eleven dollars a year.' },
+{ id:'minibar_marlin', name:'Minibar Marlin', rar:2, diff:58, beh:'mixed', loc:['crisper'], val:170, size:[40,80], cond:['weekend'],
+  art:{ shape:'mini', body:'#3a2a1c', trim:'#1d140d', fin:'#6a4f36', eye:'#fd8', pat:'none', extra:'sword' }, blurb:'only on weekends. charges you 14F for a pringles can. you pay it every time.' },
+{ id:'rust_rockfish', name:'Rustbelt Rockfish', rar:2, diff:47, beh:'sinker', loc:['drain','puddle'], val:95, size:[30,70], cond:['bear'],
+  art:{ shape:'wide', body:'#8a4b22', trim:'#4a2410', fin:'#b0703f', eye:'#111', pat:'rust' }, blurb:'surfaces when the market bleeds. RUST holders say it is a buy signal. it is not.' },
+
+/* ---------- epic ---------- */
+{ id:'golden_koi', name:'Golden Fridge Koi', rar:3, diff:66, beh:'smooth', loc:['crisper'], val:600, size:[40,90],
+  art:{ shape:'tall', body:'#ffcc33', trim:'#b8860b', fin:'#fff0a0', eye:'#111', pat:'gold', extra:'crown', glow:'rgba(255,210,80,0.6)' }, blurb:'solid gold. too heavy to keep anything cold. lives three hundred years out of spite.' },
+{ id:'coelacanth', name:'Frost Giant Coelacanth', rar:3, diff:72, beh:'heavy', loc:['abyss'], val:850, size:[120,220],
+  art:{ shape:'wide', body:'#556b8a', trim:'#2b3a52', fin:'#9db3d4', eye:'#fe8', pat:'frost', extra:'handle' }, blurb:'thought extinct since the icebox. it is not extinct. it was in the back of the freezer.' },
+{ id:'void_eel', name:'VOID Eel', rar:3, diff:78, beh:'glitch', loc:['drain','abyss'], val:666, size:[66,166], cond:['night','vendor'],
+  art:{ shape:'eel', body:'#0a0010', trim:'#2a0040', fin:'#5a00a0', eye:'#f0f', pat:'void', glow:'rgba(150,40,255,0.65)' }, blurb:'listed under VOID. formerly [REDACTED]. the line goes slack and the eel is still on it.' },
+{ id:'blackice_shark', name:'Black Ice Shark', rar:3, diff:75, beh:'dart', loc:['abyss'], val:780, size:[150,300], cond:['cold'],
+  art:{ shape:'long', body:'#10151c', trim:'#000', fin:'#26303c', eye:'#fff', pat:'frost', extra:'teeth' }, blurb:'invisible until you are on it. only hunts when it is cold enough for the road to lie.' },
+{ id:'aurora_fin', name:'Aurora Fridge-Fin', rar:3, diff:70, beh:'floater', loc:['abyss','crisper'], val:720, size:[50,100], cond:['snow'],
+  art:{ shape:'tall', body:'#183040', trim:'#0a1820', fin:'#7affc8', eye:'#fff', pat:'aurora', glow:'rgba(120,255,200,0.5)' }, blurb:'comes up through the ice when it snows. the colors on its side move when nobody looks.' },
+{ id:'walkin_whale', name:'Walk-In Whale', rar:3, diff:64, beh:'heavy', loc:['abyss'], val:900, size:[400,900],
+  art:{ shape:'chest', body:'#b9c0c8', trim:'#6c747d', fin:'#dde2e7', eye:'#111', pat:'brushed', extra:'handle' }, blurb:'a commercial walk-in. there is a man inside it who says he is fine. he has been fine for a while.' },
+{ id:'fourtwenty', name:'4:20 Fish', rar:3, diff:42, beh:'floater', loc:['puddle','crisper','drain','abyss'], val:420, size:[4.2,42], cond:['420'],
+  art:{ shape:'round', body:'#5ca83a', trim:'#2c5e17', fin:'#a6e07e', eye:'#e33', pat:'spots', extra:'smoke' }, blurb:'only bites at 4:20. very relaxed about the whole thing. takes its time on the line.' },
+{ id:'bull_bass', name:'FRDX Bull Bass', rar:3, diff:68, beh:'mixed', loc:['puddle','crisper'], val:750, size:[40,90], cond:['bull'],
+  art:{ shape:'wide', body:'#1f7a3e', trim:'#0d4220', fin:'#3ddc84', eye:'#fff', pat:'chart', extra:'horns' }, blurb:'only bites when the exchange is ripping. wants you to know it called the bottom.' },
+{ id:'bear_bream', name:'FRDX Bear Bream', rar:3, diff:68, beh:'sinker', loc:['drain','abyss'], val:750, size:[40,90], cond:['bear'],
+  art:{ shape:'wide', body:'#7a1f1f', trim:'#420d0d', fin:'#ff4a4a', eye:'#fff', pat:'chart', extra:'ears' }, blurb:'only bites in a selloff. wrote a 40 page short report about your bait.' },
+
+/* ---------- legendary ---------- */
+{ id:'vendor_catfish', name:"The Vendor's Catfish", rar:4, diff:84, beh:'mixed', loc:['drain'], val:2400, size:[90,180], cond:['vendor','night'],
+  art:{ shape:'tall', body:'#cfc8ae', trim:'#6e6857', fin:'#e4dfcb', eye:'#000', pat:'none', extra:'whiskers', glow:'rgba(255,190,120,0.4)' }, blurb:'it came up the drain from the basement. it looks at you like it knows your count.' },
+{ id:'hank', name:'Hank', rar:4, diff:80, beh:'smooth', loc:['drain'], val:1900, size:[70,140], cond:['hank'],
+  art:{ shape:'wide', body:'#7d8a6a', trim:'#3f4734', fin:'#a9b592', eye:'#111', pat:'label', extra:'cap' }, blurb:'dots his i with little circles. went home. you should let him go home.' },
+{ id:'fullmoon_frigidaire', name:'Full Moon Frigidaire', rar:4, diff:86, beh:'floater', loc:['crisper','abyss'], val:3600, size:[100,200], cond:['fullmoon','night'],
+  art:{ shape:'retro', body:'#f4f1e6', trim:'#b9b29a', fin:'#ffffff', eye:'#111', pat:'none', extra:'chrome', glow:'rgba(255,255,230,0.55)' }, blurb:'rises on the full moon. 1950s chrome. its door shuts with a sound you feel in your teeth.' },
+{ id:'absolute_zero', name:'Absolute Zero', rar:4, diff:92, beh:'glitch', loc:['abyss'], val:5000, size:[1,273], cond:['cold','deep'],
+  art:{ shape:'round', body:'#ffffff', trim:'#cfefff', fin:'#ffffff', eye:'#0af', pat:'frost', glow:'rgba(200,240,255,0.8)' }, blurb:'zero kelvin. nothing moves inside it. cast as far as you can on a cold day and hold still.' },
+{ id:'the_original', name:'The Original', rar:4, diff:82, beh:'heavy', loc:['puddle'], val:3000, size:[150,170], cond:['dawn','clear'],
+  art:{ shape:'tall', body:'#ece5d2', trim:'#8f846b', fin:'#f6f1e3', eye:'#111', pat:'none', extra:'coil' }, blurb:'1913. a wooden box with a coil on top. every fridge you ever spawned is its grandchild.' },
+
+/* ---------- mythic ---------- */
+{ id:'coldfeet', name:'Cold Feet', rar:5, diff:90, beh:'mixed', loc:['drain'], val:12000, size:[120,160], cond:['together'],
+  art:{ shape:'tall', body:'#e6dccd', trim:'#8c7b62', fin:'#ffd9e0', eye:'#111', pat:'hearts', extra:'handle', glow:'rgba(255,170,200,0.55)' }, blurb:'he said he would be upstairs more. this is him being upstairs more.' },
+{ id:'unplugged', name:'The Unplugged', rar:5, diff:95, beh:'glitch', loc:['drain','abyss'], val:15000, size:[0,0], cond:['unplug','night'],
+  art:{ shape:'tall', body:'#050505', trim:'#000', fin:'#111', eye:'#300', pat:'void' }, blurb:'no light. no hum. it is not cold anymore. it is just a box.' },
+{ id:'ren38', name:'Ren, King of the Chamber', rar:5, diff:88, beh:'dart', loc:['puddle','drain'], val:3838, size:[38,38], cond:['m38'],
+  art:{ shape:'mini', body:'#2a0000', trim:'#ff0000', fin:'#ff4444', eye:'#fff', pat:'none', extra:'crown', glow:'rgba(255,0,0,0.55)' }, blurb:'only bites at :38. six chambers. thirty eight. the king.' },
+{ id:'leviathan', name:'The Humming Leviathan', rar:5, diff:99, beh:'heavy', loc:['abyss'], val:25000, size:[2000,9000], cond:['storm','night','deep'],
+  art:{ shape:'wide', body:'#0e1a24', trim:'#03080c', fin:'#1e3646', eye:'#ff4', pat:'stripes', extra:'teeth', glow:'rgba(255,240,100,0.35)' }, blurb:'every fridge hums at the same pitch because of this. it is the note. storms only.' },
+
+/* ---------- a few more so the dex never really ends ---------- */
+{ id:'pickle_pike', name:'Pickle Jar Pike', rar:1, diff:28, beh:'dart', loc:['puddle','crisper'], val:17, size:[20,45],
+  art:{ shape:'round', body:'#6b9a3a', trim:'#3c5e1b', fin:'#a5cc75', eye:'#111', pat:'spots' }, blurb:'nobody can open it. you will hand it to someone stronger. they will not open it either.' },
+{ id:'egg_eel', name:'Egg Tray Eel', rar:0, diff:15, beh:'smooth', loc:['crisper'], val:4, size:[20,40],
+  art:{ shape:'eel', body:'#fff8e8', trim:'#d6c7a3', fin:'#fff', eye:'#111', pat:'dimples' }, blurb:'twelve dimples. you have never once put eggs in it.' },
+{ id:'freezer_jellyfish', name:'Frozen Peas Jellyfish', rar:1, diff:22, beh:'floater', loc:['abyss','crisper'], val:13, size:[10,25],
+  art:{ shape:'round', body:'#7ccf5a', trim:'#3e8f27', fin:'#b8f0a0', eye:'#111', pat:'spots' }, blurb:'used as an ice pack more than it has been eaten. conforms to any bruise.' },
+{ id:'dent_dab', name:'Scratch & Dent Dab', rar:0, diff:12, beh:'sinker', loc:['puddle','drain'], val:3, size:[15,30],
+  art:{ shape:'flat', body:'#bfbfbf', trim:'#777', fin:'#ddd', eye:'#111', pat:'dents' }, blurb:'40% off. fell off the truck. works fine. hums a little.' },
+{ id:'lamp_lamprey', name:'Door Alarm Lamprey', rar:2, diff:54, beh:'dart', loc:['drain','abyss'], val:130, size:[40,90],
+  art:{ shape:'eel', body:'#3a3a40', trim:'#16161a', fin:'#5c5c66', eye:'#f22', pat:'none', extra:'teeth', glow:'rgba(255,40,40,0.35)' }, blurb:'beeps if you leave the door open longer than a minute. latches on until you close it.' },
+{ id:'garage_goby', name:'Garage Beer Goby', rar:1, diff:21, beh:'smooth', loc:['puddle'], val:14, size:[12,26], cond:['weekend'],
+  art:{ shape:'mini', body:'#8b6a3e', trim:'#4e3a20', fin:'#c49a62', eye:'#111', pat:'rust' }, blurb:'lives in the garage. only cold on saturdays. somebody\'s uncle is always nearby.' },
+{ id:'static_snapper', name:'Static Snapper', rar:2, diff:57, beh:'glitch', loc:['drain'], val:155, size:[25,55], cond:['vendor'],
+  art:{ shape:'tall', body:'#777', trim:'#333', fin:'#aaa', eye:'#fff', pat:'static' }, blurb:'the picture goes when you look at it too long. found near the basement drain. do not stare.' },
+{ id:'fog_flounder', name:'Fog Lamp Flounder', rar:1, diff:27, beh:'sinker', loc:['puddle','crisper'], val:19, size:[25,50], cond:['fog'],
+  art:{ shape:'flat', body:'#d8dde0', trim:'#9aa0a5', fin:'#eef0f2', eye:'#fd5', pat:'glow', glow:'rgba(255,230,140,0.35)' }, blurb:'only in fog. its eyes are lit. you see the eyes first and then you see the rest.' }
+];
+const RARITY = [
+  { name:'common',    col:'#c9c9c9', w:60 },
+  { name:'uncommon',  col:'#4fd67b', w:25 },
+  { name:'rare',      col:'#4aa3ff', w:10 },
+  { name:'epic',      col:'#c060ff', w:3.6 },
+  { name:'legendary', col:'#ffb020', w:1.1 },
+  { name:'mythic',    col:'#ff3355', w:0.3 }
+];
+const HINTS = {
+  night:'bites after dark', day:'bites in daylight', dawn:'bites at dawn', dusk:'bites at dusk', rain:'needs rain', snow:'needs snow', fog:'needs fog', storm:'needs a storm',
+  clear:'needs clear skies', cold:'needs cold weather', fullmoon:'rises on the full moon', '420':'keeps a strict schedule', m38:'keeps an odd schedule',
+  vendor:'came up from somewhere below', hank:'you would have to know his name', together:'only for someone he trusts', unplug:'after the lights went out for good',
+  rth:'keeps market hours', bull:'likes a green tape', bear:'likes a red tape', weekend:'weekends only', deep:'cast far'
+};
+window.FISHDATA = { FISH:F, RARITY, HINTS };
+})();
