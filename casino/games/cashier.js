@@ -38,14 +38,47 @@ export function init(C){
   windows.forEach(w=>{ B.add(G.box, M.gold, x0 + 0.15, 1.6, w, 0.06, 0.05, 0.98); B.add(G.box, M.gold, x0 + 0.15, 3.05, w, 0.08, 0.1, 1.0); });
   B.add(G.box, M.gold, x0 + 0.15, 3.1, (z0 + z1)/2, 0.12, 0.12, z1 - z0);
   B.add(G.box, M.woodDark, x0 + 0.15, 4.1, (z0 + z1)/2, 0.2, 1.9, z1 - z0);
-  B.add(G.box, M.woodDark, (x0 + 30)/2, 3.25, z0, 30 - x0, 6.5, 0.25);
+  /* the back wall of the cage, with a steel staff gate in it (x 26.0 to 27.6) */
+  const GX0 = 26.0, GX1 = 27.6;
+  B.add(G.box, M.woodDark, (x0 + GX0)/2, 3.25, z0, GX0 - x0, 6.5, 0.25);
+  B.add(G.box, M.woodDark, (GX1 + 30)/2, 3.25, z0, 30 - GX1, 6.5, 0.25);
+  B.add(G.box, M.woodDark, (GX0 + GX1)/2, 4.55, z0, GX1 - GX0, 3.9, 0.25);
+  B.add(G.box, M.steel, (GX0 + GX1)/2, 2.62, z0, GX1 - GX0 + 0.2, 0.12, 0.34);
+  const gateM = new THREE.MeshStandardMaterial({ color:0x3a3d44, roughness:0.35, metalness:0.8 });
+  const gate = new THREE.Group(); gate.position.set(GX0, 0, z0);
+  const gp = new THREE.Mesh(G.box, gateM); gp.scale.set(GX1 - GX0, 2.56, 0.1); gp.position.set((GX1 - GX0)/2, 1.28, 0); gate.add(gp);
+  const gsign = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({ map:T.plate('CAGE · STAFF ONLY', { w:512, h:96, size:40, bg:'#2a0a0a', fg:'#ffdddd', rim:'#888' }), roughness:0.5 })); gsign.scale.set(1.2, 0.22, 1); gsign.position.set((GX1 - GX0)/2, 1.8, -0.06); gsign.rotation.y = Math.PI; gate.add(gsign);
+  const gh = new THREE.Mesh(G.cyl8, M.chrome); gh.scale.set(0.02, 0.2, 0.02); gh.position.set(GX1 - GX0 - 0.15, 1.1, -0.08); gate.add(gh);
+  scene.add(gate);
   /* inside the cage: shelves of chips and a vault door */
   for(let i=0;i<3;i++){ B.add(G.box, M.steel, 20.5, 0.6 + i*0.7, 17.5, 0.5, 0.04, 5); }
   const dv = [100, 500, 1000, 5000, 25];
   for(let sh=0; sh<3; sh++) for(let i=0;i<9;i++) decorStack(B, 20.3 + (i%2)*0.14, 0.62 + sh*0.7, 15.3 + i*0.55, 20 + ((i*7 + sh*3) % 30), dv[(i + sh) % 5], 3);
-  const vault = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.25, 40), M.steel); vault.rotation.z = Math.PI/2; vault.position.set(29.8, 1.6, 17.5); scene.add(vault);
-  for(let i=0;i<6;i++){ const a = i/6*Math.PI*2; B.add(G.cyl8, M.chrome, 29.6, 1.6 + Math.sin(a)*0.5, 17.5 + Math.cos(a)*0.5, 0.03, 0.4, 0.03, 0, 0, Math.PI/2 + 0); }
-  C.collide.box(11.6, 13.8, 30, 22, 'cage');
+  /* the vault door: a hinged group so the heist can open it (and slam it) */
+  const VZ = 17.5, VY = 1.32, VR = 1.3;
+  const vaultFrame = (()=>{ const sh = new THREE.Shape(); sh.moveTo(-1.5, 0); sh.lineTo(1.5, 0); sh.lineTo(1.5, 2.9); sh.lineTo(-1.5, 2.9); sh.closePath(); const h = new THREE.Path(); h.absarc(0, VY, VR - 0.02, 0, Math.PI*2, true); sh.holes.push(h); const g = new THREE.ExtrudeGeometry(sh, { depth:0.34, bevelEnabled:false, curveSegments:40 }); const m = new THREE.Mesh(g, M.steel); m.rotation.y = Math.PI/2; m.position.set(29.62, 0, VZ); return m; })();
+  scene.add(vaultFrame);
+  const vault = new THREE.Group(); vault.position.set(29.5, VY, VZ - VR);
+  { const dm = new THREE.Mesh(new THREE.CylinderGeometry(VR, VR, 0.3, 48), M.steel); dm.rotation.z = Math.PI/2; dm.position.set(0, 0, VR); vault.add(dm);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(VR - 0.06, 0.05, 8, 48), M.chrome); rim.rotation.y = Math.PI/2; rim.position.set(-0.16, 0, VR); vault.add(rim);
+    const wheel = new THREE.Group(); wheel.position.set(-0.22, 0, VR); vault.add(wheel);
+    for(let i=0;i<6;i++){ const a = i/6*Math.PI*2; const sp = new THREE.Mesh(G.cyl8, M.chrome); sp.scale.set(0.03, 0.5, 0.03); sp.position.set(0, Math.sin(a)*0.25, Math.cos(a)*0.25); sp.rotation.x = a + Math.PI/2; wheel.add(sp); }
+    const hub = new THREE.Mesh(G.cyl, M.chrome); hub.scale.set(0.1, 0.08, 0.1); hub.rotation.z = Math.PI/2; wheel.add(hub);
+    for(let i=0;i<8;i++){ const a = i/8*Math.PI*2; const bolt = new THREE.Mesh(G.cyl8, M.chrome); bolt.scale.set(0.06, 0.08, 0.06); bolt.rotation.z = Math.PI/2; bolt.position.set(-0.17, Math.sin(a)*(VR - 0.22), VR + Math.cos(a)*(VR - 0.22)); vault.add(bolt); }
+    const hinge = new THREE.Mesh(G.cyl8, M.chrome); hinge.scale.set(0.09, 2.2, 0.09); hinge.position.set(0.05, 0, 0.02); vault.add(hinge);
+    vault.userData.wheel = wheel; }
+  scene.add(vault);
+  /* the cage is a room now: counter on the west, a back wall with a gate on the north */
+  const cageCol = {
+    counter: C.collide.box(11.6, 13.8, 12.5, 22, 'counter'),
+    backW: C.collide.box(12, 13.75, GX0, 14.2, 'wall'),
+    backE: C.collide.box(GX1, 13.75, 30, 14.2, 'wall'),
+    gate: C.collide.box(GX0, 13.75, GX1, 14.2, 'gate'),
+    shelves: C.collide.box(20.15, 14.9, 20.85, 20.1, 'shelf'),
+    inside: C.collide.box(12.5, 14.2, 30, 22, 'cage'),
+    vaultDoor: C.collide.box(29.0, 16.1, 30.2, 18.9, 'vaultdoor')
+  };
+  C.world.cage = { gate, gateM, cols:cageCol, vault, vaultFrame, VZ, VY, VR, GX0, GX1, z0, tellers:null };
   /* the signs */
   C.world.neon.push(neonSign(scene, 'the cage', '#ffd56a', x0 - 0.15, 3.65, 17.5, -Math.PI/2, 0.8));
   const sign = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({ map:T.plate('CASHIER · CHIPS · MEMBERSHIP', { w:1024, h:96, size:46 }), roughness:0.4 }));
@@ -60,6 +93,7 @@ export function init(C){
     if(i !== 1) F.face.set('sleepy', 9999);
   });
   const doug = tellers[1];
+  C.world.cage.tellers = tellers; C.world.cage.doug = doug;
   const open = ()=>{
     C.input.quietUnlock();
     doug.face.say(1.2); doug.face.set('happy', 2);

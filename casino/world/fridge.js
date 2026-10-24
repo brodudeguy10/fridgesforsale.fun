@@ -49,6 +49,15 @@ export class Face {
     g.shadowColor = c; g.shadowBlur = 8;
     const lx = 40 + this.look.x*8, rx = 88 + this.look.x*8, ey = 38 + this.look.y*6;
     const m = this.mood, bl = this.blink > 0;
+    /* a dead screen: static, then nothing */
+    if(m === 'static' || m === 'off'){
+      g.shadowBlur = 0;
+      if(m === 'static'){ const id = g.getImageData(0, 0, W, H), dd = id.data; for(let i=0;i<dd.length;i+=4){ const v = Math.random() < 0.5 ? Math.random()*255 : 0; dd[i] = dd[i+1] = dd[i+2] = v; dd[i+3] = 255; } g.putImageData(id, 0, 0); if(Math.random() < 0.5){ g.fillStyle = c; g.globalAlpha = 0.6; g.fillRect(0, (Math.random()*H)|0, W, 3 + Math.random()*8); g.globalAlpha = 1; } }
+      else { g.fillStyle = '#020203'; g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(60, 46, 8, 4); }
+      this.t.needsUpdate = true; return;
+    }
+    const jit = m === 'hurt' && Math.random() < 0.3;
+    if(jit){ g.save(); g.translate((Math.random() - 0.5)*10, 0); }
     const eye = (x)=>{
       if(bl || m === 'sleepy'){ g.beginPath(); g.moveTo(x - 10, ey + 2); g.lineTo(x + 10, ey + 2); g.stroke(); return; }
       if(m === 'happy' || m === 'laugh'){ g.beginPath(); g.arc(x, ey + 6, 11, Math.PI*1.1, Math.PI*1.9); g.stroke(); return; }
@@ -61,6 +70,8 @@ export class Face {
       g.beginPath(); g.ellipse(x, ey, 7, 11, 0, 0, 7); g.fill();
     };
     eye(lx); eye(rx);
+    if(this.blackeye){ g.save(); g.shadowBlur = 0; g.strokeStyle = 'rgba(120,40,160,0.85)'; g.lineWidth = 7; g.beginPath(); g.arc(lx, ey, 17, 0, 7); g.stroke(); g.strokeStyle = 'rgba(60,20,90,0.7)'; g.lineWidth = 3; g.beginPath(); g.arc(lx, ey, 22, 0.4, 2.6); g.stroke(); g.restore(); g.fillStyle = c; g.strokeStyle = c; }
+    if(this.scar){ g.save(); g.shadowBlur = 0; g.strokeStyle = '#e8e8e8'; g.lineWidth = 2; g.beginPath(); g.moveTo(rx - 14, ey - 18); g.lineTo(rx + 10, ey + 16); g.stroke(); g.restore(); g.fillStyle = c; g.strokeStyle = c; }
     if(this.shades && m !== 'money'){ g.shadowBlur = 0; g.fillStyle = '#000'; g.fillRect(20, ey - 14, 40, 22); g.fillRect(68, ey - 14, 40, 22); g.fillRect(58, ey - 10, 12, 4); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(24, ey - 11, 10, 4); g.fillRect(72, ey - 11, 10, 4); g.fillStyle = c; }
     /* mouth */
     const my = 74, open = this.talk;
@@ -68,11 +79,13 @@ export class Face {
     if(open > 0.15){ g.beginPath(); g.ellipse(64, my, 12 + open*4, 3 + open*9, 0, 0, 7); g.fill(); }
     else if(m === 'happy' || m === 'money' || m === 'love'){ g.beginPath(); g.arc(64, my - 8, 16, Math.PI*0.15, Math.PI*0.85); g.stroke(); }
     else if(m === 'laugh'){ g.beginPath(); g.arc(64, my - 6, 16, 0, Math.PI); g.fill(); }
-    else if(m === 'sad' || m === 'angry'){ g.beginPath(); g.arc(64, my + 10, 14, Math.PI*1.2, Math.PI*1.8); g.stroke(); }
+    else if(m === 'sad' || m === 'angry' || m === 'hurt'){ g.beginPath(); g.arc(64, my + 10, 14, Math.PI*1.2, Math.PI*1.8); g.stroke(); }
+    else if(m === 'smug'){ g.beginPath(); g.moveTo(50, my + 2); g.quadraticCurveTo(66, my + 4, 80, my - 8); g.stroke(); }
     else if(m === 'shock'){ g.beginPath(); g.arc(64, my, 7, 0, 7); g.stroke(); }
     else if(m === 'dead'){ g.beginPath(); g.moveTo(52, my); g.lineTo(76, my); g.stroke(); }
     else { g.beginPath(); g.moveTo(54, my); g.quadraticCurveTo(64, my + 4, 74, my); g.stroke(); }
     g.shadowBlur = 0;
+    if(jit) g.restore();
     this.t.needsUpdate = true;
   }
 }
@@ -102,7 +115,8 @@ export function makeFridge(o){
   const seam = (x, y, sw, sh)=>inner.add(part(BOX, DARK, x, y, fz, sw, sh, 0.01));
   const handle = (x, y, len, horiz)=>{ const hg = new THREE.Group(); const bar = part(CYL, handleM, 0, 0, 0.045, 0.014, len, 0.014); if(horiz) bar.rotation.z = Math.PI/2; hg.add(bar); const m1 = part(BOX, handleM, horiz ? -len/2 + 0.02 : 0, horiz ? 0 : len/2 - 0.02, 0.02, 0.02, 0.02, 0.05), m2 = part(BOX, handleM, horiz ? len/2 - 0.02 : 0, horiz ? 0 : -len/2 + 0.02, 0.02, 0.02, 0.02, 0.05); hg.add(m1, m2); hg.position.set(x, y, fz); inner.add(hg); };
   const top = h + 0.04;
-  if(style === 'std' || style === 'smart' || style === 'tall'){ const sy = top - h*0.3; seam(0, sy, w - 0.02, 0.012); handle(w/2 - 0.08, sy + 0.18, 0.22); handle(w/2 - 0.08, sy - 0.34, 0.42); }
+  if(o.bareFront){ /* the heist builds its own doors for these */ }
+  else if(style === 'std' || style === 'smart' || style === 'tall'){ const sy = top - h*0.3; seam(0, sy, w - 0.02, 0.012); handle(w/2 - 0.08, sy + 0.18, 0.22); handle(w/2 - 0.08, sy - 0.34, 0.42); }
   else if(style === 'retro'){ const sy = top - h*0.28; seam(0, sy, w - 0.1, 0.012); handle(w/2 - 0.1, sy - 0.25, 0.18, false); inner.add(part(BOX, CHROME, 0, top - 0.12, fz, w*0.5, 0.02, 0.01)); }
   else if(style === 'sxs'){ seam(0, top - h/2, 0.012, h - 0.04); handle(-0.07, top - h*0.45, 0.6); handle(0.07, top - h*0.45, 0.6); }
   else if(style === 'french'){ const sy = 0.04 + h*0.32; seam(0, (top + sy)/2, 0.012, top - sy - 0.04); seam(0, sy, w - 0.02, 0.012); handle(-0.07, sy + 0.45, 0.5); handle(0.07, sy + 0.45, 0.5); handle(0, sy - 0.12, w*0.6, true); }

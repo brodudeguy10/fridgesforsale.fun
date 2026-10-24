@@ -7,6 +7,8 @@
 'use strict';
 const here = (document.currentScript && document.currentScript.src) || location.href;
 const MAIN = new URL('main.js', here).href;
+const ESCAPE = new URL('heist/escape2d.js', here).href;
+const HCSS = new URL('heist/heist.css', here).href;
 const CSS = new URL('casino.css', here).href;
 let root = null, busy = false, prevActive = false, musicWasOn = false;
 
@@ -47,14 +49,22 @@ async function open(){
   }
   busy = false;
 }
-function close(){
+function close(opts){
   if(root){ root.remove(); root = null; }
+  /* out the front doors and onto the page */
+  if(opts && opts.escape){
+    document.documentElement.classList.remove('overlay-open');
+    try{ if(musicWasOn && typeof audio !== 'undefined' && audio) audio.play().catch(()=>{}); }catch(e){}
+    musicWasOn = false;
+    import(ESCAPE).then(m=>m.run(opts.escape)).catch(e=>{ console.error(e); try{ if(window.FRIDGE_BANK) FRIDGE_BANK.give(opts.escape.loot || 0); }catch(e2){} try{ gameActive = false; }catch(e3){} });
+    return;
+  }
   document.documentElement.classList.remove('overlay-open');
   try{ if(!prevActive) gameActive = false; }catch(e){}
   try{ if(musicWasOn && typeof audio !== 'undefined' && audio) audio.play().catch(()=>{}); }catch(e){}
   musicWasOn = false;
   try{ if(typeof updateCounter === 'function') updateCounter(); }catch(e){}
-  podium();
+  podium(); wanted();
 }
 /* the podium fridge: if you won it, it lives upstairs now, every visit */
 function podium(){
@@ -68,6 +78,28 @@ function podium(){
     const mark = document.createElement('i'); mark.id = 'fpPodiumMark'; mark.style.display = 'none'; document.body.appendChild(mark);
   }catch(e){ console.warn(e); }
 }
+/* the wanted poster: up while the heat is on */
+function wanted(){
+  try{
+    const s = JSON.parse(localStorage.getItem('fridgepalace_v1') || 'null');
+    const H = s && s.heist; const old = document.getElementById('fpWanted');
+    if(!H || !(H.heat > 0) || !(H.wantedUntil > Date.now())){ if(old) old.remove(); return; }
+    if(!document.getElementById('hh-css')){ const l = document.createElement('link'); l.id = 'hh-css'; l.rel = 'stylesheet'; l.href = HCSS; document.head.appendChild(l); }
+    const el = old || document.createElement('div'); el.id = 'fpWanted';
+    const mobile = innerWidth < 760;
+    el.style.left = mobile ? 'auto' : '200px'; el.style.right = mobile ? '12px' : 'auto'; el.style.top = mobile ? '64px' : '140px'; if(mobile) el.style.transform = 'rotate(3deg) scale(.75)';
+    el.innerHTML = '<h3>WANTED</h3><canvas width="110" height="120"></canvas><p>FOR THE FRIDGE PALACE JOB</p><b>' + (H.totalStolen || 0).toLocaleString('en-US') + ' FRIDGES</b><p>' + '★'.repeat(H.heat) + '</p>';
+    const g = el.querySelector('canvas').getContext('2d');
+    g.fillStyle = '#d8d0b8'; g.fillRect(0, 0, 110, 120); g.fillStyle = '#eeeeea'; g.strokeStyle = '#333'; g.lineWidth = 2; g.fillRect(25, 12, 60, 100); g.strokeRect(25, 12, 60, 100);
+    g.fillStyle = '#111'; g.fillRect(33, 20, 44, 24); g.fillStyle = '#7ff3ff'; g.fillRect(42, 27, 7, 6); g.fillRect(61, 27, 7, 6); g.fillStyle = '#333'; g.fillRect(25, 46, 60, 2);
+    g.fillStyle = '#2a2a2a'; g.beginPath(); g.ellipse(92, 70, 12, 18, 0.3, 0, 7); g.fill(); g.fillStyle = '#7dff9a'; g.font = 'bold 12px Arial'; g.fillText('$', 88, 75);
+    el.title = 'heat cools off one star a day';
+    el.onclick = ()=>{ el.style.transform = 'rotate(' + (Math.random()*16 - 8) + 'deg)'; };
+    if(!old) document.body.appendChild(el);
+  }catch(e){ console.warn(e); }
+}
+window.fpWanted = wanted;
+setTimeout(wanted, 1500);
 window.openFridgeCasino = open;
 setTimeout(podium, 1200);
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', button); else button();

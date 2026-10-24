@@ -14,12 +14,18 @@ export class Input {
     this.touch = (navigator.maxTouchPoints > 0) && matchMedia('(pointer: coarse)').matches;
     this.stick = null; this.lookTouch = null; this.runToggle = false;
     this.typed = '';
+    this.lookScale = 1; this.mouse = { l:false, r:false }; this.mousePressed = {};
     this._kd = e=>this.keydown(e); this._ku = e=>this.keyup(e);
     this._mm = e=>this.mousemove(e); this._plc = ()=>this.plchange();
     window.addEventListener('keydown', this._kd, true);
     window.addEventListener('keyup', this._ku, true);
     document.addEventListener('mousemove', this._mm);
     document.addEventListener('pointerlockchange', this._plc);
+    /* mouse buttons, for the heist */
+    this._md = e=>{ if(!this.locked) return; if(e.button === 0){ this.mouse.l = true; this.mousePressed.l = true; } if(e.button === 2){ this.mouse.r = true; this.mousePressed.r = true; } };
+    this._mu = e=>{ if(e.button === 0) this.mouse.l = false; if(e.button === 2) this.mouse.r = false; };
+    this._cm = e=>{ if(this.locked) e.preventDefault(); };
+    document.addEventListener('mousedown', this._md); document.addEventListener('mouseup', this._mu); document.addEventListener('contextmenu', this._cm);
     this.canvasClick = ()=>{ if(this.walk && this.enabled && !this.touch) this.lock(); };
     C.engine.canvas.addEventListener('click', this.canvasClick);
     if(this.touch) this.buildTouch();
@@ -49,12 +55,12 @@ export class Input {
   keyup(e){ this.keys[e.code] = false; }
   mousemove(e){
     if(!this.locked || !this.walk || !this.enabled) return;
-    const s = 0.0022*this.C.save.settings.sens;
+    const s = 0.0022*this.C.save.settings.sens*this.lookScale;
     this.look.x += e.movementX*s;
     this.look.y += e.movementY*s*(this.C.save.settings.invertY ? -1 : 1);
   }
   was(code){ if(this.pressed[code]){ this.pressed[code] = false; return true; } return false; }
-  endFrame(){ this.pressed = {}; this.look.x = 0; this.look.y = 0; }
+  endFrame(){ this.pressed = {}; this.mousePressed = {}; this.look.x = 0; this.look.y = 0; }
   sample(){
     let x = 0, z = 0;
     if(this.enabled && this.walk){
@@ -87,7 +93,7 @@ export class Input {
     sz.addEventListener('touchmove', e=>{ e.preventDefault(); mvStick(e); }, { passive:false });
     sz.addEventListener('touchend', endStick); sz.addEventListener('touchcancel', endStick);
     lz.addEventListener('touchstart', e=>{ e.preventDefault(); const t = e.changedTouches[0]; this.lookTouch = { id:t.identifier, x:t.clientX, y:t.clientY, t0:performance.now(), moved:0 }; }, { passive:false });
-    lz.addEventListener('touchmove', e=>{ e.preventDefault(); if(!this.lookTouch) return; for(const t of e.changedTouches){ if(t.identifier !== this.lookTouch.id) continue; const dx = t.clientX - this.lookTouch.x, dy = t.clientY - this.lookTouch.y; this.lookTouch.x = t.clientX; this.lookTouch.y = t.clientY; this.lookTouch.moved += Math.abs(dx) + Math.abs(dy); const s = 0.0055*this.C.save.settings.sens; this.look.x += dx*s; this.look.y += dy*s*(this.C.save.settings.invertY ? -1 : 1); } }, { passive:false });
+    lz.addEventListener('touchmove', e=>{ e.preventDefault(); if(!this.lookTouch) return; for(const t of e.changedTouches){ if(t.identifier !== this.lookTouch.id) continue; const dx = t.clientX - this.lookTouch.x, dy = t.clientY - this.lookTouch.y; this.lookTouch.x = t.clientX; this.lookTouch.y = t.clientY; this.lookTouch.moved += Math.abs(dx) + Math.abs(dy); const s = 0.0055*this.C.save.settings.sens*this.lookScale; this.look.x += dx*s; this.look.y += dy*s*(this.C.save.settings.invertY ? -1 : 1); } }, { passive:false });
     const endLook = e=>{ if(!this.lookTouch) return; for(const t of e.changedTouches){ if(t.identifier === this.lookTouch.id){ if(this.lookTouch.moved < 8 && performance.now() - this.lookTouch.t0 < 250) this.pressed.KeyE = true; this.lookTouch = null; } } };
     lz.addEventListener('touchend', endLook); lz.addEventListener('touchcancel', endLook);
     ui.querySelector('#fp-use').addEventListener('touchstart', e=>{ e.preventDefault(); this.pressed.KeyE = true; }, { passive:false });
@@ -96,7 +102,7 @@ export class Input {
   setWalk(on){
     this.walk = on;
     if(this.tui) this.tui.style.display = on ? '' : 'none';
-    if(!on){ this.keys = {}; this.stick = null; this.lookTouch = null; this.quietUnlock(); }
+    if(!on){ this.keys = {}; this.stick = null; this.lookTouch = null; this.mouse.l = this.mouse.r = false; this.quietUnlock(); }
   }
   setUseLabel(t){ if(!this.tui) return; const b = this.tui.querySelector('#fp-use'); b.textContent = t || 'USE'; b.classList.toggle('on', !!t); }
   dispose(){
@@ -104,6 +110,7 @@ export class Input {
     window.removeEventListener('keyup', this._ku, true);
     document.removeEventListener('mousemove', this._mm);
     document.removeEventListener('pointerlockchange', this._plc);
+    document.removeEventListener('mousedown', this._md); document.removeEventListener('mouseup', this._mu); document.removeEventListener('contextmenu', this._cm);
     this.unlock();
   }
 }

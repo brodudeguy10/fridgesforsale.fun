@@ -22,6 +22,12 @@ export const SECRETS = [
   { k:'typedhank', name:'Say His Name', hint:'once you know a name from the basement, type it in here.', needs:()=>{ try{ return VENDOR.sawAny(['wall:hank','tag:26']); }catch(e){ return false; } } },
   { k:'visitor', name:'Company', hint:'someone from downstairs drops by, if you\'ve been down enough.', needs:()=>{ try{ return VENDOR.loadMem().deaths >= 7; }catch(e){ return false; } } },
   { k:'photo', name:'Virtual Photographer', hint:'press P while walking.' }
+  ,{ k:'crushed', name:'Light Fixture', hint:'one thing in the lobby hangs by a single chain. that\'s a weapon.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 2; }catch(e){ return false; } } }
+  ,{ k:'aquarium', name:'Free The Fish', hint:'the tank can only take so much.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 2; }catch(e){ return false; } } }
+  ,{ k:'slotbuster', name:'Hand Pay', hint:'the slots pay out if you ask them firmly. ten of them.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 2; }catch(e){ return false; } } }
+  ,{ k:'mine', name:'Somebody Else\'s', hint:'if downstairs likes you, you might not have to finish the job yourself.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 2; }catch(e){ return false; } } }
+  ,{ k:'reminder', name:'A Reminder', hint:'after it\'s rebuilt, look up at the big sign.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 3; }catch(e){ return false; } } }
+  ,{ k:'payphone', name:'Collect Call', hint:'once it\'s over, something by the restrooms starts ringing.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 3; }catch(e){ return false; } } }
 ];
 
 export function initExtras(C){

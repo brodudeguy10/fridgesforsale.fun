@@ -19,7 +19,7 @@ import { initExtras } from './core/extras.js';
 
 const MODULES = [
   './games/cashier.js', './games/bar.js', './games/slots.js', './games/blackjack.js', './games/roulette.js',
-  './games/poker.js', './games/wheel.js', './games/racing.js', './npc/npcs.js', './eggs/eggs.js'
+  './games/poker.js', './games/wheel.js', './games/racing.js', './npc/npcs.js', './eggs/eggs.js', './heist/heist.js'
 ];
 
 let C = null;
@@ -68,7 +68,7 @@ export async function start(o){
       const inst = await mod.init(C);
       if(inst){ C.modules.push(inst); if(inst.name) C.games[inst.name] = inst; }
     }catch(e){ console.error('module failed', path, e); }
-    progress(0.4 + 0.45*i/MODULES.length, ['counting chips', 'chilling the drinks', 'oiling the reels', 'shuffling six decks', 'spinning up the wheel', 'seating the regulars', 'greasing the big wheel', 'walking the race fridges', 'waking the staff', 'checking the basement'][i - 1] || 'almost');
+    progress(0.4 + 0.45*i/MODULES.length, ['counting chips', 'chilling the drinks', 'oiling the reels', 'shuffling six decks', 'spinning up the wheel', 'seating the regulars', 'greasing the big wheel', 'walking the race fridges', 'waking the staff', 'checking the basement', 'somebody by the restrooms is watching'][i - 1] || 'almost');
     await frame();
   }
   finishWorld(C);
@@ -82,7 +82,7 @@ export async function start(o){
   C.engine.on(loop);
   C.engine.start();
   /* the band renders in the background so the doors open now */
-  (async ()=>{ try{ await C.audio.startAmbience(); const m = await renderLounge({}); if(C && C.open) C.audio.startMusic(m); }catch(e){ console.warn(e); } })();
+  (async ()=>{ try{ await C.audio.startAmbience(); if(C.noMusic) return; const m = await renderLounge({ sparse:!!C.musicSparse, bpm:C.partyTonight ? 116 : 100 }); if(C && C.open && !C.heistLock) C.audio.startMusic(m); }catch(e){ console.warn(e); } })();
   progress(1, 'welcome');
   setTimeout(()=>{
     C.hud.fade(0, 900);
@@ -164,6 +164,7 @@ function loop(dt, t){
     C.camera.getWorldDirection(_f);
     let best = null, bestS = -1;
     for(const it of C.world.interact){
+      if(C.heistLock && !it.heist) continue;
       if(it.enabled && !it.enabled()) continue;
       _v.copy(it.pos).sub(C.camera.position);
       const d = _v.length(); if(d > (it.r || 2.2)) continue;
@@ -191,10 +192,10 @@ function updateNeon(dt, t){
   }
 }
 
-export async function leave(){
+export async function leave(opts){
   if(!C || !C.open) return;
   C.open = false;
-  await C.hud.fade(1, 500);
+  if(!(opts && opts.instant)) await C.hud.fade(1, 500);
   try{ for(const m of C.modules) if(m.dispose) m.dispose(); }catch(e){}
   C.audio.stopAll();
   C.input.dispose();
@@ -202,6 +203,6 @@ export async function leave(){
   C.tweens.clear();
   C.save.write();
   const r = C.root; C = null;
-  if(r && r._onLeave) r._onLeave();
+  if(r && r._onLeave) r._onLeave(opts);
 }
 export function api(){ return C; }

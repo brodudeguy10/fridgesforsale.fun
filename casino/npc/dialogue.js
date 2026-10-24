@@ -38,6 +38,15 @@ export const LINES = {
     if(C.drunk > 0.6) add(6, "you're wobbling. it's fine. the floor is also wobbling. it's a fridge thing.", 'laugh');
     if(s.d.member) add(2, "club member, huh? the couches in there are made of other couches.", 'happy');
     if(s.d.podium) add(5, "you won the podium fridge? the podium fridge? the one on the podium?", 'shock');
+    /* after the robbery, it's all anyone talks about */
+    const H = s.d.heist || {}, A = C.heistAftermath || { n:0 };
+    if(A.n === 1){ add(9, pick(["were you here the other night? there was a robbery. i hid in a slot machine. well. behind one.", "they say it was two fridges. one of them was rusty. the other one had a really nice gun.", "somebody shot the aquarium. the fish are fine. the fish are traumatized.", "the cops asked me questions. i said 'i'm a fridge'. that was the end of it."]), 'shock'); }
+    if(A.n === 2) add(8, pick(["pardon their dust. they keep saying that. pardon THEIR dust.", "doug has a black eye. doug won't talk about the black eye.", "the band is one guy now. he's doing his best."]), 'sad');
+    if(A.n >= 3 && H.robbedVisit) add(6, pick(["new security everywhere. it's like being in a fridge inside a bigger fridge.", "you hear about the robbery? of course you did. everyone did. you look like you did.", "the metal detector beeped at my grandmother. she's ninety. she's a mini fridge."]), 'neutral');
+    if(H.chandelier) add(5, "somebody dropped the lobby chandelier on a guy. i'm not saying it was cool. it was a little cool.", 'shock');
+    if(H.vendorKill) add(5, "they never found the rusty one. just a tally mark on the floor. my cousin says it's the guy from the basement. my cousin says a lot of things.", 'shock');
+    if(H.clementDead && !H.vendorKill) add(4, "the rusty one in the coat? he's not coming back. i heard the other one did it. the other one is very good at things.", 'neutral');
+    if((H.heat || 0) >= 3) add(5, "there's a wanted poster with a ski mask on it. it looks a little like you. haha. haha?", 'shock');
     if(s.d.eggs.counted) add(5, "i heard the pit boss walked you off the blackjack table. legend.", 'laugh');
     if(st.talked > 30) add(2, "you've talked to everybody tonight. everybody's talking about you talking to everybody.", 'happy');
     if((m.deaths || 0) >= 1) add(3, "you smell like basement. it's not a judgment. it's a smell.", 'neutral');

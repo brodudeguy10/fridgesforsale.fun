@@ -660,6 +660,15 @@ MKT.fishEvent = function(rarityRank, value){
   else k.imp -= 0.0002;
 };
 
+/* the casino upstairs gets robbed, the tape notices */
+MKT.heistEvent = function(stage, amt){
+  if(!S) return;
+  const T = S.tk, nudge = (sym, x, F)=>{ if(T[sym]){ T[sym].imp += x; if(F) T[sym].F *= Math.exp(F); T[sym].iv = Math.min(2, T[sym].iv*1.15); } };
+  if(stage === 'start'){ news('NEON', 'Unconfirmed reports of "a disturbance" at the Fridge Palace; Neonfridge Hospitality declines comment', -0.01); nudge('NEON', -0.01); }
+  if(stage === 'alarm'){ news('NEON', 'ALERT: armed robbery in progress at the Fridge Palace, Neonfridge flagship property', -0.08); nudge('NEON', -0.08, -0.05); nudge('GOLD', 0.01); }
+  if(stage === 'escaped'){ news('NEON', 'Fridge Palace robbers escape with an estimated ' + Math.round(amt || 0).toLocaleString('en-US') + ' fridges; insurers "reviewing the vault footage"', -0.15); nudge('NEON', -0.12, -0.08); nudge('GOLD', 0.03, 0.01); nudge('CHST', 0.02); news('MACRO', 'Cold storage REITs bid as casinos rethink vault security', 0.02); }
+  if(stage === 'busted'){ news('NEON', 'Fridge Palace suspect apprehended; Neonfridge rallies on "a return to normalcy"', 0.05); nudge('NEON', 0.05); }
+};
 /* ---------- news ---------- */
 const NEWS = {
   pos:[ '{S} beats on units shipped, raises full-year compressor guidance', 'Activist stake disclosed in {S}; 13D filed, letter demands "colder margins"', '{S} added to FRDX Low-Temp Dividend Aristocrats index', 'Upgrade: {S} to Overweight at Gasket & Gasket, PT raised', '{S} wins exclusive supply deal with a major dorm chain', 'Short interest in {S} hits record as borrow tightens', '{S} announces 2B F buyback authorization' ],

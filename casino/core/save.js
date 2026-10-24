@@ -12,6 +12,8 @@ const DEF = {
   stats:{ spins:0, hands:0, rouletteSpins:0, pokerHands:0, races:0, wagered:0, won:0, biggest:0, biggestGame:'', jackpots:0, bjs:0, wheelSpins:0, talked:0 },
   jackpot:25000,
   eggs:{},
+  /* the heist: story progress, the aftermath, heat mode */
+  heist:{ story:0, robbedVisit:0, robbedAt:0, totalStolen:0, runs:0, heat:0, heatAt:0, wantedUntil:0, clementDead:false, vendorKill:false, holes:[], kills:0, civKills:0, bestRun:0, partyDone:false, lastLoot:0, abandoned:0, deaths:0, chandelier:false, crew:{} },
   settings:{ sens:1, vol:0.85, music:0.55, quality:'auto', invertY:false, bob:true },
   log:[]
 };
@@ -24,6 +26,7 @@ export class Save {
     this.d.stats = Object.assign(clone(DEF.stats), this.d.stats || {});
     this.d.settings = Object.assign(clone(DEF.settings), this.d.settings || {});
     this.d.eggs = this.d.eggs || {};
+    this.d.heist = Object.assign(clone(DEF.heist), this.d.heist || {});
     if(!this.d.firstVisit) this.d.firstVisit = Date.now();
     this.listeners = [];
   }

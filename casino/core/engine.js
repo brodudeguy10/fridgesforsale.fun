@@ -60,11 +60,18 @@ export class Engine {
     this.scene.fog = new THREE.Fog(0x120a14, 26, 70);
     this.camera = new THREE.PerspectiveCamera(72, 1, 0.05, 160);
     this.scene.add(this.camera);
+    /* the gun in your hands lives in its own little scene, drawn after the
+       world with a cleared depth buffer, so it never clips into walls */
+    this.vmScene = new THREE.Scene();
+    this.vmCamera = new THREE.PerspectiveCamera(58, 1, 0.01, 10);
+    this.vmScene.add(this.vmCamera);
+    this.afterRender = [];
     /* reflections for the gold and the chrome come from a generated room */
     const pm = new THREE.PMREMGenerator(r);
     const env = new RoomEnvironment(r);
     this.envMap = pm.fromScene(env, 0.035).texture;
     this.scene.environment = this.envMap;
+    this.vmScene.environment = this.envMap;
     this.scene.environmentIntensity = 0.55;
     env.dispose(); pm.dispose();
     this.clock = new THREE.Clock();
@@ -88,6 +95,9 @@ export class Engine {
     const rt = new THREE.WebGLRenderTarget(4, 4, { type:THREE.HalfFloatType, samples: q === 'low' ? 0 : 4 });
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.vmPass = new RenderPass(this.vmScene, this.vmCamera); this.vmPass.clear = false; this.vmPass.clearDepth = true;
+    this.vmPass.enabled = !!this.vmOn;
+    this.composer.addPass(this.vmPass);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.5, 0.9);
     this.bloom.enabled = q !== 'low';
     this.composer.addPass(this.bloom);
@@ -111,6 +121,7 @@ export class Engine {
     this.camera.aspect = w/h;
     this.camera.fov = w/h < 0.8 ? 82 : 72;
     this.camera.updateProjectionMatrix();
+    this.vmCamera.aspect = w/h; this.vmCamera.fov = w/h < 0.8 ? 70 : 58; this.vmCamera.updateProjectionMatrix();
   }
   on(fn){ this.updaters.push(fn); return fn; }
   off(fn){ const i = this.updaters.indexOf(fn); if(i >= 0) this.updaters.splice(i, 1); }
@@ -124,7 +135,11 @@ export class Engine {
       this.t += dt;
       for(let i=0;i<this.updaters.length;i++){ try{ this.updaters[i](dt, this.t); }catch(e){ console.error(e); } }
       this.finish.uniforms.uTime.value = this.t;
+      this.vmPass.enabled = !!this.vmOn;
       this.composer.render(dt);
+      /* anything that needs the finished frame (the heist's last screenshot) reads it here,
+         before the browser clears the drawing buffer */
+      if(this.afterRender.length){ const a = this.afterRender.splice(0); a.forEach(f=>{ try{ f(this.canvas); }catch(e){ console.error(e); } }); }
       this.adapt(dt);
     };
     loop();

@@ -112,6 +112,7 @@ export function init(C){
     body.querySelector('[data-a="talk"]').onclick = ()=>{ C.hud.modal(null); const l = pick(TALK); bt.face.say(l.length*0.05); C.hud.say('GUS', l); C.save.d.stats.talked++; };
   };
   const serve = async (d)=>{
+    if(d.price && C.freeDrink){ C.freeDrink = false; C.hud.say('GUS', 'on the house. grand reopening. don\'t get used to it.'); d = Object.assign({}, d, { price:0 }); }
     if(d.price && !C.save.bet(d.price, 'bar')){ C.audio.error(); C.hud.say('GUS', "that's " + d.price + " chips. the cage is by the door."); return; }
     btS.busy = 5; bt.armBusy = true;
     const pos = new THREE.Vector3(cx + Math.cos(btS.target)*A.rOut, 1.15, cz + Math.sin(btS.target)*A.rOut);
@@ -144,6 +145,7 @@ export function init(C){
     C.hud.say('DOORMAN', lost ? "morning. you slept on the bench. your wallet looks " + lost + " chips lighter. that's not on me." : "morning. you slept on the bench. you didn't have anything to lose. respect.", 7);
   };
   C.world.interact.push({ pos:new THREE.Vector3(cx, 1.3, cz), r:A.rOut + 1.4, text:()=>'order a drink from GUS', use:order, enabled:()=>{ const d = Math.hypot(C.player.pos.x - cx, C.player.pos.z - cz); return d < A.rOut + 1.2; } });
+  C.world.aquarium = { water, glassC, fish, cx, cz, tankR, tankLight, bubbles, broken:false };
   return {
     name:'bar',
     update(dt, t){
@@ -157,12 +159,13 @@ export function init(C){
       animateFridge(bt, t, btS.busy > 0 ? 0 : 0.5);
       /* fish swim, bubbles rise */
       for(const f of fish){
+        if(f.out) continue;
         f.a += dt*f.sp/f.r; f.bob += dt;
         const x = cx + Math.cos(f.a)*f.r, z = cz + Math.sin(f.a)*f.r, y = f.y + Math.sin(f.bob*0.7)*0.15;
         f.mesh.position.set(x, y, z);
         f.mesh.rotation.y = -f.a - Math.PI/2 + (f.sp > 0 ? 0 : Math.PI);
       }
-      for(let i=0;i<bub.length;i++){ const b = bub[i]; b.y += dt*b.v; if(b.y > 5.8){ b.y = 0.5; b.a = rand(0, 6.28); } m4.makeScale(b.s, b.s, b.s); m4.setPosition(cx + Math.cos(b.a + b.y*0.3)*b.r, b.y, cz + Math.sin(b.a + b.y*0.3)*b.r); bubbles.setMatrixAt(i, m4); }
+      if(!C.world.aquarium.broken) for(let i=0;i<bub.length;i++){ const b = bub[i]; b.y += dt*b.v; if(b.y > 5.8){ b.y = 0.5; b.a = rand(0, 6.28); } m4.makeScale(b.s, b.s, b.s); m4.setPosition(cx + Math.cos(b.a + b.y*0.3)*b.r, b.y, cz + Math.sin(b.a + b.y*0.3)*b.r); bubbles.setMatrixAt(i, m4); }
       bubbles.instanceMatrix.needsUpdate = true;
     }
   };

@@ -70,7 +70,7 @@ export function buildWorld(C){
   };
   wall(-30, 22, 30, 22, { open:[[27, 33, 3.4]] });                  // south, doors in the middle
   wall(-30, -22, -30, 22);                                            // west (the restroom doors are painted on)
-  wall(30, -22, 30, 22);
+  wall(30, -22, 30, 22, { open:[[38.2, 40.8, 2.75]] });                // east, with the vault behind the cage
   wall(-30, -22, 30, -22);
   wall(-9.5, -22, -9.5, -14.6, { h:HALL.h });
   wall(9.5, -22, 9.5, -14.6, { h:HALL.h });
@@ -121,7 +121,12 @@ export function buildWorld(C){
   if(C.engine.preset() === 'low'){ W.lights.slice(3).forEach(l=>{ scene.remove(l); }); hemi.intensity = 1.0; amb.intensity = 0.9; }
   const crystalM = new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0xfff0d0, emissiveIntensity:0.7, roughness:0.05, metalness:0.2 });
   const bulbM = new THREE.MeshBasicMaterial({ color:0xfff3d6, toneMapped:false });
-  chandelier(scene, B, M, 0, 4.7, 15, 1.2, crystalM, bulbM);
+  { /* the lobby chandelier is its own object, because one night it comes down */
+    const CB = new Batch(), grp = new THREE.Group();
+    chandelier(scene, CB, M, 0, 0, 0, 1.2, crystalM, bulbM);
+    CB.build(grp); grp.position.set(0, 4.7, 15); scene.add(grp);
+    W.lobbyChandelier = grp;
+  }
   chandelier(scene, B, M, 16, 4.6, -1, 1.2, crystalM, bulbM);
   chandelier(scene, B, M, -17, 4.6, 0, 1.2, crystalM, bulbM);
   chandelier(scene, B, M, 21, 3.4, -18, 0.9, crystalM, bulbM);

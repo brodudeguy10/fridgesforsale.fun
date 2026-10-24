@@ -27,6 +27,7 @@ export function init(C){
   const led = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({ color:0xff2020, toneMapped:false })); led.scale.setScalar(0.015); led.position.set(D.x + 1.05, 1.5, D.z + 0.2); scene.add(led);
   let open = false, wrong = 0;
   const openDoor = ()=>{ if(open) return; open = true; doorCol.on = false; led.material.color.setHex(0x20ff60); C.audio.door(door.position); C.tweens.to(door, { pos:new THREE.Vector3(D.x + 1.5, 1.2, D.z - 0.1), dur:1.2 }); };
+  C.world.staffDoor = { open:()=>openDoor(), get isOpen(){ return open; } };
   C.world.interact.push({ pos:new THREE.Vector3(D.x + 1.05, 1.35, D.z + 0.2), r:2, text:()=>open ? null : 'keypad', enabled:()=>!open, use:()=>keypad() });
   function keypad(){
     C.input.quietUnlock();
@@ -122,6 +123,7 @@ export function init(C){
     ls.forEach(([l, i])=>l.intensity = i); hemi.forEach(([l, i])=>l.intensity = i); C.world.neon.forEach(n=>n.visible = true); C.audio.duck(false);
     C.hud.say('NIGHT GUARD', 'who did that. was that you. don\'t do that.');
   } });
+  C.world.breaker = { pos:new THREE.Vector3(-12.4, 1.5, -16) };
   const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.0), new THREE.MeshStandardMaterial({ map:(()=>{ const c = canvas(256, 320), g = c.getContext('2d'); g.fillStyle = '#efe4c8'; g.fillRect(0, 0, 256, 320); g.fillStyle = '#7a1220'; g.font = 'bold 22px Georgia'; g.textAlign = 'center'; g.fillText('EMPLOYEE', 128, 40); g.fillText('OF THE MONTH', 128, 66); g.fillStyle = '#aaa'; g.fillRect(48, 86, 160, 150); const knows = saw(['wall:hank', 'tag:26']); g.fillStyle = '#333'; g.font = 'bold 34px Georgia'; g.fillText(knows ? 'HANK' : '_______', 128, 280); g.font = '14px Georgia'; g.fillText(knows ? 'every month since 1988' : 'position open', 128, 304); if(knows){ g.fillStyle = '#666'; g.fillRect(98, 120, 60, 90); } return tex(c); })(), roughness:0.7 }));
   poster.position.set(-15, 1.8, SR.minZ + 0.17); scene.add(poster);
 

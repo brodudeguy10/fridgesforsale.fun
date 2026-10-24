@@ -1,0 +1,164 @@
+/* ============================================================
+   FRIDGE PALACE HEIST: the screen while you're robbing the place
+============================================================ */
+#hh{ position:absolute; inset:0; pointer-events:none; z-index:6; font-family:'Oswald', 'Arial Narrow', sans-serif; color:#f2f2f2; text-shadow:0 1px 2px #000, 0 0 6px rgba(0,0,0,.6); }
+#hh *{ box-sizing:border-box; }
+#hh.off > :not(#hh-choice):not(#hh-duffel):not(#hh-card):not(#hh-lb):not(#hh-big){ display:none; }
+/* crosshair */
+#hh-cross{ position:absolute; left:50%; top:50%; width:0; height:0; }
+#hh-cross i{ position:absolute; background:#fff; box-shadow:0 0 2px #000; transition:opacity .15s; }
+#hh-cross .t, #hh-cross .b{ width:2px; height:9px; left:-1px; }
+#hh-cross .l, #hh-cross .r{ height:2px; width:9px; top:-1px; }
+#hh-cross .d{ width:3px; height:3px; left:-1.5px; top:-1.5px; border-radius:50%; }
+#hh-cross.ads i:not(.d){ opacity:0; }
+#hh-cross.hide{ display:none; }
+#hh-cross.freon i{ background:#9fefff; }
+#hh-hit{ position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px; opacity:0; }
+#hh-hit::before, #hh-hit::after{ content:''; position:absolute; left:12px; top:-2px; width:2px; height:30px; background:#fff; transform:rotate(45deg); box-shadow:0 0 3px #000; clip-path:polygon(0 0,100% 0,100% 30%,0 30%,0 70%,100% 70%,100% 100%,0 100%); }
+#hh-hit::after{ transform:rotate(-45deg); }
+#hh-hit.on{ animation:hhhit .22s ease-out; }
+#hh-hit.kill::before, #hh-hit.kill::after{ background:#ff3030; }
+#hh-hit.crit::before, #hh-hit.crit::after{ background:#ffd56a; }
+@keyframes hhhit{ 0%{ opacity:1; transform:scale(1.3); } 100%{ opacity:0; transform:scale(.9); } }
+/* damage direction */
+#hh-dmg{ position:absolute; left:50%; top:50%; width:0; height:0; }
+#hh-dmg b{ position:absolute; left:-60px; top:-160px; width:120px; height:30px; border-radius:50% 50% 0 0/100% 100% 0 0; border-top:5px solid rgba(255,40,30,.85); transform-origin:60px 160px; opacity:0; transition:opacity .6s; filter:blur(.5px); }
+/* frost and red */
+#hh-frost{ position:absolute; inset:0; background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(190,235,255,.55) 80%, rgba(230,250,255,.9) 100%); opacity:0; transition:opacity .4s; }
+#hh-red{ position:absolute; inset:0; background:radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(160,0,0,.55) 100%); opacity:0; }
+#hh-red.on{ animation:hhred .45s ease-out; }
+@keyframes hhred{ 0%{ opacity:1; } 100%{ opacity:0; } }
+/* bottom left: coolant */
+#hh-hp{ position:absolute; left:22px; bottom:24px; width:260px; }
+#hh-hp .lbl{ font-size:13px; letter-spacing:3px; opacity:.85; display:flex; justify-content:space-between; }
+#hh-hp .bar{ height:12px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35); margin-top:4px; position:relative; overflow:hidden; transform:skewX(-14deg); }
+#hh-hp .bar i{ position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg,#3fc7ff,#bff3ff); transition:width .2s; }
+#hh-hp .bar u{ position:absolute; left:0; top:0; bottom:0; background:rgba(255,80,60,.7); transition:width .9s .2s; }
+#hh-hp.low .bar i{ background:linear-gradient(90deg,#ff3a2a,#ff9a7a); animation:hhpulse .6s infinite alternate; }
+@keyframes hhpulse{ from{ opacity:1; } to{ opacity:.55; } }
+#hh-hp .packs{ margin-top:6px; font-size:13px; letter-spacing:1px; }
+#hh-hp .packs span{ display:inline-block; width:22px; height:14px; margin-right:4px; background:#1a6ad0; border:1px solid #bfe0ff; border-radius:2px; vertical-align:middle; }
+/* bottom right: ammo */
+#hh-ammo{ position:absolute; right:24px; bottom:22px; text-align:right; }
+#hh-ammo .nm{ font-size:13px; letter-spacing:3px; opacity:.85; }
+#hh-ammo .kd{ font-size:11px; opacity:.55; letter-spacing:2px; }
+#hh-ammo .ct{ font-size:46px; line-height:1; font-weight:700; }
+#hh-ammo .ct small{ font-size:20px; opacity:.6; font-weight:400; }
+#hh-ammo .ct.low{ color:#ff5a4a; }
+#hh-ammo .slots{ margin-top:6px; }
+#hh-ammo .slots b{ display:inline-block; min-width:26px; padding:2px 5px; margin-left:4px; font-size:11px; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.25); text-align:center; }
+#hh-ammo .slots b.on{ background:rgba(255,213,106,.9); color:#111; text-shadow:none; }
+#hh-ammo .gauge{ height:8px; width:150px; background:rgba(0,0,0,.5); border:1px solid #9fefff; margin:4px 0 0 auto; }
+#hh-ammo .gauge i{ display:block; height:100%; background:linear-gradient(90deg,#3fc7ff,#e8fbff); }
+/* top left: the job */
+#hh-obj{ position:absolute; left:22px; top:70px; max-width:360px; }
+#hh-obj h4{ margin:0 0 6px; font-size:14px; letter-spacing:4px; color:#ffd56a; font-weight:700; }
+#hh-obj div{ font-size:15px; margin:3px 0; padding-left:20px; position:relative; opacity:.95; }
+#hh-obj div::before{ content:''; position:absolute; left:2px; top:6px; width:10px; height:10px; border:2px solid #fff; transform:rotate(45deg); }
+#hh-obj div.done{ opacity:.45; text-decoration:line-through; }
+#hh-obj div.done::before{ background:#5dff9c; border-color:#5dff9c; }
+#hh-obj div.opt{ font-size:13px; opacity:.7; }
+#hh-obj div.new{ animation:hhnew .9s ease-out; }
+@keyframes hhnew{ 0%{ transform:translateX(-30px); opacity:0; color:#ffd56a; } 60%{ color:#ffd56a; } 100%{ transform:none; opacity:.95; } }
+/* top center: the room */
+#hh-fear{ position:absolute; left:50%; top:62px; width:280px; margin-left:-140px; text-align:center; transition:opacity .4s; }
+#hh-fear .lbl{ font-size:12px; letter-spacing:4px; }
+#hh-fear .bar{ height:8px; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.4); margin-top:3px; }
+#hh-fear .bar i{ display:block; height:100%; background:linear-gradient(90deg,#ff5a3a,#ffd56a); transition:width .2s; }
+#hh-fear.brave .lbl{ color:#ff5a4a; animation:hhpulse .4s infinite alternate; }
+/* top right: the bag */
+#hh-bag{ position:absolute; right:22px; top:70px; text-align:right; }
+#hh-bag .v{ font-size:30px; font-weight:700; color:#7dff9a; line-height:1; }
+#hh-bag .l{ font-size:12px; letter-spacing:3px; opacity:.8; }
+#hh-bag .w{ font-size:12px; opacity:.7; margin-top:3px; }
+#hh-bag .stars{ font-size:22px; letter-spacing:2px; margin-top:6px; color:#fff; }
+#hh-bag .stars s{ text-decoration:none; opacity:.25; }
+#hh-bag .timer{ font-size:18px; margin-top:4px; color:#ff8a7a; }
+/* boss */
+#hh-boss{ position:absolute; left:50%; bottom:110px; width:520px; margin-left:-260px; text-align:center; display:none; }
+#hh-boss.on{ display:block; }
+#hh-boss .nm{ font-size:18px; letter-spacing:8px; color:#ffcf6a; }
+#hh-boss .sub{ font-size:11px; letter-spacing:3px; opacity:.7; }
+#hh-boss .bar{ height:10px; background:rgba(0,0,0,.6); border:1px solid rgba(255,200,100,.6); margin-top:4px; position:relative; }
+#hh-boss .bar i{ position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg,#c0392b,#ff7a4a); transition:width .2s; }
+#hh-boss .bar .ar{ position:absolute; left:0; top:-6px; height:4px; background:#ffd56a; transition:width .2s; }
+#hh-boss .pips{ margin-top:4px; }
+#hh-boss .pips b{ display:inline-block; width:40px; height:4px; margin:0 3px; background:rgba(255,255,255,.25); }
+#hh-boss .pips b.on{ background:#ffd56a; }
+/* cutscene bars */
+#hh-lb{ position:absolute; inset:0; pointer-events:none; }
+#hh-lb::before, #hh-lb::after{ content:''; position:absolute; left:0; right:0; height:0; background:#000; transition:height .5s; }
+#hh-lb::before{ top:0; } #hh-lb::after{ bottom:0; }
+#hh-lb.on::before, #hh-lb.on::after{ height:11vh; }
+/* the big words */
+#hh-big{ position:absolute; left:0; right:0; top:34%; text-align:center; opacity:0; transition:opacity .5s; }
+#hh-big.on{ opacity:1; }
+#hh-big h1{ margin:0; font-size:min(11vw,88px); letter-spacing:6px; font-weight:700; color:#ffd56a; text-transform:uppercase; }
+#hh-big p{ margin:6px 0 0; font-size:min(4vw,20px); letter-spacing:4px; opacity:.9; }
+#hh-big.red h1{ color:#ff3a2a; }
+#hh-big.ice h1{ color:#bff3ff; }
+/* death and the end of the night */
+#hh-card{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(4,8,12,.55); pointer-events:auto; }
+#hh-card.on{ display:flex; }
+#hh-card .in{ text-align:center; max-width:560px; padding:20px; }
+#hh-card h1{ font-size:min(13vw,96px); margin:0; letter-spacing:8px; color:#bff3ff; }
+#hh-card h1.red{ color:#ff3a2a; }
+#hh-card p{ font-size:16px; letter-spacing:1px; opacity:.85; line-height:1.5; }
+#hh-card table{ margin:10px auto; font-size:16px; letter-spacing:1px; border-collapse:collapse; }
+#hh-card td{ padding:3px 12px; text-align:left; } #hh-card td + td{ text-align:right; color:#7dff9a; }
+#hh-card button{ font-family:inherit; font-size:16px; letter-spacing:3px; padding:10px 22px; margin:8px; background:rgba(0,0,0,.6); color:#fff; border:1px solid rgba(255,255,255,.5); cursor:pointer; }
+#hh-card button.gold{ background:#ffd56a; color:#111; border-color:#ffd56a; text-shadow:none; }
+#hh-card button:hover{ filter:brightness(1.2); }
+/* dialogue choices */
+#hh-choice{ position:absolute; left:50%; bottom:15vh; transform:translateX(-50%); display:none; gap:10px; pointer-events:auto; flex-wrap:wrap; justify-content:center; width:min(92vw,720px); }
+#hh-choice.on{ display:flex; }
+#hh-choice button{ font-family:'Oswald', sans-serif; font-size:16px; letter-spacing:2px; padding:10px 18px; background:rgba(10,10,12,.85); color:#fff; border:1px solid rgba(255,213,106,.7); cursor:pointer; text-shadow:none; }
+#hh-choice button:hover, #hh-choice button:focus{ background:#ffd56a; color:#111; }
+#hh-choice button b{ color:#ffd56a; margin-right:8px; }
+#hh-choice button:hover b{ color:#111; }
+/* the duffel */
+#hh-duffel{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
+#hh-duffel.on{ display:flex; }
+#hh-duffel .in{ background:#16130f; border:1px solid #6a5a3a; padding:20px 24px; max-width:680px; width:92vw; box-shadow:0 10px 60px #000; }
+#hh-duffel h2{ margin:0 0 4px; letter-spacing:6px; color:#ffd56a; font-size:24px; }
+#hh-duffel .g{ display:flex; gap:12px; margin:14px 0; flex-wrap:wrap; }
+#hh-duffel .gun{ flex:1 1 180px; background:#0c0b09; border:1px solid #3a3226; padding:10px; }
+#hh-duffel .gun b{ display:block; font-size:18px; letter-spacing:2px; }
+#hh-duffel .gun i{ display:block; font-style:normal; font-size:12px; opacity:.6; letter-spacing:2px; }
+#hh-duffel .gun .st{ font-size:12px; margin-top:6px; line-height:1.6; }
+#hh-duffel .gun .st span{ display:inline-block; height:5px; background:#ffd56a; vertical-align:middle; margin-left:6px; }
+#hh-duffel .keys{ font-size:13px; opacity:.75; line-height:1.7; letter-spacing:1px; }
+#hh-duffel button{ font-family:inherit; font-size:16px; letter-spacing:3px; padding:10px 22px; background:#ffd56a; color:#111; border:0; cursor:pointer; margin-top:10px; }
+/* the bar at the top during the job */
+#hh-wire{ position:absolute; left:0; right:0; top:0; height:24px; background:rgba(160,10,10,.85); font-size:13px; letter-spacing:3px; line-height:24px; white-space:nowrap; overflow:hidden; display:none; }
+#hh-wire.on{ display:block; }
+#hh-wire span{ display:inline-block; padding-left:100%; animation:hhwire 22s linear infinite; }
+@keyframes hhwire{ to{ transform:translateX(-100%); } }
+/* phone buttons */
+#hh-touch{ position:absolute; inset:0; pointer-events:none; display:none; }
+#hh-touch.on{ display:block; }
+#hh-touch button{ position:absolute; pointer-events:auto; border-radius:50%; background:rgba(0,0,0,.45); border:2px solid rgba(255,255,255,.55); color:#fff; font-family:'Oswald', sans-serif; font-size:12px; letter-spacing:1px; touch-action:none; }
+#hh-touch .fire{ right:22px; bottom:120px; width:84px; height:84px; font-size:16px; border-color:#ff7a5a; }
+#hh-touch .ads{ right:120px; bottom:150px; width:56px; height:56px; }
+#hh-touch .rel{ right:118px; bottom:84px; width:50px; height:50px; }
+#hh-touch .swp{ right:26px; bottom:220px; width:50px; height:50px; }
+#hh-touch .cro{ right:180px; bottom:96px; width:46px; height:46px; }
+#hh-touch .yel{ right:86px; bottom:228px; width:46px; height:46px; }
+#hh-touch .hea{ left:24px; bottom:160px; width:46px; height:46px; }
+#hh-touch button.on{ background:rgba(255,213,106,.8); color:#111; }
+@media (max-width:760px){
+  #hh-hp{ width:170px; left:14px; bottom:14px; }
+  #hh-ammo{ right:14px; bottom:14px; } #hh-ammo .ct{ font-size:32px; }
+  #hh-obj{ top:58px; left:12px; max-width:62vw; } #hh-obj div{ font-size:13px; }
+  #hh-bag{ top:58px; right:12px; } #hh-bag .v{ font-size:22px; }
+  #hh-fear{ top:112px; width:200px; margin-left:-100px; }
+  #hh-boss{ width:88vw; margin-left:-44vw; bottom:90px; }
+  #hh-touch .fire{ bottom:170px; } #hh-touch .ads{ bottom:200px; } #hh-touch .rel{ bottom:134px; right:124px; } #hh-touch .swp{ bottom:270px; } #hh-touch .cro{ bottom:146px; } #hh-touch .yel{ bottom:278px; } #hh-touch .hea{ bottom:200px; }
+}
+/* clement's spot, the wanted poster upstairs */
+#fpWanted{ position:fixed; z-index:30; width:150px; padding:8px; background:#efe2c0; color:#3a2410; font-family:Georgia, serif; text-align:center; box-shadow:2px 4px 14px rgba(0,0,0,.6); transform:rotate(-4deg); cursor:pointer; }
+#fpWanted h3{ margin:0; font-size:22px; letter-spacing:3px; }
+#fpWanted canvas{ display:block; margin:4px auto; background:#ddd; }
+#fpWanted p{ margin:2px 0; font-size:11px; }
+#fpWanted b{ font-size:15px; }
+#fpWanted::before{ content:''; position:absolute; top:-4px; left:50%; width:10px; height:10px; margin-left:-5px; border-radius:50%; background:#b02020; box-shadow:0 1px 2px #000; }

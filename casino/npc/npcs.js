@@ -60,6 +60,8 @@ export function init(C){
   function clear(ax, az, bx, bz){ const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d/0.4); for(let k=1;k<n;k++){ const [i, j] = cellOf(ax + (bx - ax)*k/n, az + (bz - az)*k/n); if(!ok(i, j)) return false; } return true; }
   function smooth(pts){ if(pts.length < 3) return pts; const out = [pts[0]]; let i = 0; while(i < pts.length - 1){ let j = pts.length - 1; while(j > i + 1 && !clear(pts[i][0], pts[i][1], pts[j][0], pts[j][1])) j--; out.push(pts[j]); i = j; } return out; }
 
+  /* the heist borrows the grid for enemies */
+  C.nav = { path, nearestWalk, ok:(i, j)=>ok(i, j), cellOf, X0, Z0, S, nx, nz, rebuild:()=>buildGrid(), walkAt:(x, z)=>{ const [i, j] = cellOf(x, z); return ok(i, j); }, clear, get ready(){ return !!walk; } };
   /* ---------- places to be ---------- */
   function pois(){
     const L = [];
@@ -129,12 +131,12 @@ export function init(C){
   let started = false, ambT = 0;
   function start(){
     buildGrid(); POIS = pois();
-    const count = C.engine.preset() === 'low' ? 10 : 18;
+    const count = C.npcTarget || (C.engine.preset() === 'low' ? 10 : 18);
     for(let i=0;i<count;i++) spawn(false);
     started = true;
   }
   const tmp = new THREE.Vector3();
-  return { name:'npcs', list:NPCS, update(dt, t){
+  return { name:'npcs', list:NPCS, spawn, despawn, release, talk, update(dt, t){
     /* the grid needs every collider, so it gets built on the first frame, after finishWorld */
     if(!started){ start(); return; }
     const cam = C.camera.position;
@@ -145,6 +147,8 @@ export function init(C){
       const d2 = gp.distanceToSquared(cam);
       const near = d2 < 225;
       F.face.update(dt, d2 < 100);
+      /* during the heist somebody else is in charge of these people */
+      if(n.ctl){ n.ctl(n, dt, t, d2); continue; }
       let moving = 0;
       if(n.state === 'idle' && n.timer <= 0){
         const p = choose(n);
@@ -187,8 +191,8 @@ export function init(C){
       F.group.visible = d2 < 3600;
     }
     /* keep the room busy */
-    if(NPCS.length < (C.engine.preset() === 'low' ? 10 : 18) && Math.random() < dt*0.08) spawn(true);
+    if(!C.noSpawn && NPCS.length < (C.npcTarget || (C.engine.preset() === 'low' ? 10 : 18)) && Math.random() < dt*0.08) spawn(true);
     /* ambient chatter from people near you */
-    if(ambT <= 0){ ambT = rand(4, 9); const close = NPCS.filter(n=>n.F.group.position.distanceToSquared(cam) < 64 && n.state === 'stay'); if(close.length && Math.random() < 0.35){ const n = pick(close); n.F.face.say(1.5); if(Math.random() < 0.5){ const l = LINES.ambient(C, n); C.hud.toast(n.name + ': ' + l); } } }
+    if(ambT <= 0 && !C.noChatter){ ambT = rand(4, 9); const close = NPCS.filter(n=>n.F.group.position.distanceToSquared(cam) < 64 && n.state === 'stay'); if(close.length && Math.random() < 0.35){ const n = pick(close); n.F.face.say(1.5); if(Math.random() < 0.5){ const l = LINES.ambient(C, n); C.hud.toast(n.name + ': ' + l); } } }
   } };
 }

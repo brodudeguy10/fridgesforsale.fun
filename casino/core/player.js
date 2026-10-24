@@ -72,7 +72,12 @@ export class Player {
     this.tw = null;
     this.drunkPhase = 0;
     this.e = new THREE.Euler(0, 0, 0, 'YXZ');
+    /* the heist adds these: crouching, a speed multiplier (aiming, carrying loot),
+       and a camera shake that decays */
+    this.crouch = false; this.crouchK = 0; this.speedMul = 1; this.shake = 0; this.shakeT = 0; this.noRun = false;
+    this.kick = { x:0, y:0 };
   }
+  addShake(a){ this.shake = Math.min(1.2, this.shake + a); }
   spawn(x, z, yaw){ this.pos.set(x, 0, z); this.yaw = yaw || 0; this.pitch = 0; this.vel.set(0, 0); }
   update(dt){
     const C = this.C, I = C.input;
@@ -82,7 +87,9 @@ export class Player {
       this.yaw -= lk.x; this.pitch -= lk.y;
       this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));
       const m = I.sample();
-      const speed = (I.running ? 4.4 : 2.3)*(1 - drunk*0.15);
+      this.crouchK += ((this.crouch ? 1 : 0) - this.crouchK)*Math.min(1, dt*10);
+      const run = I.running && !this.noRun && !this.crouch;
+      const speed = (run ? 4.4 : 2.3)*(1 - drunk*0.15)*(1 - this.crouchK*0.45)*this.speedMul;
       const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
       let tx = (m.x*cy + m.z*sy)*speed, tz = (-m.x*sy + m.z*cy)*speed;
       /* the drinks steer a little */
@@ -94,16 +101,22 @@ export class Player {
       C.collide.resolve(this.pos, this.r);
       const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
       this.walkAmt += ((moved/dt > 0.3 ? 1 : 0) - this.walkAmt)*Math.min(1, dt*8);
-      this.bob += moved*(I.running ? 2.6 : 3.1);
+      this.bob += moved*(run ? 2.6 : 3.1);
       this.stepAcc += moved;
-      const stride = I.running ? 0.95 : 0.72;
-      if(this.stepAcc > stride){ this.stepAcc = 0; C.audio.step(C.surfaceAt(this.pos.x, this.pos.z), I.running); }
+      const stride = run ? 0.95 : 0.72;
+      if(this.stepAcc > stride){ this.stepAcc = 0; C.audio.step(C.surfaceAt(this.pos.x, this.pos.z), run && !this.crouch); }
+      this.running = run && moved/dt > 2.5;
       if(C.photo){ if(I.keys.Space) this.eye = Math.min(5.5, this.eye + dt*1.5); if(I.keys.KeyC) this.eye = Math.max(0.3, this.eye - dt*1.5); } else if(this.eye !== 1.62){ this.eye += (1.62 - this.eye)*Math.min(1, dt*4); }
       const bobOn = C.save.settings.bob && !C.photo ? 1 : 0;
       const by = Math.sin(this.bob*2)*0.035*this.walkAmt*bobOn, bx = Math.cos(this.bob)*0.025*this.walkAmt*bobOn;
-      this.cam.position.set(this.pos.x + Math.cos(this.yaw)*bx, this.eye + by, this.pos.z - Math.sin(this.yaw)*bx);
-      const roll = drunk > 0.05 ? Math.sin(this.drunkPhase*0.7)*0.06*drunk : 0;
-      this.e.set(this.pitch, this.yaw, roll); this.cam.quaternion.setFromEuler(this.e);
+      const eyeH = this.eye - this.crouchK*0.62;
+      /* shake: two layers of noise, fast and slow, fading out */
+      this.shakeT += dt; this.shake = Math.max(0, this.shake - dt*2.2);
+      const sk = this.shake*this.shake, st = this.shakeT;
+      const shx = (Math.sin(st*37.1) + Math.sin(st*23.7)*0.6)*0.012*sk, shy = (Math.sin(st*41.3) + Math.sin(st*17.9)*0.7)*0.012*sk;
+      this.cam.position.set(this.pos.x + Math.cos(this.yaw)*bx, eyeH + by, this.pos.z - Math.sin(this.yaw)*bx);
+      const roll = (drunk > 0.05 ? Math.sin(this.drunkPhase*0.7)*0.06*drunk : 0) + Math.sin(st*29.3)*0.01*sk + (this.lean || 0);
+      this.e.set(this.pitch + shy + this.kick.y, this.yaw + shx + this.kick.x, roll); this.cam.quaternion.setFromEuler(this.e);
     } else if(this.tw){
       const T = this.tw; T.t = Math.min(1, T.t + dt/T.dur);
       const s = T.t < 0.5 ? 4*T.t*T.t*T.t : 1 - Math.pow(-2*T.t + 2, 3)/2;

@@ -77,15 +77,15 @@ export async function renderLounge(opts){
     const [nroot] = PROG[(bar + 1) % PROG.length];
     const tones = Q[q];
     const intro = bar < 2, last = bar === bars - 1;
-    /* drums */
-    for(let b=0;b<4;b++){
+    /* drums (the band of one skips them) */
+    if(!opts.sparse) for(let b=0;b<4;b++){
       ride(t0 + b*beat, b % 2 ? 0.8 : 1);
       if(b % 2 === 1){ ride(t0 + swing8(b, 1), 0.55); hat(t0 + b*beat); brush(t0 + b*beat, 0.8); }
       if(b === 0 && R() < 0.6) kick(t0);
     }
-    if(R() < 0.25) brush(t0 + swing8(3, 1), 0.5);
+    if(!opts.sparse && R() < 0.25) brush(t0 + swing8(3, 1), 0.5);
     /* walking bass: root on 1, chord tones, chromatic approach into the next bar */
-    if(!intro || bar === 1){
+    if((!intro || bar === 1) && !opts.sparse){
       const pool = tones.slice(0, 4).map(i=>root - 12 + i).concat(tones.slice(0,3).map(i=>root + i - 12 + 12));
       const target = nroot - 12;
       for(let b=0;b<4;b++){
@@ -102,7 +102,7 @@ export async function renderLounge(opts){
     const hits = R() < 0.5 ? [[0, 0, 1.4],[1, 1, 0.5]] : [[0, 1, 0.9],[2, 0, 1.2],[3, 1, 0.6]];
     hits.forEach(([b, e, d])=>{ const t = t0 + swing8(b, e); voice.forEach((n,i)=>rhodes(n, t + i*0.008, beat*d, 0.75 + R()*0.25)); });
     /* vibes: phrases in bars 4-7 of every 8 */
-    if(!intro && (bar % 8) >= 3 && (bar % 8) <= 6){
+    if(!intro && !opts.sparse && (bar % 8) >= 3 && (bar % 8) <= 6){
       const scale = [0,2,3,5,7,9,10].map(i=>root + 12 + i);
       let idx = (R()*scale.length)|0;
       for(let b=0;b<4;b++){
