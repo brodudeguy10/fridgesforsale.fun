@@ -1,0 +1,206 @@
+/* ===== FRIDGE PALACE ===== */
+#fridgepalace{ --gold:#e6b65a; --gold2:#f7dc95; --ink:#0b0709; --pan:rgba(14,9,12,.88); --line:rgba(230,182,90,.45); --red:#b3122a; --txt:#f3ead8; --dim:#b8a888; --good:#59e08c; --bad:#ff5a5a;
+  position:fixed; inset:0; z-index:100060; background:#000; color:var(--txt); font:14px/1.4 Georgia, "Times New Roman", serif; overflow:hidden; user-select:none; -webkit-user-select:none; touch-action:none; }
+#fridgepalace *{ box-sizing:border-box; }
+#fridgepalace button{ font:inherit; color:inherit; cursor:pointer; }
+#fp-canvas{ position:absolute; inset:0; display:block; }
+#fridgepalace .fp-h{ font-family:"Cinzel", Georgia, serif; letter-spacing:2px; }
+
+/* loading */
+#fp-load{ position:absolute; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, #2a0a14 0%, #07030a 70%); transition:opacity .9s; }
+#fp-load.gone{ opacity:0; pointer-events:none; }
+.fp-loadcard{ text-align:center; width:min(460px, 88vw); }
+.fp-loadcard h1{ font:700 clamp(30px, 7vw, 54px) "Cinzel", Georgia, serif; letter-spacing:6px; margin:16px 0 4px; color:var(--gold2); text-shadow:0 0 24px rgba(255,176,32,.6); }
+.fp-loadsub{ letter-spacing:5px; font-size:11px; color:var(--dim); font-family:"Cinzel", Georgia, serif; }
+.fp-diamond{ width:70px; height:70px; margin:0 auto; transform:rotate(45deg); border:3px solid var(--gold); box-shadow:0 0 30px rgba(230,182,90,.5), inset 0 0 20px rgba(230,182,90,.4); animation:fpspin 3s ease-in-out infinite; }
+@keyframes fpspin{ 50%{ transform:rotate(225deg) scale(.85); } 100%{ transform:rotate(405deg); } }
+.fp-bar{ height:4px; background:rgba(255,255,255,.1); margin:26px 0 10px; overflow:hidden; }
+.fp-bar i{ display:block; height:100%; width:0; background:linear-gradient(90deg, #8a5a12, var(--gold2)); transition:width .3s; box-shadow:0 0 12px var(--gold); }
+.fp-loadmsg{ font-style:italic; color:var(--dim); min-height:20px; }
+.fp-tip{ margin-top:30px; font-size:12px; color:#8a7a62; }
+.fp-backbtn{ margin-top:20px; background:transparent; border:1px solid var(--gold); padding:10px 22px; color:var(--gold2); }
+
+/* hud */
+#fp-hud{ position:absolute; inset:0; pointer-events:none; z-index:10; }
+#fp-hud > *{ pointer-events:none; }
+#fp-top{ position:absolute; top:calc(12px + env(safe-area-inset-top, 0px)); left:calc(14px + env(safe-area-inset-left, 0px)); right:14px; display:flex; gap:14px; align-items:center; }
+.fp-wallet{ display:flex; align-items:center; gap:8px; background:var(--pan); border:1px solid var(--line); padding:6px 12px 6px 8px; border-radius:30px; transition:transform .2s, box-shadow .2s; }
+.fp-wallet b{ font:700 20px "Cinzel", Georgia, serif; color:var(--gold2); min-width:40px; }
+.fp-wallet small{ color:var(--dim); font-size:11px; letter-spacing:1px; }
+.fp-wallet.up{ box-shadow:0 0 22px rgba(89,224,140,.6); transform:scale(1.05); }
+.fp-wallet.down{ box-shadow:0 0 18px rgba(255,90,90,.5); }
+.fp-chipicon{ width:22px; height:22px; border-radius:50%; background:repeating-conic-gradient(var(--red) 0 30deg, #fff 30deg 45deg); box-shadow:inset 0 0 0 4px var(--red), inset 0 0 0 6px #fff; }
+.fp-wallet2{ font-size:12px; color:var(--dim); text-shadow:0 1px 3px #000; }
+.fp-wallet2 i{ color:var(--gold2); font-style:normal; letter-spacing:1px; }
+.fp-clock{ margin-left:auto; font:11px "Cinzel", Georgia, serif; letter-spacing:3px; color:rgba(255,255,255,.35); }
+#fp-cross{ position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%; background:rgba(255,255,255,.7); box-shadow:0 0 4px #000; transition:transform .15s, background .15s; }
+#fp-cross.on{ transform:scale(2.2); background:var(--gold2); }
+#fp-prompt{ position:absolute; left:50%; bottom:calc(18% + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%) translateY(10px); background:var(--pan); border:1px solid var(--line); padding:8px 16px; opacity:0; transition:opacity .15s, transform .15s; white-space:nowrap; font-size:15px; }
+#fp-prompt.on{ opacity:1; transform:translateX(-50%); }
+#fp-prompt kbd{ display:inline-block; min-width:24px; padding:1px 6px; margin-right:6px; border:1px solid var(--gold); color:var(--gold2); font:700 12px "Cinzel", Georgia, serif; text-align:center; }
+#fp-toasts{ position:absolute; top:calc(64px + env(safe-area-inset-top, 0px)); left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center; }
+.fp-toast{ background:var(--pan); border:1px solid var(--line); padding:7px 14px; transition:opacity .5s, transform .5s; animation:fptoast .3s ease-out; max-width:80vw; text-align:center; }
+.fp-toast.win{ border-color:var(--good); color:#cff8dd; } .fp-toast.lose{ border-color:var(--bad); } .fp-toast.gold{ border-color:var(--gold2); color:var(--gold2); }
+.fp-toast.out{ opacity:0; transform:translateY(-8px); }
+@keyframes fptoast{ from{ opacity:0; transform:translateY(-10px); } }
+#fp-say{ position:absolute; left:50%; bottom:calc(30% + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); width:min(720px, 90vw); text-align:center; opacity:0; transition:opacity .3s; font-size:17px; text-shadow:0 2px 6px #000, 0 0 2px #000; }
+#fp-say b{ color:var(--gold2); font:700 13px "Cinzel", Georgia, serif; letter-spacing:2px; margin-right:8px; }
+#fp-say.on{ opacity:1; }
+#fp-big{ position:absolute; left:50%; top:34%; transform:translate(-50%, -50%) scale(.6); font:700 clamp(34px, 8vw, 84px) "Cinzel", Georgia, serif; letter-spacing:6px; opacity:0; text-shadow:0 0 30px currentColor, 0 4px 0 #000; white-space:nowrap; }
+#fp-big.on{ animation:fpbig 1.8s ease-out forwards; }
+@keyframes fpbig{ 0%{ opacity:0; transform:translate(-50%,-50%) scale(.5); } 15%{ opacity:1; transform:translate(-50%,-50%) scale(1.08); } 25%{ transform:translate(-50%,-50%) scale(1); } 80%{ opacity:1; } 100%{ opacity:0; transform:translate(-50%,-60%) scale(1); } }
+#fp-hint{ position:absolute; left:50%; top:calc(110px + env(safe-area-inset-top, 0px)); transform:translateX(-50%); background:var(--pan); border:1px solid var(--line); padding:12px 20px; text-align:center; opacity:0; transition:opacity .6s; line-height:1.6; max-width:90vw; }
+#fp-hint b{ font-family:"Cinzel", Georgia, serif; letter-spacing:3px; color:var(--gold2); }
+#fp-hint.on{ opacity:1; }
+#fp-fade{ position:absolute; inset:0; background:#000; opacity:1; pointer-events:none; }
+
+/* panels + modals */
+#fp-panel{ position:absolute; left:50%; bottom:calc(10px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%) translateY(30px); width:min(980px, calc(100vw - 16px)); background:linear-gradient(180deg, rgba(20,12,16,.94), rgba(8,5,7,.96)); border:1px solid var(--line); border-top:2px solid var(--gold); padding:12px 14px; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-height:62vh; overflow:auto; }
+#fp-panel.on{ opacity:1; transform:translateX(-50%); pointer-events:auto; }
+#fp-panel .fp-ptitle{ display:flex; align-items:center; gap:10px; margin-bottom:8px; font:700 13px "Cinzel", Georgia, serif; letter-spacing:3px; color:var(--gold2); }
+#fp-panel .fp-ptitle .sp{ flex:1; }
+#fp-panel .fp-ptitle small{ font-family:Georgia, serif; letter-spacing:0; color:var(--dim); font-weight:400; }
+#fridgepalace .fp-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; margin:6px 0; }
+#fridgepalace .fp-row.l{ justify-content:flex-start; }
+#fridgepalace button.fp-b, #fp-modal button, #fp-pause button, #fp-panel button{ background:linear-gradient(180deg, #2a1d22, #160e12); border:1px solid rgba(230,182,90,.5); color:var(--txt); padding:9px 16px; min-height:40px; font:700 13px "Cinzel", Georgia, serif; letter-spacing:1.5px; transition:transform .08s, filter .15s; }
+#fridgepalace button:hover{ filter:brightness(1.25); }
+#fridgepalace button:active{ transform:scale(.96); }
+#fridgepalace button.fp-gold{ background:linear-gradient(180deg, #f7dc95, #c8902e); color:#2a1a04; border-color:#ffe7a8; }
+#fridgepalace button.fp-red{ background:linear-gradient(180deg, #c9283c, #7a0d1c); border-color:#ff8090; }
+#fridgepalace button.fp-green{ background:linear-gradient(180deg, #2fa45a, #135a2c); border-color:#7affb0; }
+#fridgepalace button[disabled]{ opacity:.35; pointer-events:none; }
+#fridgepalace button.fp-chip{ width:52px; height:52px; min-height:0; padding:0; border-radius:50%; font:700 12px Georgia, serif; letter-spacing:0; border:3px dashed rgba(255,255,255,.8); box-shadow:0 0 0 3px rgba(0,0,0,.4); }
+#fridgepalace button.fp-chip.sel{ outline:3px solid var(--gold2); outline-offset:2px; }
+#fp-modal{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); pointer-events:auto; padding:16px; }
+#fp-modal.on{ display:flex; }
+#fridgepalace .fp-card{ position:relative; background:linear-gradient(180deg, rgba(26,15,20,.97), rgba(10,6,8,.98)); border:1px solid var(--line); border-top:3px solid var(--gold); padding:22px 24px; width:min(560px, 100%); max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.6); animation:fpcard .3s ease-out; }
+@keyframes fpcard{ from{ opacity:0; transform:translateY(16px) scale(.97); } }
+#fridgepalace .fp-card h2{ margin:0 0 12px; font:700 20px "Cinzel", Georgia, serif; letter-spacing:4px; color:var(--gold2); text-align:center; }
+#fridgepalace .fp-card p{ color:#e8dcc4; margin:8px 0; }
+#fridgepalace .fp-x{ position:absolute; right:8px; top:6px; min-height:0 !important; width:36px; height:36px; padding:0 !important; font-size:20px !important; border:0 !important; background:transparent !important; color:var(--dim) !important; }
+#fridgepalace input[type=number], #fridgepalace input[type=text]{ background:#0b0709; border:1px solid var(--line); color:var(--gold2); font:700 18px "Cinzel", Georgia, serif; padding:8px 10px; width:150px; text-align:center; user-select:text; -webkit-user-select:text; }
+#fridgepalace .fp-big2{ font:700 30px "Cinzel", Georgia, serif; color:var(--gold2); text-align:center; }
+#fridgepalace .fp-dim{ color:var(--dim); font-size:12px; }
+#fridgepalace .fp-good{ color:var(--good); } #fridgepalace .fp-bad{ color:var(--bad); }
+
+/* pause */
+#fp-pause{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(5,2,4,.7); backdrop-filter:blur(6px); pointer-events:auto; padding:16px; }
+#fp-pause.on{ display:flex; }
+.fp-pausecard{ width:min(760px, 100%) !important; }
+.fp-pausecard h1{ margin:0; text-align:center; font:700 34px "Cinzel", Georgia, serif; letter-spacing:8px; color:var(--gold2); }
+.fp-sub{ text-align:center; color:var(--dim); font-style:italic; margin-bottom:14px; }
+.fp-pbtns{ display:flex; gap:10px; justify-content:center; margin-bottom:16px; flex-wrap:wrap; }
+.fp-cols{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.fp-cols h3{ margin:0 0 8px; font:700 12px "Cinzel", Georgia, serif; letter-spacing:3px; color:var(--gold); }
+.fp-cols label{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:8px 0; color:#e8dcc4; }
+.fp-cols input[type=range]{ width:55%; accent-color:var(--gold); }
+.fp-cols select{ background:#0b0709; color:var(--gold2); border:1px solid var(--line); padding:4px; font:inherit; }
+.fp-cols .fp-chk{ justify-content:flex-start; }
+.fp-cols table{ width:100%; border-collapse:collapse; font-size:13px; }
+.fp-cols td{ padding:3px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+.fp-cols td:last-child{ text-align:right; color:var(--gold2); }
+.fp-keys{ margin-top:14px; text-align:center; color:var(--dim); font-size:12px; }
+
+/* touch */
+#fp-touch{ position:absolute; inset:0; z-index:9; }
+#fp-stickzone{ position:absolute; left:0; bottom:0; width:45%; height:65%; }
+#fp-lookzone{ position:absolute; right:0; top:0; width:55%; height:100%; }
+#fp-stick{ position:absolute; width:112px; height:112px; border-radius:50%; border:2px solid rgba(230,182,90,.5); background:rgba(0,0,0,.25); display:none; pointer-events:none; }
+#fp-stick.run{ border-color:var(--bad); }
+#fp-knob{ position:absolute; left:36px; top:36px; width:40px; height:40px; border-radius:50%; background:rgba(230,182,90,.75); }
+.fp-tbtn{ position:absolute; background:var(--pan); border:1px solid var(--line); color:var(--gold2); font:700 13px "Cinzel", Georgia, serif !important; letter-spacing:1px; }
+#fp-use{ right:calc(22px + env(safe-area-inset-right, 0px)); bottom:calc(26px + env(safe-area-inset-bottom, 0px)); width:84px; height:84px; border-radius:50%; opacity:.4; transition:opacity .2s, transform .2s; }
+#fp-use.on{ opacity:1; transform:scale(1.08); box-shadow:0 0 20px rgba(230,182,90,.5); }
+#fp-pausebtn{ right:calc(12px + env(safe-area-inset-right, 0px)); top:calc(12px + env(safe-area-inset-top, 0px)); width:44px; height:44px; }
+@media (max-width: 700px){
+  .fp-cols{ grid-template-columns:1fr; }
+  .fp-wallet b{ font-size:17px; }
+  .fp-clock{ display:none; }
+  #fp-top{ right:64px; }
+  #fp-panel{ padding:10px; max-height:58vh; }
+  #fridgepalace button.fp-b, #fp-modal button, #fp-panel button{ padding:8px 11px; font-size:12px; }
+  #fridgepalace button.fp-chip{ width:46px; height:46px; }
+}
+
+/* the upstairs button */
+#fpOpenBtn{ position:relative; background:linear-gradient(180deg, #2a1218, #120609) !important; color:#f7dc95 !important; border:1px solid #c8902e !important; }
+#fpOpenBtn small{ display:block; font-size:9px; color:#c8a868; letter-spacing:1px; }
+
+/* ===== game panels ===== */
+.fp-slotbox{ min-width:96px; padding:4px 10px; border:1px solid rgba(230,182,90,.3); background:rgba(0,0,0,.35); text-align:center; }
+.fp-slotbox small{ display:block; font:700 9px "Cinzel", Georgia, serif; letter-spacing:2px; color:var(--dim); }
+.fp-slotbox b{ font:700 18px "Cinzel", Georgia, serif; color:var(--gold2); }
+.fp-slotbox.on{ border-color:var(--gold2); box-shadow:0 0 12px rgba(230,182,90,.4); }
+.fp-slotbox div{ display:flex; align-items:center; gap:6px; justify-content:center; }
+.fp-slotbox div button{ min-height:28px !important; padding:2px 10px !important; }
+#fridgepalace button.fp-spin{ min-width:150px; min-height:52px; font-size:18px !important; letter-spacing:4px !important; border-radius:30px; }
+.fp-pay{ width:100%; border-collapse:collapse; }
+.fp-pay td{ padding:4px 6px; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
+.fp-pay td canvas{ display:block; background:rgba(255,255,255,.04); }
+.fp-drinks{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; margin:12px 0; }
+.fp-drinks button{ text-align:left; display:flex; flex-direction:column; gap:2px; text-transform:none; }
+.fp-drinks button small{ font:400 12px Georgia, serif; letter-spacing:0; color:var(--dim); }
+.fp-pick{ display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin:12px 0; }
+.fp-pick button{ height:90px; font-size:22px !important; background:linear-gradient(180deg, #cfc8ae, #6e6857) !important; color:#140404 !important; border-color:#140404 !important; }
+.fp-pick button.fp-green{ background:linear-gradient(180deg, #2fa45a, #135a2c) !important; color:#fff !important; }
+.fp-pick button.fp-red{ background:linear-gradient(180deg, #ff3a2a, #2a0000) !important; color:#fff !important; animation:fpshake .3s 3; }
+@keyframes fpshake{ 25%{ transform:translateX(-4px); } 75%{ transform:translateX(4px); } }
+
+/* roulette board */
+.rl-hist{ display:flex; gap:4px; justify-content:center; margin-bottom:8px; flex-wrap:wrap; }
+.rl-hist span{ min-width:26px; padding:2px 4px; text-align:center; font:700 12px Georgia, serif; border-radius:3px; }
+.rl-hist span:first-child{ outline:2px solid var(--gold2); }
+#fridgepalace .red{ background:#b3122a; color:#fff; } #fridgepalace .black{ background:#151515; color:#fff; } #fridgepalace .green{ background:#127a3a; color:#fff; }
+.rl-wrap{ display:flex; gap:0; user-select:none; }
+.rl-zeros{ display:flex; flex-direction:column; width:7%; }
+.rl-z{ flex:1; display:flex; align-items:center; justify-content:center; background:#127a3a; border:1px solid #e8d9a8; font:700 14px Georgia, serif; cursor:pointer; position:relative; }
+.rl-board{ position:relative; flex:1; display:grid; grid-template-columns:repeat(12, 1fr); grid-template-rows:repeat(3, 34px); cursor:pointer; }
+.rl-n{ display:flex; align-items:center; justify-content:center; border:1px solid #e8d9a8; font:700 14px Georgia, serif; position:relative; pointer-events:none; }
+.rl-n i, .rl-z i, .rl-cols i, .rl-out i{ position:absolute; right:2px; top:2px; font:700 9px Georgia, serif; font-style:normal; background:var(--gold2); color:#2a1a04; border-radius:8px; padding:1px 4px; }
+.rl-mark{ position:absolute; transform:translate(-50%, -50%); background:#fff; color:#111; font:700 9px Georgia, serif; border-radius:50%; min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; border:2px dashed #c0182a; pointer-events:none; z-index:2; }
+.rl-cols{ display:flex; flex-direction:column; width:7%; }
+.rl-cols div{ flex:1; display:flex; align-items:center; justify-content:center; border:1px solid #e8d9a8; background:rgba(15,90,50,.6); font:700 11px Georgia, serif; cursor:pointer; position:relative; }
+.rl-out{ display:grid; grid-template-columns:repeat(3, 1fr); margin:0 7%; }
+.rl-out.six{ grid-template-columns:repeat(6, 1fr); }
+.rl-out div{ border:1px solid #e8d9a8; background:rgba(15,90,50,.6); text-align:center; padding:7px 2px; font:700 12px Georgia, serif; cursor:pointer; position:relative; }
+.rl-out div.red{ background:#b3122a; } .rl-out div.black{ background:#151515; }
+.rl-board:hover{ outline:1px solid rgba(230,182,90,.4); }
+
+/* poker */
+.pk-seats{ display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:6px; margin-bottom:8px; }
+.pk-seat{ border:1px solid rgba(230,182,90,.25); padding:4px 8px; background:rgba(0,0,0,.35); font-size:12px; }
+.pk-seat b{ font:700 11px "Cinzel", Georgia, serif; letter-spacing:1px; color:var(--gold2); }
+.pk-seat.act{ border-color:var(--gold2); box-shadow:0 0 10px rgba(230,182,90,.4); }
+.pk-seat.out{ opacity:.4; }
+.pk-seat .pk-c{ font:700 13px Georgia, serif; }
+.pk-card{ display:inline-block; min-width:30px; padding:3px 4px; margin:1px; background:#fbfaf5; color:#14141a; border-radius:4px; font:700 15px Georgia, serif; text-align:center; }
+.pk-card.r{ color:#b3122a; }
+.pk-card.back{ background:repeating-linear-gradient(45deg, #7a0d1c 0 4px, #e2b640 4px 5px); color:transparent; }
+#fridgepalace input[type=range].pk-raise{ width:200px; accent-color:var(--gold); }
+
+/* wheel + racing */
+.rc-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:6px; }
+.rc-horse{ border:1px solid rgba(230,182,90,.3); padding:6px 8px; background:rgba(0,0,0,.35); cursor:pointer; text-align:left; }
+.rc-horse.sel{ border-color:var(--gold2); box-shadow:0 0 12px rgba(230,182,90,.45); }
+.rc-horse i{ display:inline-block; width:12px; height:12px; margin-right:6px; vertical-align:middle; }
+.rc-horse small{ display:block; color:var(--dim); font-size:11px; }
+.kp{ display:grid; grid-template-columns:repeat(3, 64px); gap:8px; justify-content:center; margin:12px 0; }
+.kp button{ height:56px; font-size:20px !important; }
+.kp-screen{ font:700 30px monospace; letter-spacing:10px; text-align:center; color:#5dff9c; background:#020a04; border:1px solid #1a4a2a; padding:8px; }
+@media (max-width: 700px){
+  .rl-board{ grid-template-rows:repeat(3, 28px); }
+  .rl-n, .rl-z{ font-size:11px; }
+  .rl-out div{ font-size:10px; padding:6px 1px; }
+  .fp-slotbox{ min-width:70px; padding:3px 6px; }
+  .fp-slotbox b{ font-size:15px; }
+  .fp-pick{ grid-template-columns:repeat(3, 1fr); }
+}
+.fp-secrets{ max-height:276px; overflow:auto; display:flex; flex-direction:column; gap:4px; }
+.fp-secrets div{ padding:4px 8px; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.3); }
+.fp-secrets div b{ display:block; font:700 11px "Cinzel", Georgia, serif; letter-spacing:1.5px; color:#6e6250; }
+.fp-secrets div.got b{ color:var(--gold2); }
+.fp-secrets div small{ color:var(--dim); font-size:11px; }
+#fp-photo{ position:absolute; left:50%; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); display:none; gap:10px; align-items:center; background:rgba(0,0,0,.55); border:1px solid var(--line); padding:6px 12px; z-index:12; font-size:12px; color:var(--dim); white-space:nowrap; }
+#fp-photo b{ font:700 12px "Cinzel", Georgia, serif; letter-spacing:2px; color:var(--gold2); }
+#fp-photo button{ background:linear-gradient(180deg, #2a1d22, #160e12); border:1px solid rgba(230,182,90,.5); color:var(--txt); padding:6px 12px; font:700 11px "Cinzel", Georgia, serif; }
+@media (max-width:700px){ #fp-photo span{ display:none; } }

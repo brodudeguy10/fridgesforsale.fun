@@ -583,6 +583,6 @@ function close(){
   cancelAnimationFrame(raf); clearInterval(open._h);
   G.state = 'idle'; G.reel = null; G.fish = null;
 }
-window.FISHING = { open, close, buyRod, save:()=>S, reset:()=>{ S = freshSave(); save(); }, _G:G, _cond:COND, _pick:pickFish, _caught:caught, RODS, BAIT, FISH };
+window.FISHING = { open, close, buyRod, paint:paintFish, save:()=>S, reset:()=>{ S = freshSave(); save(); }, _G:G, _cond:COND, _pick:pickFish, _caught:caught, RODS, BAIT, FISH };
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateButtons); else updateButtons();
 })();
