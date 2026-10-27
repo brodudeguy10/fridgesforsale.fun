@@ -160,7 +160,7 @@ export class Clement {
   /* ---------- states ---------- */
   setMode(m){ this.mode = m; this.path = null; if(m !== 'idle') this.col.on = false; }
   armor(on){ this.plateGroup.visible = on; }
-  goTo(x, z){ const nav = this.C.heist.nav; const p = this.pos; const path = nav.path(p.x, p.z, x, z, 6000); if(path && path.length){ this.path = path; this.pi = 1; return true; } this.path = null; return false; }
+  goTo(x, z){ const nav = this.C.heist.nav; const p = this.pos; const path = nav.path(p.x, p.z, x, z, 6000); if(path && path.length){ this.path = path; this.pi = 1; return true; } this.path = null; this.noPathT = 0.8; return false; }
   walk(dt, speed){
     if(!this.path || this.pi >= this.path.length) return 0;
     const p = this.pos, wp = this.path[this.pi], dx = wp[0] - p.x, dz = wp[1] - p.z, dd = Math.hypot(dx, dz);
@@ -188,7 +188,7 @@ export class Clement {
   update(dt, t){
     const C = this.C, F = this.F, p = this.pos, cam = C.camera.position;
     F.face.update(dt, p.distanceToSquared(cam) < 400);
-    this.talkCD -= dt;
+    this.talkCD -= dt; if(this.noPathT > 0) this.noPathT -= dt;
     if(this.flashT > 0){ this.flashT -= dt; if(this.flashT <= 0) this.flash.visible = false; }
     /* the cigarette */
     this.smokeT -= dt; if(this.smokeT <= 0 && this.mode !== 'gone'){ this.smokeT = R(0.6, 1.4); const w = new THREE.Vector3(); this.ember.getWorldPosition(w); C.gore.smokePuff(w, 1, 0.04); }
@@ -214,7 +214,7 @@ export class Clement {
       F.armBusy = true; F.armR.rotation.x += (-0.25 - F.armR.rotation.x)*dt*4;
       if(this.talkCD <= 0 && d < 7 && C.player.mode === 'walk'){ this.talkCD = R(25, 45); this.say(pick(LINES.follow)); }
     } else if(this.mode === 'hold' || this.mode === 'helper'){
-      if(this.holdAt && (!this.path || this.arrived())){ const dd = Math.hypot(this.holdAt[0] - p.x, this.holdAt[1] - p.z); if(dd > 0.6 && !this.path) this.goTo(this.holdAt[0], this.holdAt[1]); }
+      if(this.holdAt && (!this.path || this.arrived())){ const dd = Math.hypot(this.holdAt[0] - p.x, this.holdAt[1] - p.z); if(dd > 0.6 && !this.path && !(this.noPathT > 0)) this.goTo(this.holdAt[0], this.holdAt[1]); }
       moving = this.walk(dt, 3.6);
       /* help: shoot at the nearest enemy he can see */
       this.helpCD -= dt;
@@ -252,7 +252,7 @@ export class Clement {
     if(this.losT <= 0){ this.losT = 0.25; this.sees = los(C.collide, p.x, 1.45, p.z, cam.x, cam.y - 0.15, cam.z); }
     if(this.sees) this.seenT += dt; else this.seenT = Math.max(0, this.seenT - dt);
     if(this.fightAt){ /* phase-scripted spot */
-      if(!this.path && Math.hypot(this.fightAt[0] - p.x, this.fightAt[1] - p.z) > 1) this.goTo(this.fightAt[0], this.fightAt[1]);
+      if(!this.path && !(this.noPathT > 0) && Math.hypot(this.fightAt[0] - p.x, this.fightAt[1] - p.z) > 1) this.goTo(this.fightAt[0], this.fightAt[1]);
     } else if((!this.cover || this.coverT <= 0) && E){
       const c = E.chooseCover(this);
       if(c){ this.cover = c; this.coverT = R(4, 7); this.goTo(c[0], c[1]); }

@@ -85,7 +85,7 @@ function wanted(){
   try{
     const s = JSON.parse(localStorage.getItem('fridgepalace_v1') || 'null');
     const H = s && s.heist; const old = document.getElementById('fpWanted');
-    if(!H || !(H.heat > 0) || !(H.wantedUntil > Date.now())){ if(old) old.remove(); return; }
+    if(!H || !(H.heat > 0) || !(H.wantedUntil > Date.now()) || H.posterTorn === H.wantedUntil){ if(old) old.remove(); return; }
     if(!document.getElementById('hh-css')){ const l = document.createElement('link'); l.id = 'hh-css'; l.rel = 'stylesheet'; l.href = HCSS; document.head.appendChild(l); }
     const el = old || document.createElement('div'); el.id = 'fpWanted';
     const mobile = innerWidth < 760;
@@ -96,9 +96,38 @@ function wanted(){
     g.fillStyle = '#111'; g.fillRect(33, 20, 44, 24); g.fillStyle = '#7ff3ff'; g.fillRect(42, 27, 7, 6); g.fillRect(61, 27, 7, 6); g.fillStyle = '#333'; g.fillRect(25, 46, 60, 2);
     g.fillStyle = '#2a2a2a'; g.beginPath(); g.ellipse(92, 70, 12, 18, 0.3, 0, 7); g.fill(); g.fillStyle = '#7dff9a'; g.font = 'bold 12px Arial'; g.fillText('$', 88, 75);
     el.title = 'heat cools off one star a day';
-    el.onclick = ()=>{ el.style.transform = 'rotate(' + (Math.random()*16 - 8) + 'deg)'; };
+    let pokes = 0;
+    el.onclick = ()=>{
+      pokes++;
+      /* it's only taped up. keep at it and it comes off the wall */
+      if(pokes < 10){ el.style.transform = 'rotate(' + ((Math.random()*16 - 8) + (pokes >= 6 ? (pokes - 5)*7 : 0)) + 'deg)' + (mobile ? ' scale(.75)' : ''); if(pokes === 6) el.title = 'one corner is loose'; return; }
+      tearDown(el, s);
+    };
     if(!old) document.body.appendChild(el);
   }catch(e){ console.warn(e); }
+}
+/* the poster falls into the pile with everything else */
+function tearDown(el, s){
+  try{
+    const r = el.getBoundingClientRect();
+    const c = document.createElement('canvas'); c.width = Math.round(r.width); c.height = Math.round(el.offsetHeight);
+    const g = c.getContext('2d'), W = c.width, Hh = c.height;
+    g.fillStyle = '#efe2c0'; g.fillRect(0, 0, W, Hh); g.strokeStyle = 'rgba(80,50,20,.5)'; g.lineWidth = 2; g.strokeRect(1, 1, W - 2, Hh - 2);
+    g.fillStyle = '#3a2410'; g.textAlign = 'center'; g.font = 'bold 22px Georgia'; g.fillText('WANTED', W/2, 28);
+    const pc = el.querySelector('canvas'); if(pc) g.drawImage(pc, (W - 110)/2, 36);
+    g.font = '10px Georgia'; g.fillText('FOR THE FRIDGE PALACE JOB', W/2, 172); g.font = 'bold 13px Georgia'; const b = el.querySelector('b'); g.fillText(b ? b.textContent : '', W/2, 190);
+    /* a torn corner */
+    g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(W, 0); g.lineTo(W - 18, 0); g.lineTo(W - 6, 9); g.lineTo(W, 20); g.fill(); g.globalCompositeOperation = 'source-over';
+    el.remove();
+    s = JSON.parse(localStorage.getItem('fridgepalace_v1') || 'null') || s;
+    s.heist.posterTorn = s.heist.wantedUntil; s.eggs = s.eggs || {}; if(!s.eggs.poster) s.eggs.poster = Date.now();
+    localStorage.setItem('fridgepalace_v1', JSON.stringify(s));
+    if(window.Matter && typeof world !== 'undefined'){
+      const body = Matter.Bodies.rectangle(r.left + r.width/2, r.top + r.height/2, W, Hh, { restitution:0.2, friction:0.6, frictionAir:0.04, density:0.0006, label:'poster', render:{ sprite:{ texture:c.toDataURL(), xScale:1, yScale:1 } } });
+      Matter.Body.setAngle(body, -0.1); Matter.Body.setAngularVelocity(body, 0.05);
+      Matter.World.add(world, body);
+    }
+  }catch(e){ console.warn(e); try{ el.remove(); }catch(e2){} }
 }
 window.fpWanted = wanted;
 setTimeout(wanted, 1500);

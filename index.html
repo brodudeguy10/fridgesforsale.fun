@@ -29,6 +29,11 @@
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
     #economyBox { position: fixed; top: 130px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 5px; width: 160px; font-family: monospace; }
+    /* short desktop windows: the column scrolls instead of sliding under the music player */
+    @media (min-width: 881px) and (pointer: fine), (min-width: 881px) and (pointer: none) {
+      #economyBox { max-height: max(140px, calc(100vh - 345px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+      #economyBox > * { flex-shrink: 0; }
+    }
     #fridgeCounter { background: #ddd; color: black; font-family: monospace; font-size: 14px; padding: 5px; text-align: center; }
     #shopMenu { display: none; background: #ccc; border: 1px solid #999; padding: 8px; font-family: monospace; font-size: 12px; color: black; }
 
@@ -115,6 +120,8 @@
       #musicPlayer .text-layer:first-child { font-size: 13px; margin-bottom: 2px !important; }
       #nowPlaying { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #controls button { min-height: 34px; padding: 4px 12px; }
+      #paintContainer input[type=range] { display: block; width: 100%; height: 28px; margin: 6px 0; box-sizing: border-box; }
+      #paintContainer input[type=color] { width: 44px; height: 32px; }
       #viz { height: 34px; margin-top: 6px; }
       body:not(.ui-hidden) #vendorBox { left: 8px; transform: none; bottom: 150px; width: calc(50vw - 12px); height: 44px; font-size: 15px; }
       body:not(.ui-hidden) #guyName { display: none !important; }
@@ -123,7 +130,7 @@
     /* phones on their side: short screens, so the columns get even shorter */
     @media (pointer: coarse) and (max-height: 500px) {
       #economyBox { top: 62px; max-height: calc(100vh - 178px); }
-      #rightUI { top: 62px; max-height: calc(100vh - 76px); }
+      #rightUI { top: 62px; max-height: calc(100vh - 132px); }
       #musicPlayer { width: min(46vw, 340px); }
       #viz { display: none; }
       body:not(.ui-hidden) #vendorBox { bottom: 10px; left: auto; right: 8px; width: 140px; }
@@ -302,6 +309,8 @@ window.addEventListener('resize', () => {
     Matter.Body.setPosition(ceiling,   { x: W/2,  y: -100 });
     Matter.Body.setPosition(leftWall,  { x: -25,  y: H/2  });
     Matter.Body.setPosition(rightWall, { x: W+25, y: H/2  });
+    /* the guy waiting in the corner follows the corner */
+    try{ if(!guyActivated && ragdollParts.length){ const dx = (W - 80) - BASE_X, dy = (H - 180) - BASE_Y; ragdollParts.forEach(p=>Matter.Body.setPosition(p, { x:p.position.x + dx, y:p.position.y + dy })); BASE_X = W - 80; BASE_Y = H - 180; updateNamePosition(); } }catch(e){}
   }, 120);
 });
 
@@ -336,9 +345,9 @@ function initAudio() {
 const songs = ["Intentional Manslaughter - Dying Fetus.mp3","INTERCRANIAL LACERATION - SCENE SLUTZ SAWN IN HALF - 02 IF THATS YO BITCH THEN WHY SHE ROTTING IN MY BASEMENT (FT. PSYCHOJAVA).mp3"];
 let current=0;
 function loadSong(i) { current = (i+songs.length)%songs.length; audio.src = songs[current]; nowPlaying.textContent = "now playing: "+songs[current]; audio.playbackRate=1; }
-function togglePlay() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); if(audio.paused) audio.play(); else audio.pause(); }
-function nextSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current+1); audio.play(); }
-function prevSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current-1); audio.play(); }
+function togglePlay() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); if(audio.paused) audio.play().catch(()=>{}); else audio.pause(); }
+function nextSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current+1); audio.play().catch(()=>{}); }
+function prevSong() { initAudio(); if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); loadSong(current-1); audio.play().catch(()=>{}); }
 loadSong(0);
 
 /* ===== HEARTBEAT ===== */
@@ -384,12 +393,12 @@ function playRoulette() {
   if(hasBullet) {
     isDead=true; survivalStreak=0; document.getElementById("rouletteBtn").disabled=true; resultDiv.textContent="";
     try{ VENDOR.noteRouletteDeath(); }catch(e){}
-    document.getElementById("sfx-revolver").play();
+    document.getElementById("sfx-revolver").play().catch(()=>{});
     document.body.classList.add("shaking");
     const flash=document.getElementById("deathFlash"); flash.style.opacity=1;
     setTimeout(()=>{ flash.style.opacity=0; document.body.classList.remove("shaking"); },150);
     setTimeout(()=>{
-      document.getElementById("sfx-shatter").play(); document.getElementById("sfx-flesh").play();
+      document.getElementById("sfx-shatter").play().catch(()=>{}); document.getElementById("sfx-flesh").play().catch(()=>{});
       document.getElementById("screenCrack").style.visibility="visible";
       const bloodCanvas=document.getElementById("bloodCanvas"); bloodCanvas.style.display="block"; startBloodAnimation(bloodCanvas);
       setTimeout(()=>{ addTearDrop(); },600);
@@ -496,7 +505,7 @@ let respawnTimer = null;
 let activationStartTime = null;
 let currentGuyName = '';
 let currentGuyColors = { skin: '#ffccaa', shirt: '#3366cc', pants: '#333' };
-const BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
+let BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
 const nameList = ['Frank','Blurst','Theodore','Rustbucket','Gregory','Mortimer','Bartholomew','Cletus','Jebediah','Hank','Lenny','Stumpy'];
 function randomColor(baseHue, range) { return `hsl(${baseHue + Math.random()*range}, 70%, 60%)`; }
 function buildGuy() {
@@ -520,6 +529,8 @@ function buildGuy() {
   return [head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg];
 }
 function spawnGuy() {
+  /* respawn where the screen is now, not where it was at load */
+  BASE_X = window.innerWidth - 80; BASE_Y = window.innerHeight - 180;
   ragdollParts = buildGuy(); World.add(world, ragdollParts);
   guyActivated = false; ragdollDamage = 0;
   document.getElementById('guyPrompt').style.display = 'block';
@@ -640,7 +651,6 @@ function resizePaintCanvas() {
   tempCanvas.width = pCanvas.width; tempCanvas.height = pCanvas.height; tCtx.drawImage(pCanvas,0,0);
   pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; pCtx.drawImage(tempCanvas,0,0);
 }
-window.addEventListener('resize', resizePaintCanvas);
 pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight;
 let drawingActive = false;
 const drawToggle = document.getElementById("drawToggle");
@@ -686,7 +696,7 @@ renderCanvas.addEventListener('mouseout', () => { drawingActive = false; });
 /* ===== COCKROACH ===== */
 const roachVid = document.getElementById('cockroachVid');
 let roachActive = false;
-setInterval(() => { if (gameActive) return; if (!isDead && !roachActive && Math.random() < 0.01) { roachActive = true; roachVid.style.display = "block"; roachVid.play(); } }, 1000);
+setInterval(() => { if (gameActive) return; if (!isDead && !roachActive && Math.random() < 0.01) { roachActive = true; roachVid.style.display = "block"; roachVid.play().catch(()=>{ roachVid.style.display = "none"; roachActive = false; }); } }, 1000);
 roachVid.onended = () => { roachVid.style.display = "none"; roachActive = false; };
 
 /* ===== KONAMI CODE ===== */
@@ -863,7 +873,8 @@ drawVisualizer();
 
 window.addEventListener('resize', () => {
   ragdollBloodCanvas.width = window.innerWidth; ragdollBloodCanvas.height = window.innerHeight;
-  driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
+  /* the dried blood is permanent: resizing used to wipe it */
+  try{ const t = document.createElement('canvas'); t.width = driedBloodCanvas.width; t.height = driedBloodCanvas.height; t.getContext('2d').drawImage(driedBloodCanvas, 0, 0); driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight; driedCtx.drawImage(t, 0, 0); }catch(e){ driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight; }
   resizePaintCanvas();
 });
 ragdollBloodCanvas.width = window.innerWidth; ragdollBloodCanvas.height = window.innerHeight;

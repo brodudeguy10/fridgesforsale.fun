@@ -18,21 +18,32 @@ export class Collide {
   ring(x, z, rIn, rOut, tag){ const c = { x, z, r:rOut, rIn, tag, on:true, ring:true }; this.circles.push(c); this.dirty = true; return c; }
   build(){
     this.grid.clear();
+    /* integer cell keys; no string building on the hot path */
     const add = (o, minX, minZ, maxX, maxZ)=>{
       for(let gx = Math.floor(minX/this.cell); gx <= Math.floor(maxX/this.cell); gx++)
         for(let gz = Math.floor(minZ/this.cell); gz <= Math.floor(maxZ/this.cell); gz++){
-          const k = gx + ',' + gz; let a = this.grid.get(k); if(!a){ a = []; this.grid.set(k, a); } a.push(o);
+          const k = (gx + 512)*1024 + (gz + 512); let a = this.grid.get(k); if(!a){ a = []; this.grid.set(k, a); } a.push(o);
         }
     };
     this.boxes.forEach(b=>add(b, b.minX, b.minZ, b.maxX, b.maxZ));
     this.circles.forEach(c=>add(c, c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r));
     this.dirty = false;
   }
-  near(x, z){ if(this.dirty) this.build(); const out = new Set(); const gx = Math.floor(x/this.cell), gz = Math.floor(z/this.cell); for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ const a = this.grid.get((gx+i) + ',' + (gz+j)); if(a) a.forEach(o=>out.add(o)); } return out; }
+  /* everything in the 3x3 cells around (x, z), each once. a stamp on the
+     collider dedupes instead of a Set. */
+  gather(x, z, out){
+    if(this.dirty) this.build();
+    out.length = 0; const st = this._st = (this._st || 0) + 1;
+    const gx = Math.floor(x/this.cell), gz = Math.floor(z/this.cell);
+    for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ const a = this.grid.get((gx + i + 512)*1024 + (gz + j + 512)); if(a) for(let k=0;k<a.length;k++){ const o = a[k]; if(o._st !== st){ o._st = st; out.push(o); } } }
+    return out;
+  }
+  near(x, z){ return this.gather(x, z, []); }
   resolve(p, r){
     for(let it=0; it<3; it++){
       let hit = false;
-      for(const o of this.near(p.x, p.z)){
+      const list = this.gather(p.x, p.z, this._buf || (this._buf = []));
+      for(let n=0; n<list.length; n++){ const o = list[n];
         if(!o.on) continue;
         if(o.ring){
           const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz) || 1e-6;

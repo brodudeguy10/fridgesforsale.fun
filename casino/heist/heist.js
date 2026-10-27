@@ -30,6 +30,8 @@ import { HeistHud, fmt } from './heist-hud.js';
 import { NavGrid } from './nav.js';
 import { applyAftermath, stageFor, detectorTick } from './aftermath.js';
 import { Heat } from './heat.js';
+import { plate as plateTex } from '../world/textures.js';
+import { rayOBB } from './combat.js';
 
 const R = (a, b)=>a + Math.random()*(b - a);
 const pick = a=>a[(Math.random()*a.length)|0];
@@ -58,11 +60,13 @@ export async function init(C){
     ['guard', 'cop', 'copShotgun', 'rusher', 'swat', 'heavy', 'bouncer'].forEach((t, i)=>{ const e = C.enemies.spawn(t, -20 + i*2, -30); e.F.group.position.y = -40; H.warm.push(e); });
     const A = C.arsenal; ['revolver', 'shotgun', 'smg', 'freon'].forEach(k=>{ const m = A.model(k); m.group.visible = true; m.flash.visible = true; });
     A.root.visible = true;
-    C.engine.renderer.compile(C.engine.vmScene, C.engine.vmCamera);
+    { const r = C.engine.renderer, prev = r.getRenderTarget(); r.setRenderTarget(C.engine.composer.renderTarget1); try{ r.compile(C.engine.vmScene, C.engine.vmCamera); } finally { r.setRenderTarget(prev); } }
     ['revolver', 'shotgun', 'smg', 'freon'].forEach(k=>{ const m = A.model(k); m.group.visible = false; m.flash.visible = false; });
     A.root.visible = false;
     const ice = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), C.enemies.iceM); ice.position.y = -40; C.scene.add(ice); H.warmMeshes = [ice];
   }catch(e){ console.warn('warm-up', e); }
+  /* build the enemy grid behind the loading screen; later rebuilds only redo what changed */
+  try{ H.navBuild(); H.navDirty = false; }catch(e){ console.warn('nav', e); }
   return H;
 }
 
@@ -117,6 +121,7 @@ class Heist {
     C.bus.on('aquarium', ()=>C.save.egg('aquarium') && this.toast('secret: free the fish'));
     C.bus.on('slotbust', ()=>{ if(C.destruct.slotsBusted >= 10 && C.save.egg('slotbuster')) this.toast('secret: hand pay'); });
     C.bus.on('heistcall', e=>{ if(e.k === 'coil') this.toast('THE COIL IS BLOWN'); });
+    this.eggs();
     /* robbing: one interactable that follows whoever is nearest */
     const robI = { heist:true, pos:new THREE.Vector3(), r:2.8, enabled:()=>{ if(!C.crowd.active) return false; const n = C.crowd.nearestRobbable(); if(n){ robI.pos.copy(n.F.group.position).setY(0.4); robI.n = n; } return !!n; }, text:()=>robI.n ? 'rob ' + robI.n.name : null, use:()=>{ if(robI.n) C.crowd.rob(robI.n); } };
     C.world.interact.push(robI);
@@ -127,7 +132,7 @@ class Heist {
     this.trays = [];
     const tables = [].concat((C.games.blackjack ? C.games.blackjack.tables : []).filter(t=>!t.a.vip), (C.games.roulette ? C.games.roulette.tables : []).filter(t=>!t.a.vip));
     if(C.games.poker && C.games.poker.grp) tables.push({ grp:C.games.poker.grp, poker:true });
-    tables.forEach(T=>{ const w = new THREE.Vector3(0, 1.0, -0.6).applyMatrix4(T.grp.matrixWorld); const tr = { pos:w, done:false, v:Math.round(R(600, 1300)) }; this.trays.push(tr); C.world.interact.push({ heist:true, pos:w, r:2.6, enabled:()=>C.crowd.active && !tr.done && this.state === 'loud', text:()=>'grab the chip tray', use:()=>{ tr.done = true; C.audio.chipStack(w); C.fx.coins(w, 20); this.addLoot(Math.round(tr.v*this.lootMul), 'tables'); this.toast('+' + fmt(tr.v*this.lootMul) + ' · chip tray'); this.refreshObj(); } }); });
+    tables.forEach(T=>{ T.grp.updateMatrixWorld(true); const w = new THREE.Vector3(0, 1.0, -0.6).applyMatrix4(T.grp.matrixWorld); const tr = { pos:w, done:false, v:Math.round(R(600, 1300)) }; this.trays.push(tr); C.world.interact.push({ heist:true, pos:w, r:2.6, enabled:()=>C.crowd.active && !tr.done && this.state === 'loud', text:()=>'grab the chip tray', use:()=>{ tr.done = true; C.audio.chipStack(w); C.fx.coins(w, 20); this.addLoot(Math.round(tr.v*this.lootMul), 'tables'); this.toast('+' + fmt(tr.v*this.lootMul) + ' · chip tray'); this.refreshObj(); } }); });
     /* telling clement to blow the gate */
     C.world.interact.push({ heist:true, pos:new THREE.Vector3((K.GX0 + K.GX1)/2, 1.4, K.z0 - 1.2), r:3.2, enabled:()=>this.state === 'loud' && this.atGate, text:()=>'tell ' + (this.partnerName || 'clement') + ' to blow the gate', use:()=>{ this.atGate = false; this.fire('gate'); } });
     /* finish clement / take the bag */
@@ -137,7 +142,49 @@ class Heist {
     this.bagI = C.world.interact[C.world.interact.length - 1];
     /* the pause menu's leave button asks first during a job */
     const hud = C.hud, origPause = hud.pause.bind(hud);
-    hud.pause = (on)=>{ origPause(on); if(on && this.isLoud()){ const b = hud.$('#fp-pause [data-a="leave"]'); if(b){ b.textContent = 'ABANDON THE JOB'; b.onclick = ()=>{ hud.pause(false); this.abandonPrompt(); }; } const p = hud.$('#fp-pause [data-a="photo"]'); if(p) p.style.display = 'none'; } };
+    hud.pause = (on)=>{ origPause(on); if(on && this.state === 'dead'){ const b = hud.$('#fp-pause [data-a="leave"]'); if(b){ b.textContent = 'WALK AWAY'; b.onclick = ()=>{ hud.pause(false); C.hh.card(null); this.abandon(true); }; } const p = hud.$('#fp-pause [data-a="photo"]'); if(p) p.style.display = 'none'; }
+      if(on && this.isLoud()){ const b = hud.$('#fp-pause [data-a="leave"]'); if(b){ b.textContent = 'ABANDON THE JOB'; b.onclick = ()=>{ hud.pause(false); this.abandonPrompt(); }; } const p = hud.$('#fp-pause [data-a="photo"]'); if(p) p.style.display = 'none'; } };
+  }
+  /* ---------- small things for people who poke at everything ---------- */
+  eggs(){
+    const C = this.C;
+    /* six gold plates, all of them */
+    C.bus.on('clement', e=>{ if(e.k === 'plate' && e.left === 0 && this.mode !== 'heat'){ if(this.clement) this.clement.say('that was MY gold. i was going to be buried in it.', 2.5); if(C.save.egg('bullion')) this.toast('secret: gold standard'); } });
+    /* the night guard sleeps through the robbery, unless you fire next to his ear */
+    const guard = C.staff.find(F=>F.name === 'NIGHT GUARD');
+    C.bus.on('gunshot', e=>{
+      if(!guard || this._guardUp || !this.isLoud() || !e.pos || (e.src !== 'player' && !e.loud)) return;
+      if(guard.group.position.distanceTo(e.pos) > 4.5) return;
+      this._guardUp = true; guard.face.set('shock', 2.2); guard.face.say(2);
+      C.hud.say('NIGHT GUARD', 'huh. is it my shift. it\'s not my shift. wake me up if anybody robs the place.', 4.5);
+      setTimeout(()=>{ try{ guard.face.set('sleepy', 1e9); }catch(err){} }, 2600);
+      if(C.save.egg('slept')) this.toast('secret: slept through it');
+    });
+    /* the smallest fridge in the palace has been waiting for this */
+    const tiny = C.staff.find(F=>F.group && F.group.scale.x < 0.2 && F.group.position.x > 29);
+    if(tiny){
+      const t = { kind:'tiny', alive:true, center:()=>new THREE.Vector3(29.75, 0.08, tiny.group.position.z),
+        ray:(o, d, maxT)=>{ if(!t.alive || !tiny.group.visible) return null; const r = rayOBB(o.x, o.y, o.z, d.x, d.y, d.z, 29.75, 0.08, tiny.group.position.z, 0.06, 0.09, 0.08, 0, maxT); return r ? { t:r.t, n:r.n, part:'tiny' } : null; },
+        hit:()=>{ if(!t.alive) return { hit:false }; t.alive = false; tiny.face.set('angry', 3);
+          C.tweens.sleep(0.5).then(()=>{ const from = new THREE.Vector3(29.7, 0.1, tiny.group.position.z); C.gore.tracer(from, C.camera.position.clone().add(new THREE.Vector3(0, -0.3, 0)), { speed:120, thick:0.3 }); C.audio.heist && C.audio.heist.click(4200, 0.15); this.hurt(1, from, 'tiny'); C.hud.say('', 'the smallest gun you have ever seen. it does exactly one point of damage. it looked like it needed that.', 4); if(C.save.egg('tinyrevenge')) this.toast('secret: small arms'); return C.tweens.add({ dur:0.6, update:k=>{ tiny.group.position.x = 29.86 + k*0.3; } }); }).then(()=>{ tiny.group.visible = false; });
+          return { hit:true }; } };
+      C.combat.add(t);
+    }
+    /* box 38, for the king */
+    const V = C.vault;
+    if(V && V.room){
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.29, 0.29), new THREE.MeshStandardMaterial({ map:plateTex('38', { w:128, h:128, size:64, bg:'#5a1010', fg:'#ffd56a', rim:'#ffd56a' }), roughness:0.4, metalness:0.5 }));
+      m.position.set(36.98, 0.62, 18.9); m.rotation.y = -Math.PI/2; V.room.add(m);
+      let opened = false;
+      C.world.interact.push({ heist:true, pos:new THREE.Vector3(36.6, 0.7, 18.9), r:1.8, enabled:()=>!opened && (V.state === 'open' || V.state === 'slammed' || V.state === 'fallen'), text:()=>'open box 38', use:()=>{
+        opened = true; m.rotation.y = -Math.PI/2 + 1.2; m.position.x -= 0.1;
+        C.audio.heist && C.audio.heist.click(1800, 0.3);
+        this.addLoot(3800, 'vault');
+        C.hud.say('', 'box 38. one revolver round and a folded note: "for the king." whoever rented this box paid forty years up front.', 5);
+        this.toast('+3,800 · box 38');
+        if(C.save.egg('kingsbox')) this.toast('secret: for the king');
+      } });
+    }
   }
   isLoud(){ return ['loud', 'breach', 'drill', 'vault', 'betray', 'locked', 'boss1', 'boss2', 'boss3', 'down', 'escape'].indexOf(this.state) >= 0; }
   panicSpot(){ return this.panicPos; }
@@ -185,12 +232,14 @@ class Heist {
   key(e){
     const C = this.C, A = C.arsenal;
     if(!C.open || C.hud.paused || C.hud.modalOpen || C.seated) return;
+    /* number keys belong to photo mode filters and dialogue answers while those are up */
+    if(C.photo || (C.hh && C.hh.el.classList.contains('choosing'))) return;
     if(!A.order.length) return;
     const m = /^Digit([1-4])$/.exec(e.code);
     if(m){ const k = A.order.find(k=>WEAPONS[k].slot === +m[1]); if(k) A.select(k); return; }
     if(e.code === 'KeyQ'){ if(A.last && A.owned[A.last]) A.select(A.last); else A.cycle(1); }
     if(e.code === 'KeyH'){ A.holster(); }
-    if(e.code === 'KeyC' || e.code === 'ControlLeft'){ C.player.crouch = !C.player.crouch; }
+    if((e.code === 'KeyC' || e.code === 'ControlLeft') && !C.photo){ C.player.crouch = !C.player.crouch; }
     if(e.code === 'KeyG'){ this.useBandage(); }
   }
   /* ---------- your coolant ---------- */
@@ -427,6 +476,8 @@ class Heist {
     this.checkpoint('drill');
     if(cl){ cl.setMode('hold'); cl.holdAt = [24, 15.3]; cl.holdYaw = Math.PI; }
     const fired = {};
+    /* coming back from a checkpoint: waves the drill already passed don't all pour in at once */
+    if(!fresh) this._drillWaves = null;
     const waves = this.mode === 'heat' ? this.heatWaves() : [
       [0.06, [{ type:'cop', from:'front' }, { type:'cop', from:'front' }, { type:'cop', from:'front', gap:2 }]],
       [0.22, [{ type:'guard', from:'staff' }, { type:'rusher', from:'restroomM' }, { type:'rusher', from:'restroomF' }]],
@@ -440,6 +491,7 @@ class Heist {
       { t:V.jammed ? 'THE DRILL JAMMED. go kick it (E)' : 'stay alive', done:false }
     ];
     this.objTitle = 'THE VAULT'; this.refreshObj();
+    if(!fresh) waves.forEach(([p], i)=>{ if(p < V.progress - 0.02) fired[i] = true; });
     let talkT = 8;
     await this.until(()=>{
       waves.forEach(([p, list], i)=>{ if(!fired[i] && V.progress >= p){ fired[i] = true; this.queue(list); } });
@@ -456,6 +508,7 @@ class Heist {
   async stage_vault(tok){
     const C = this.C, cl = this.clement, V = C.vault;
     this.state = 'vault';
+    this.checkpoint('vault');
     C.audio.heist.score('tense');
     C.hh.big('THE VAULT', 'grab what you can carry', '', 2200);
     if(cl){ cl.say(LINES.vaultOpen, 4); cl.setMode('script'); cl.goTo(28.7, 17.5); }
@@ -632,7 +685,7 @@ class Heist {
       cl.F.face.set('static', 1); setTimeout(()=>cl.F.face.set('off', 1e9), 1000);
       C.gore.spill(cl.pos.clone().setY(0.5), new THREE.Vector3(0, 1, 0), { n:14, sauce:18 });
       C.audio.heist.squelch(cl.pos, true);
-      if(cl.F.door){ C.enemies.flingDoor({ F:cl.F }, new THREE.Vector3(0, 0, 1)); }
+      if(cl.F.door){ const dr = cl.F.door; C.tweens.add({ dur:0.25, update:k=>{ dr.rotation.y = -0.9 - k*1.3; } }); }
       this.saveH.clementDead = true;
     }
     if(!this.ok(tok)) return;
@@ -736,12 +789,14 @@ class Heist {
     const st = cp.name;
     if(st === 'loud'){ this.state = 'loud'; this.run('loud', false); }
     else if(st === 'drill'){ C.vault.progress = Math.max(0, C.vault.progress - 0.15); C.vault.jammed = false; this.state = 'drill'; this.run('drill', false); }
+    else if(st === 'vault'){ this.state = 'vault'; this.run('vault', false); }
     else if(st === 'locked'){ this.run('locked', 'restore'); }
+    else if(st === 'crewturn'){ this.run('crewturn', 'restore'); }
     else if(st === 'boss1'){ cl.F.group.visible = true; this.run('boss1', 'restore'); }
     else if(st === 'boss2'){ cl.F.group.visible = true; cl.pos.set(-21, 0, -17.4); this.state = 'boss2'; cl.setMode('fight'); cl.vulnerable = true; this.lightsMode('dark'); this.tok++; const tok = this.tok; this.flags = {}; this.queue([{ type:'guard', from:'staff' }, { type:'swat', from:'front' }]); this.bossObj(2); this.until(()=>{ this.bossBar(); return cl.hp <= cl.maxHp*0.33; }, tok).then(()=>{ if(this.ok(tok)) this.run('boss3', true); }); }
     else if(st === 'boss3'){ cl.F.group.visible = true; cl.pos.set(0, 0, 16); this.run('boss3', 'restore'); }
     else if(st === 'escape'){ this.run('escape', 'restore'); }
-    C.audio.heist.score(st === 'locked' ? null : st.indexOf('boss') === 0 ? 'boss' : st === 'loud' ? 'tense' : 'action');
+    C.audio.heist.score(st === 'locked' ? null : st.indexOf('boss') === 0 || st === 'crewturn' ? 'boss' : st === 'loud' ? 'tense' : 'action');
     C.hh.big('AGAIN', '', '', 1200);
   }
   async abandonPrompt(){

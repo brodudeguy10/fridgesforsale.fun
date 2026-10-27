@@ -30,7 +30,8 @@ export class HeistHud {
       <div id="hh-card"><div class="in"></div></div>
       <div id="hh-touch"><button class="fire">FIRE</button><button class="ads">AIM</button><button class="rel">RLD</button><button class="swp">SWAP</button><button class="cro">DUCK</button><button class="yel">YELL</button><button class="hea">HEAL</button></div>`;
     C.root.appendChild(el);
-    this.el = el; this.$ = s=>el.querySelector(s);
+    /* plain #id lookups are cached (they run every frame); anything fancier is looked up fresh */
+    this.el = el; const cache = {}; this.$ = s=>/^#[\w-]+$/.test(s) ? ((cache[s] && cache[s].isConnected) ? cache[s] : (cache[s] = el.querySelector(s))) : el.querySelector(s);
     this.dmgI = 0; this.shown = {}; this.objKey = '';
     this.wireTxt = '';
     this.buildTouch();
@@ -41,6 +42,11 @@ export class HeistHud {
     const C = this.C, T = this.$('#hh-touch');
     const bind = (cls, down, up)=>{ const b = T.querySelector('.' + cls); b.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); down(b); }, { passive:false }); b.addEventListener('touchend', e=>{ e.preventDefault(); up && up(b); }, { passive:false }); b.addEventListener('touchcancel', e=>{ up && up(b); }); };
     bind('fire', b=>{ const A = C.arsenal; if(!A) return; A.touch.fire = true; A.touch.firePressed = true; b.classList.add('on'); }, b=>{ if(C.arsenal) C.arsenal.touch.fire = false; b.classList.remove('on'); });
+    /* drag on FIRE to aim while you shoot, like the look side of the screen */
+    { const fb = T.querySelector('.fire'); let ft = null;
+      fb.addEventListener('touchstart', e=>{ const t = e.changedTouches[0]; ft = { id:t.identifier, x:t.clientX, y:t.clientY }; }, { passive:true });
+      fb.addEventListener('touchmove', e=>{ if(!ft) return; e.preventDefault(); for(const t of e.changedTouches){ if(t.identifier !== ft.id) continue; const I = C.input, sv = C.save.settings, k = 0.0055*sv.sens*(I.lookScale || 1); I.look.x += (t.clientX - ft.x)*k; I.look.y += (t.clientY - ft.y)*k*(sv.invertY ? -1 : 1); ft.x = t.clientX; ft.y = t.clientY; } }, { passive:false });
+      const end = ()=>{ ft = null; }; fb.addEventListener('touchend', end); fb.addEventListener('touchcancel', end); }
     bind('ads', b=>{ const A = C.arsenal; if(!A) return; A.touch.ads = !A.touch.ads; b.classList.toggle('on', A.touch.ads); });
     bind('rel', ()=>{ C.arsenal && C.arsenal.reload(); });
     bind('swp', ()=>{ C.arsenal && (C.arsenal.drawn ? C.arsenal.cycle(1) : C.arsenal.select(C.arsenal.cur || C.arsenal.order[0])); });
@@ -99,7 +105,7 @@ export class HeistHud {
     el.innerHTML = (title ? `<h4>${esc(title)}</h4>` : '') + list.map(o=>`<div class="${o.done ? 'done' : ''} ${o.opt ? 'opt' : ''} ${old.indexOf(o.t) < 0 ? 'new' : ''}">${esc(o.t)}</div>`).join('');
   }
   fear(v, on){
-    const f = this.$('#hh-fear'); f.style.opacity = on ? 1 : 0; if(!on) return;
+    const f = this.$('#hh-fear'); if(this.shown.fearOn !== on){ this.shown.fearOn = on; f.style.opacity = on ? 1 : 0; } if(!on) return;
     const k = Math.round(v);
     if(k === this.shown.fear) return; this.shown.fear = k;
     f.querySelector('.bar i').style.width = Math.max(0, Math.min(100, v)) + '%';
@@ -118,7 +124,9 @@ export class HeistHud {
   }
   boss(o){
     const b = this.$('#hh-boss');
-    if(!o){ b.classList.remove('on'); return; }
+    if(!o){ if(this.shown.boss !== null){ this.shown.boss = null; b.classList.remove('on'); } return; }
+    const key = o.name + '|' + (o.sub || '') + '|' + Math.round(o.hp/o.max*400) + '|' + Math.round((o.armor || 0)*100) + '|' + o.phase;
+    if(key === this.shown.boss) return; this.shown.boss = key;
     b.classList.add('on');
     b.querySelector('.nm').textContent = o.name; b.querySelector('.sub').textContent = o.sub || '';
     b.querySelector('.bar i').style.width = Math.max(0, o.hp/o.max*100) + '%';
@@ -136,8 +144,8 @@ export class HeistHud {
     return new Promise(res=>{
       this.C.input.quietUnlock();
       el.innerHTML = opts.map((o, i)=>`<button data-i="${i}"><b>${i + 1}</b>${esc(o)}</button>`).join('');
-      el.classList.add('on');
-      const done = i=>{ el.classList.remove('on'); el.innerHTML = ''; this.C.bus.off('key', kh); if(!this.C.input.touch) this.C.input.lock(); res(i); };
+      el.classList.add('on'); this.el.classList.add('choosing');
+      const done = i=>{ el.classList.remove('on'); this.el.classList.remove('choosing'); el.innerHTML = ''; this.C.bus.off('key', kh); if(!this.C.input.touch) this.C.input.lock(); res(i); };
       el.querySelectorAll('button').forEach(b=>b.onclick = ()=>{ this.C.audio.click(); done(+b.dataset.i); });
       const kh = e=>{ const m = /^Digit(\d)$/.exec(e.code); if(m){ const i = +m[1] - 1; if(i >= 0 && i < opts.length) done(i); } };
       this.C.bus.on('key', kh);

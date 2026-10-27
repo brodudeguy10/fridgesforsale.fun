@@ -180,6 +180,8 @@ export class Destruct {
         C.audio.heist && C.audio.heist.hit('glass', p); C.audio.heist && C.audio.heist.explosion(p, 0.5);
         C.player.addShake(Math.max(0, 1.2 - C.camera.position.distanceTo(p)*0.08));
         C.collide.circle(0, 15, 1.0, 'debris');
+        /* guests and staff caught under it (the heist handles enemies, clement and you) */
+        for(const tg of C.combat.targets.slice()){ if(tg.alive === false || !tg.center || (tg.kind !== 'civ' && tg.kind !== 'staff')) continue; const c = tg.center(); if(Math.hypot(c.x, c.z - 15) < 1.5) tg.hit({ dmg:260, point:c, n:[0, 1, 0], dir:new THREE.Vector3(0, -1, 0), weapon:'chandelier', knock:3, src:'world', explosion:true, dist:0 }); }
         C.bus.emit('chandelier', { stage:'land', pos:p });
       }
     }

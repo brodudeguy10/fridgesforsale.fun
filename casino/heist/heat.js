@@ -111,7 +111,7 @@ export class Heat {
     });
     /* heat-specific stage overrides */
     H.heatWaves = ()=>this.waves();
-    H.stage_crewturn = async (tok)=>this.crewTurn(tok);
+    H.stage_crewturn = async (tok, fresh)=>this.crewTurn(tok, fresh);
     const origVault = H.stage_vault.bind(H);
     H.run = ((orig)=>function(stage, fresh){ if(stage === 'betray' && this.mode === 'heat') stage = 'crewturn'; return orig.call(this, stage, fresh); })(H.run);
     const origDrill = C.vault.startDrill.bind(C.vault);
@@ -129,14 +129,19 @@ export class Heat {
     ];
     return W;
   }
-  async crewTurn(tok){
+  async crewTurn(tok, fresh){
     const C = this.C, H = this.H, cl = H.clement;
     H.state = 'boss1';
-    cl.say(pick(BETRAY), 4);
-    C.hh.big('BETRAYED', H.crew.name.toLowerCase() + ' wants the whole bag', 'red', 2600);
-    H.bagTaken = H.bagValue(); H.takenLoot = Object.assign({}, H.loot); Object.keys(H.loot).forEach(k=>H.loot[k] = 0); H.weight = 0;
-    cl.setMode('fight'); cl.vulnerable = true; cl.phase = 1; cl.hp = cl.maxHp = 700 + this.level*150; cl.armor(false);
-    H.checkpoint('boss1');
+    cl.F.group.visible = true;
+    if(fresh !== 'restore'){
+      cl.say(pick(BETRAY), 4);
+      C.hh.big('BETRAYED', H.crew.name.toLowerCase() + ' wants the whole bag', 'red', 2600);
+      H.bagTaken = H.bagValue(); H.takenLoot = Object.assign({}, H.loot); Object.keys(H.loot).forEach(k=>H.loot[k] = 0); H.weight = 0;
+      cl.hp = cl.maxHp = 700 + this.level*150;
+    }
+    cl.setMode('fight'); cl.fightAt = null; cl.vulnerable = true; cl.phase = 1; cl.armor(false);
+    /* its own checkpoint name, so a retry comes back here and not to clement's fight */
+    if(fresh !== 'restore') H.checkpoint('crewturn');
     C.audio.heist.score('boss'); H.vibe('boss');
     await H.until(()=>{ H.bossBar(); return cl.hp <= 0; }, tok);
     if(!H.ok(tok)) return;

@@ -74,7 +74,9 @@ export async function start(o){
   finishWorld(C);
   progress(0.88, 'warming up the lights');
   /* compile every shader now, so turning around doesn't hitch later */
-  try{ const r = C.engine.renderer; if(r.compileAsync) await Promise.race([r.compileAsync(C.scene, C.camera), new Promise(res=>setTimeout(res, 20000))]); else r.compile(C.scene, C.camera); }catch(e){ console.warn(e); }
+  /* the scene renders into the post chain's float target, not the screen, and shaders are keyed on that:
+     compile against the same target or every one of them gets built a second time on the first frame */
+  try{ const r = C.engine.renderer, prev = r.getRenderTarget(); r.setRenderTarget(C.engine.composer.renderTarget1); let p = null; try{ p = r.compileAsync ? r.compileAsync(C.scene, C.camera) : (r.compile(C.scene, C.camera), null); } finally { r.setRenderTarget(prev); } if(p) await Promise.race([p, new Promise(res=>setTimeout(res, 20000))]); }catch(e){ console.warn(e); }
   progress(0.95, 'tuning the house band');
   const sp = C.world.anchors.spawn; C.player.spawn(sp.x, sp.z, sp.yaw);
   wire();

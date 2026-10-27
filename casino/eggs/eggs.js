@@ -185,6 +185,7 @@ export function init(C){
     }
     return false;
   }
+  let clockT = 2, green = false;
   return { name:'eggs', update(dt, t){
     /* cctv: only when you're standing in the security room */
     const p = C.camera.position;
@@ -211,6 +212,17 @@ export function init(C){
     if(C.disco) C.world.lights.forEach((l, i)=>l.color.setHSL((t*0.2 + i*0.15) % 1, 0.9, 0.6));
     else if(C._wasDisco !== C.disco) C.world.lights.forEach((l, i)=>l.color.setHex([0xffcf8a, 0xffe0b0, 0xff8ad8, 0xffd29a, 0x9affc0, 0xffc070, 0xbfd8ff][i] || 0xffffff));
     C._wasDisco = C.disco;
+    /* 4:20, twice a day: the neon goes green for the minute */
+    clockT -= dt;
+    if(clockT <= 0){
+      clockT = 4;
+      const now = new Date(), on = now.getHours() % 12 === 4 && now.getMinutes() === 20;
+      if(on !== green){
+        green = on;
+        C.world.neon.forEach(n=>{ const m = n.material; if(on){ n.userData.col420 = m.color.getHex(); m.color.set('#5dff9c'); } else if(n.userData.col420 !== undefined) m.color.setHex(n.userData.col420); });
+        if(on){ C.hud.toast('every sign in the building turns green at once. nobody on staff will explain it.', 'gold'); C.save.egg('fourtwenty'); C.audio.burst && C.audio.burst({ ff:300, type:'lowpass', d:1.2, g:0.25 }); }
+      }
+    }
     /* the visitor */
     const m = mem;
     if((m.deaths || 0) >= 7 && !C.seated && sightings < 3){

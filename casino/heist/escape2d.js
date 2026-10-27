@@ -111,9 +111,10 @@ class Escape {
       @keyframes fpShake{0%,100%{translate:0 0}25%{translate:-3px 1px}50%{translate:3px -1px}75%{translate:-2px 0}}
       @keyframes fpSwing{0%{rotate:0deg}30%{rotate:24deg}50%{rotate:14deg}70%{rotate:20deg}85%{rotate:16deg}100%{rotate:18deg}}
       #header.fp-nail{transform-origin:6% 10%;animation:fpSwing 1.8s ease-out forwards;}
-      .fp-card{position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;background:rgba(4,6,10,.62);font-family:Oswald,Arial,sans-serif;color:#fff;text-shadow:0 2px 4px #000;}
-      .fp-card .in{text-align:center;max-width:560px;padding:20px}
-      .fp-card h1{font-size:min(14vw,100px);margin:0;letter-spacing:8px}
+      .fp-card{position:fixed;inset:0;z-index:10010;display:flex;overflow-y:auto;overscroll-behavior:contain;background:rgba(4,6,10,.62);font-family:Oswald,Arial,sans-serif;color:#fff;text-shadow:0 2px 4px #000;}
+      .fp-card .in{text-align:center;max-width:560px;padding:20px;margin:auto}
+      .fp-card h1{font-size:min(14vw,18vh,100px);margin:0;letter-spacing:8px}
+      @media (max-height:460px){ .fp-card table{font-size:14px;margin:6px auto} .fp-card td{padding:1px 10px} .fp-card button{padding:8px 16px;margin:4px} .fp-card .in{padding:10px} }
       .fp-card table{margin:12px auto;font-size:17px;border-collapse:collapse;letter-spacing:1px}
       .fp-card td{padding:3px 14px;text-align:left}.fp-card td+td{text-align:right;color:#7dff9a}
       .fp-card button{font:600 16px Oswald,Arial,sans-serif;letter-spacing:3px;padding:10px 22px;margin:8px;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.5);cursor:pointer}

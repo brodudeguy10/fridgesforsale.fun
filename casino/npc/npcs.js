@@ -35,23 +35,30 @@ export function init(C){
   const cellOf = (x, z)=>[Math.round((x - X0)/S), Math.round((z - Z0)/S)];
   const ok = (i, j)=>i >= 0 && j >= 0 && i < nx && j < nz && walk[j*nx + i];
   function nearestWalk(x, z){ const [ci, cj] = cellOf(x, z); for(let r=0; r<6; r++) for(let dj=-r; dj<=r; dj++) for(let di=-r; di<=r; di++){ if(Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; if(ok(ci + di, cj + dj)) return [ci + di, cj + dj]; } return null; }
+  /* A* with a binary heap and stamped typed arrays (the old open list was a
+     linear scan, which spiked on long walks across the hall) */
+  const NN = nx*nz, gS = new Float32Array(NN), cameS = new Int32Array(NN), seenS = new Uint32Array(NN), doneS = new Uint32Array(NN);
+  let stamp = 0; const hk = [], hs = []; let hn = 0;
+  const hpush = (v, sc)=>{ let i = hn++; while(i > 0){ const p = (i - 1) >> 1; if(hs[p] <= sc) break; hk[i] = hk[p]; hs[i] = hs[p]; i = p; } hk[i] = v; hs[i] = sc; };
+  const hpop = ()=>{ const top = hk[0], n = --hn; if(n > 0){ const v = hk[n], sc = hs[n]; let i = 0; for(;;){ const l = 2*i + 1; if(l >= n) break; const r = l + 1, m = r < n && hs[r] < hs[l] ? r : l; if(hs[m] >= sc) break; hk[i] = hk[m]; hs[i] = hs[m]; i = m; } hk[i] = v; hs[i] = sc; } return top; };
   function path(fx, fz, tx, tz){
     const a = nearestWalk(fx, fz), b = nearestWalk(tx, tz); if(!a || !b) return null;
-    const key = (i, j)=>j*nx + i;
-    const open = [[a[0], a[1], 0, 0]], g = new Map([[key(a[0], a[1]), 0]]), came = new Map();
-    const h = (i, j)=>Math.hypot(i - b[0], j - b[1]);
+    const st = ++stamp; hn = 0;
+    const bi = b[0], bj = b[1], ka = a[1]*nx + a[0], kb = bj*nx + bi;
+    const h = (i, j)=>Math.hypot(i - bi, j - bj);
+    gS[ka] = 0; cameS[ka] = -1; seenS[ka] = st; hpush(ka, h(a[0], a[1]));
     let guard = 0;
-    while(open.length && guard++ < 4000){
-      let bi = 0; for(let k=1;k<open.length;k++) if(open[k][3] < open[bi][3]) bi = k;
-      const [ci, cj] = open.splice(bi, 1)[0];
-      if(ci === b[0] && cj === b[1]){ const out = []; let k = key(ci, cj); while(k !== undefined){ out.push([X0 + (k % nx)*S, Z0 + Math.floor(k/nx)*S]); k = came.get(k); } out.reverse(); return smooth(out); }
+    while(hn && guard++ < 4000){
+      const k = hpop(); if(doneS[k] === st) continue; doneS[k] = st;
+      if(k === kb){ const out = []; let c = k; while(c >= 0){ out.push([X0 + (c % nx)*S, Z0 + Math.floor(c/nx)*S]); c = cameS[c]; } out.reverse(); return smooth(out); }
+      const ci = k % nx, cj = (k/nx)|0, gk = gS[k];
       for(let dj=-1; dj<=1; dj++) for(let di=-1; di<=1; di++){
         if(!di && !dj) continue; const ni = ci + di, nj = cj + dj; if(!ok(ni, nj)) continue;
         if(di && dj && (!ok(ci + di, cj) || !ok(ci, cj + dj))) continue;
-        const ng = g.get(key(ci, cj)) + (di && dj ? 1.414 : 1);
-        const k = key(ni, nj);
-        if(g.has(k) && g.get(k) <= ng) continue;
-        g.set(k, ng); came.set(k, key(ci, cj)); open.push([ni, nj, ng, ng + h(ni, nj)]);
+        const nk = nj*nx + ni; if(doneS[nk] === st) continue;
+        const ng = gk + (di && dj ? 1.414 : 1);
+        if(seenS[nk] === st && gS[nk] <= ng) continue;
+        seenS[nk] = st; gS[nk] = ng; cameS[nk] = k; hpush(nk, ng + h(ni, nj));
       }
     }
     return null;
@@ -102,7 +109,9 @@ export function init(C){
     NPCS.push(n);
     return n;
   }
-  function despawn(n){ release(n); if(n.machine){ n.machine.npc = null; n.machine = null; } scene.remove(n.F.group); NPCS.splice(NPCS.indexOf(n), 1); }
+  function despawn(n){ release(n); if(n.machine){ n.machine.npc = null; n.machine = null; } scene.remove(n.F.group); const i = NPCS.indexOf(n); if(i >= 0) NPCS.splice(i, 1);
+    /* each guest's merged body and face screen are theirs alone: give the memory back */
+    n.F.group.traverse(o=>{ if(o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); }); if(n.F.face && n.F.face.t) n.F.face.t.dispose(); }
   /* talking */
   function talk(n){
     n.talkCD = 4; n.state = 'chat'; n.timer = 4;

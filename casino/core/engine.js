@@ -5,7 +5,6 @@ import * as THREE from '../lib/three.module.min.js';
 import { EffectComposer } from '../lib/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from '../lib/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from '../lib/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
 
@@ -35,6 +34,10 @@ const FinishShader = {
       c.rgb += (h(vUv*vec2(1920.0,1080.0) + fract(uTime)) - 0.5)*uGrain;
       c.rgb = mix(c.rgb, vec3(1.0), uFlash);
       gl_FragColor = c;
+      /* this is the last pass, so it does the output pass's job too: tone map and
+         convert to sRGB here instead of paying for one more full-screen pass */
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
     }`
 };
 
@@ -89,10 +92,16 @@ export class Engine {
     if(q === 'auto') q = this.isMobile() ? 'low' : 'high';
     return q;
   }
-  setupPost(){
-    const r = this.renderer, q = this.preset();
-    if(this.composer){ this.composer.dispose && this.composer.dispose(); }
-    const rt = new THREE.WebGLRenderTarget(4, 4, { type:THREE.HalfFloatType, samples: q === 'low' ? 0 : 4 });
+  /* the post chain. tier is what it's built for: high (MSAA x4 + bloom),
+     med (MSAA x2 + bloom), low (no MSAA, no bloom). on 'auto' the tier can
+     step down at runtime if frames drag even at the lowest render scale. */
+  setupPost(tier){
+    const r = this.renderer, q = tier || this.postTier || this.preset();
+    this.postTier = q;
+    /* the finish uniforms object survives a rebuild, so anything holding it keeps working */
+    const keep = this.finish ? this.finish.uniforms : null;
+    if(this.composer){ try{ this.composer.renderTarget1.dispose(); this.composer.renderTarget2.dispose(); }catch(e){} try{ this.bloom && this.bloom.dispose(); }catch(e){} }
+    const rt = new THREE.WebGLRenderTarget(4, 4, { type:THREE.HalfFloatType, samples: q === 'high' ? 4 : q === 'med' ? 2 : 0 });
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.vmPass = new RenderPass(this.vmScene, this.vmCamera); this.vmPass.clear = false; this.vmPass.clearDepth = true;
@@ -103,14 +112,19 @@ export class Engine {
     this.composer.addPass(this.bloom);
     this.finish = new ShaderPass(FinishShader);
     this.composer.addPass(this.finish);
-    this.composer.addPass(new OutputPass());
-    this.finish.uniforms.uGrain.value = q === 'low' ? 0.02 : 0.035;
+    if(keep){ this.finish.uniforms = keep; this.finish.material.uniforms = keep; }
+    else this.finish.uniforms.uGrain.value = q === 'low' ? 0.02 : 0.035;
   }
-  setQuality(q){ this.quality = q; this.C.save.settings.quality = q; this.C.save.write(); this.setupPost(); this.resize(); }
+  setQuality(q){ this.quality = q; this.C.save.settings.quality = q; this.C.save.write(); this.setupPost(this.preset()); this.scale = 1; this.resize(); }
   resize(){
     const w = this.mount.clientWidth || innerWidth, h = this.mount.clientHeight || innerHeight;
-    const q = this.preset();
-    const base = q === 'low' ? Math.min(1.25, devicePixelRatio) : q === 'med' ? Math.min(1.5, devicePixelRatio) : Math.min(2, devicePixelRatio);
+    const q = this.postTier || this.preset();
+    /* device pixel ratio, capped per tier, and then capped again by a pixel
+       budget so a 4K or retina screen doesn't render 8 million pixels a frame */
+    const cap = q === 'low' ? 1.25 : q === 'med' ? 1.5 : 2;
+    const budget = q === 'low' ? 1.2e6 : q === 'med' ? 2.4e6 : 3.8e6;
+    let base = Math.min(cap, devicePixelRatio || 1);
+    if(w*h*base*base > budget) base = Math.max(0.6, Math.sqrt(budget/(w*h)));
     this.pr = base*this.scale;
     this.renderer.setPixelRatio(this.pr);
     this.renderer.setSize(w, h, false);
@@ -152,9 +166,15 @@ export class Engine {
     this.fpsAcc += dt; this.fpsN++;
     if(this.fpsAcc < 2) return;
     this.fps = this.fpsN/this.fpsAcc; this.fpsAcc = 0; this.fpsN = 0;
+    if(this.noAdapt || document.hidden) return;
     const old = this.scale;
     if(this.fps < 40 && this.scale > 0.55) this.scale = Math.max(0.55, this.scale - 0.12);
     else if(this.fps > 57 && this.scale < 1) this.scale = Math.min(1, this.scale + 0.06);
+    /* still dragging at the lowest scale: on auto, drop the post tier one step */
+    if(this.quality === 'auto' && this.fps < 32 && old <= 0.56){
+      this.slowN = (this.slowN || 0) + 1;
+      if(this.slowN >= 2 && this.postTier !== 'low'){ this.slowN = 0; this.setupPost(this.postTier === 'high' ? 'med' : 'low'); this.scale = 0.8; this.resize(); console.info('fridge palace: post effects stepped down to', this.postTier); return; }
+    } else this.slowN = 0;
     if(old !== this.scale) this.resize();
   }
   dispose(){

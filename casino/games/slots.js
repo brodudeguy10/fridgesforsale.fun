@@ -4,6 +4,7 @@
    plugged in for most people, one that's out of order forever.
 ============================================================ */
 import * as THREE from '../lib/three.module.min.js';
+import { bakePainted } from '../world/fridge.js';
 import { G, stool } from '../world/props.js';
 import { THEMES, PAINT, evaluate, spinGrid, pickPrizes } from './slots-themes.js';
 import { canvas, tex } from '../world/textures.js';
@@ -165,7 +166,7 @@ export function init(C){
     const trimMesh = new THREE.Mesh(trimGeo, broken ? M.black : trims[T.id]); grp.add(trimMesh);
     const lever = new THREE.Group(); lever.position.set(0.43, 1.05, 0.05);
     lever.add(new THREE.Mesh(leverGeo, M.chrome));
-    const knob = new THREE.Mesh(G.sph, knobM); knob.scale.setScalar(0.04); knob.position.y = 0.37; lever.add(knob);
+    const knob = new THREE.Mesh(G.sph, knobM); knob.scale.setScalar(0.04); knob.position.y = 0.37; lever.add(knob); bakePainted(lever);
     grp.add(lever);
     scene.add(grp);
     /* stool in front */
@@ -213,7 +214,7 @@ export function init(C){
   }
   function exit(){
     if(!cur) return;
-    if(cur.busy){ cur.auto = 0; return; }
+    if(cur.busy){ cur.auto = 0; if(!cur.leaveAfter){ cur.leaveAfter = true; C.hud.toast('standing up after this spin'); } return; }
     const mc = cur.mc; mc.screen.material.map = attract[mc.th.id].t; mc.screen.material.needsUpdate = true;
     cur = null;
     C.standUp();
@@ -316,6 +317,7 @@ export function init(C){
     if(!cur || cur.scr !== scr) return;
     cur.busy = false;
     if(cur.freeLeft > 0){ setTimeout(()=>spin(), 500); return; }
+    if(cur.leaveAfter){ exit(); return; }
     if(free && cur.freeLeft === 0 && cur.freeWin > 0){ C.hud.big('FREE SPINS: ' + C.fmt(cur.freeWin), '#ffd56a'); cur.freeWin = 0; }
     if(cur.auto > 0){
       cur.auto--;

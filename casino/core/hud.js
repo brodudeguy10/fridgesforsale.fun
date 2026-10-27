@@ -26,7 +26,8 @@ export class Hud {
       <div id="fp-fade"></div>`;
     root.appendChild(el);
     this.el = el;
-    this.$ = s=>el.querySelector(s);
+    /* plain #id lookups are cached (they run every frame); anything fancier is looked up fresh */
+    const cache = {}; this.$ = s=>/^#[\w-]+$/.test(s) ? ((cache[s] && cache[s].isConnected) ? cache[s] : (cache[s] = el.querySelector(s))) : el.querySelector(s);
     this.chipsShown = C.save.chips;
     C.save.onChange(()=>this.wallet());
     this.wallet(true);

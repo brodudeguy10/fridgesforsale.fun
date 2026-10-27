@@ -110,13 +110,15 @@ export function init(C){
     const wheelW = new THREE.Vector3(0, cy, 0).applyMatrix4(grp.matrixWorld);
     const camW = new THREE.Vector3(0, 1.75, 4.2).applyMatrix4(grp.matrixWorld);
     C.player.pos.set(camW.x, 0, camW.z);
-    C.sit(camW, wheelW, null);
-    let power = 0, dir = 1, held = false;
+    let power = 0, dir = 1, held = false, done = false;
+    /* walking away before you pull: no spin, money back if you paid */
+    const cleanup = ()=>{ done = true; clearInterval(iv); window.removeEventListener('pointerup', up); C.bus.off('key', kd); window.removeEventListener('keyup', ku, true); };
+    C.sit(camW, wheelW, ()=>{ if(done || spinning) return; cleanup(); if(!free) C.save.refund(1000); C.standUp(); });
     const p = C.hud.panel(`<div class="fp-ptitle">LUCKY WHEEL<span class="sp"></span><small>${free ? 'free spin' : 'paid spin'}</small></div><div class="fp-row"><div style="width:260px;height:14px;background:#111;border:1px solid var(--line)"><i id="wh-p" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#3ddc84,#ffd400,#ff4a4a)"></i></div></div><div class="fp-row"><button class="fp-gold fp-spin" id="wh-go">HOLD TO PULL</button></div><div class="fp-row fp-dim">hold, then let go. it doesn't matter how hard you pull. it feels like it does.</div>`);
     const bar = p.querySelector('#wh-p'), btn = p.querySelector('#wh-go');
     const iv = setInterval(()=>{ if(held){ power += dir*0.04; if(power > 1){ power = 1; dir = -1; } if(power < 0){ power = 0; dir = 1; } bar.style.width = (power*100) + '%'; } }, 30);
     const down = e=>{ e.preventDefault(); held = true; };
-    const up = e=>{ if(!held) return; held = false; window.removeEventListener('pointerup', up); C.bus.off('key', kd); window.removeEventListener('keyup', ku, true); clearInterval(iv); btn.disabled = true; release(Math.max(0.2, power), free); };
+    const up = e=>{ if(!held || done) return; held = false; cleanup(); C.seatExit = null; btn.disabled = true; release(Math.max(0.2, power), free); };
     const kd = e=>{ if(e.code === 'Space' || e.code === 'KeyE'){ held = true; } };
     const ku = e=>{ if(e.code === 'Space' || e.code === 'KeyE') up(e); };
     btn.addEventListener('pointerdown', down); window.addEventListener('pointerup', up); C.bus.on('key', kd); window.addEventListener('keyup', ku, true);

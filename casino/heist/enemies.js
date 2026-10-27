@@ -9,7 +9,7 @@
    flank, peek, flinch, freeze solid, and come apart.
 ============================================================ */
 import * as THREE from '../lib/three.module.min.js';
-import { makeFridge, animateFridge, Face } from '../world/fridge.js';
+import { makeFridge, animateFridge, Face, bakePainted } from '../world/fridge.js';
 import { canvas, tex } from '../world/textures.js';
 import { rayOBB } from './combat.js';
 import { los } from './nav.js';
@@ -61,6 +61,7 @@ function enemyGun(kind){
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, -L + 0.03, 0.01); g.add(muzzle);
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color:0xffc070, toneMapped:false, transparent:true, opacity:0.9 })); flash.visible = false; muzzle.add(flash);
   g.userData.muzzle = muzzle; g.userData.flash = flash;
+  bakePainted(g, [muzzle]);
   return g;
 }
 
@@ -97,9 +98,15 @@ function makeHeavy(){
   const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.03, 6, 16), coilM); mouth.rotation.x = Math.PI/2; mouth.position.y = -0.55; cannon.add(mouth);
   const muzzle = new THREE.Object3D(); muzzle.position.y = -0.6; cannon.add(muzzle);
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz])=>{ const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 12), dark); wh.rotation.z = Math.PI/2; wh.position.set(sx*(w/2 - 0.15), 0.08, sz*(d/2 - 0.15)); inner.add(wh); });
+  bakePainted(inner, [door, comp, fp, armL, armR]); bakePainted(door, [port, plate]);
   return { group:grp, inner, w, h, d, face, facePlane:fp, faceY:h - 0.25, armL, armR, door, comp, fan, coilM, muzzle, top:h + 0.12 };
 }
 
+/* free the GPU side of a removed enemy. geometry and the face texture are
+   unique per fridge (models are merged on build); materials are left alone
+   because shared shader programs would get torn down and recompiled. */
+function freeGPU(root){ if(!root) return; root.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
+function freeEnemy(e){ freeGPU(e.F.group); if(e.flungDoor) freeGPU(e.flungDoor.g); if(e.ice){ e.ice.geometry.dispose(); } if(e.F.face && e.F.face.t) e.F.face.t.dispose(); }
 export class Enemies {
   constructor(C, nav){
     this.C = C; this.nav = nav;
@@ -164,6 +171,7 @@ export class Enemies {
     const hm = new THREE.MeshStandardMaterial({ color:0xd8dade, roughness:0.12, metalness:1 });
     const hb = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, Math.min(0.5, dh*0.5), 10), hm); hb.position.set(dw - 0.09, dh*0.72, 0.055); door.add(hb);
     const gasket = new THREE.Mesh(new THREE.BoxGeometry(dw, 0.012, 0.052), new THREE.MeshStandardMaterial({ color:0x0a0a0c, roughness:0.8 })); gasket.position.set(dw/2, dh, 0); door.add(gasket);
+    bakePainted(door);
     F.door = door; F.interior = inner; F.doorH = dh; F.doorY0 = y0;
   }
   addCopGear(F){
@@ -262,9 +270,9 @@ export class Enemies {
     C.gore.iceBurst(p, e.T.heavy ? 50 : 26, { power:1.2 });
     C.gore.spill(new THREE.Vector3(p.x, 0.8, p.z), dir || new THREE.Vector3(0, 1, 0), { n:8, sauce:4, power:1.2 });
     C.audio.heist && C.audio.heist.hit('ice', p); C.audio.heist && C.audio.heist.hit('glass', p);
-    if(e.ice){ C.scene.remove(e.ice); e.ice = null; }
+    if(e.ice){ C.scene.remove(e.ice); e.ice.geometry.dispose(); e.ice = null; }
     e.alive = false; e.state = 'gone'; e.shattered = true;
-    C.scene.remove(e.F.group); C.combat.remove(e.target);
+    C.scene.remove(e.F.group); C.combat.remove(e.target); freeEnemy(e);
     this.list.splice(this.list.indexOf(e), 1);
     this.totalKills++;
     C.bus.emit('kill', { e, how:'shatter', pos:p });
@@ -273,7 +281,7 @@ export class Enemies {
   kill(e, info){
     const C = this.C, F = e.F, G = C.gore, H = C.audio.heist;
     e.alive = false; e.state = 'dying'; e.stT = 0;
-    if(e.ice){ C.scene.remove(e.ice); e.ice = null; }
+    if(e.ice){ C.scene.remove(e.ice); e.ice.geometry.dispose(); e.ice = null; }
     this.totalKills++;
     const dir = info.dir ? info.dir.clone().setY(0).normalize() : new THREE.Vector3(0, 0, 1);
     e.fallYaw = Math.atan2(dir.x, dir.z);
@@ -303,7 +311,7 @@ export class Enemies {
     this.dead.push(e);
     if(this.dead.length > this.maxCorpses){ const old = this.dead.shift(); this.removeCorpse(old); }
   }
-  removeCorpse(e){ this.C.scene.remove(e.F.group); if(e.flungDoor) this.C.scene.remove(e.flungDoor.g); this.C.combat.remove(e.target); const i = this.list.indexOf(e); if(i >= 0) this.list.splice(i, 1); }
+  removeCorpse(e){ this.C.scene.remove(e.F.group); if(e.flungDoor) this.C.scene.remove(e.flungDoor.g); this.C.combat.remove(e.target); freeEnemy(e); const i = this.list.indexOf(e); if(i >= 0) this.list.splice(i, 1); }
   flingDoor(e, dir){
     const F = e.F, C = this.C;
     F.door.updateWorldMatrix(true, true);
@@ -368,7 +376,7 @@ export class Enemies {
       if(F.lightR){ const on = Math.floor(t*6 + e.seed) % 2; F.lightR.material.color.setScalar(on ? 1 : 0.15).setRGB(on ? 1 : 0.2, 0.05, 0.05); F.lightB.material.color.setRGB(0.05, 0.15, on ? 0.2 : 1); }
       if(F.fan) F.fan.rotation.y += dt*(e.coilBroken ? 1 : 14);
       /* frozen solid: nothing happens until it thaws or breaks */
-      if(e.frozen){ e.frozenT += dt; e.freeze -= dt*9; if(e.freeze < 35){ e.frozen = false; if(e.ice){ C.scene.remove(e.ice); e.ice = null; } F.face.set('angry', 2); C.gore.mistPuff(new THREE.Vector3(p.x, 1, p.z), '#d8f6ff', 6, { size:0.3 }); } continue; }
+      if(e.frozen){ e.frozenT += dt; e.freeze -= dt*9; if(e.freeze < 35){ e.frozen = false; if(e.ice){ C.scene.remove(e.ice); e.ice.geometry.dispose(); e.ice = null; } F.face.set('angry', 2); C.gore.mistPuff(new THREE.Vector3(p.x, 1, p.z), '#d8f6ff', 6, { size:0.3 }); } continue; }
       if(e.freeze > 0) e.freeze = Math.max(0, e.freeze - dt*22);
       const slow = 1 - Math.min(0.7, e.freeze/140);
       e.lastHurt += dt;
@@ -491,7 +499,7 @@ export class Enemies {
       const P = C.player, lead = new THREE.Vector3(P.vel.x, 0, P.vel.y).multiplyScalar(0.5);
       const tgt = cam.clone().add(lead); tgt.y = 0.6;
       const T = Math.max(0.6, from.distanceTo(tgt)/12);
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), this.iceM); m.position.copy(from); C.scene.add(m);
+      const m = new THREE.Mesh(this.iceG || (this.iceG = new THREE.BoxGeometry(0.35, 0.35, 0.35)), this.iceM); m.position.copy(from); C.scene.add(m);
       this.proj.push({ m, vx:(tgt.x - from.x)/T, vy:(tgt.y - from.y)/T + 0.5*9.8*T, vz:(tgt.z - from.z)/T, life:T + 1 });
       F.armR.rotation.x = -2.2;
       C.audio.heist && C.audio.heist.gun('heavy', from, { vol:0.8 });
@@ -523,7 +531,7 @@ export class Enemies {
     if(e.lightFlicker > 0 && F.interior){ e.lightFlicker -= dt; F.interior.material.emissiveIntensity = e.lightFlicker > 0 ? (Math.random() < 0.5 ? 0.9 : 0.1) : 0; }
     if(e.flungDoor && !e.flungDoor.rest){ const fd = e.flungDoor; fd.vy -= 9.8*dt; fd.g.position.x += fd.vx*dt; fd.g.position.y += fd.vy*dt; fd.g.position.z += fd.vz*dt; fd.g.rotation.x += fd.wx*dt; fd.g.rotation.y += fd.wy*dt; fd.g.rotation.z += fd.wz*dt; if(fd.g.position.y < 0.05){ fd.g.position.y = 0.05; if(fd.vy < -2){ fd.vy *= -0.3; fd.vx *= 0.5; fd.vz *= 0.5; fd.wx *= 0.4; fd.wz *= 0.4; C.audio.heist && C.audio.heist.hit('metal', fd.g.position.clone()); } else { fd.rest = true; fd.g.rotation.set(-Math.PI/2, fd.g.rotation.y, 0); } } }
   }
-  clear(){ this.list.slice().forEach(e=>{ this.C.scene.remove(e.F.group); if(e.ice) this.C.scene.remove(e.ice); if(e.flungDoor) this.C.scene.remove(e.flungDoor.g); this.C.combat.remove(e.target); }); this.list = []; this.dead = []; this.proj.forEach(p=>this.C.scene.remove(p.m)); this.proj = []; }
+  clear(){ this.list.slice().forEach(e=>{ this.C.scene.remove(e.F.group); if(e.ice) this.C.scene.remove(e.ice); if(e.flungDoor) this.C.scene.remove(e.flungDoor.g); this.C.combat.remove(e.target); freeEnemy(e); }); this.list = []; this.dead = []; this.proj.forEach(p=>this.C.scene.remove(p.m)); this.proj = []; }
   /* clear the living only (checkpoint restarts keep the bodies) */
-  clearAlive(){ this.list.filter(e=>e.alive).forEach(e=>{ this.C.scene.remove(e.F.group); if(e.ice) this.C.scene.remove(e.ice); this.C.combat.remove(e.target); this.list.splice(this.list.indexOf(e), 1); }); this.proj.forEach(p=>this.C.scene.remove(p.m)); this.proj = []; }
+  clearAlive(){ this.list.filter(e=>e.alive).forEach(e=>{ this.C.scene.remove(e.F.group); if(e.ice) this.C.scene.remove(e.ice); this.C.combat.remove(e.target); freeEnemy(e); this.list.splice(this.list.indexOf(e), 1); }); this.proj.forEach(p=>this.C.scene.remove(p.m)); this.proj = []; }
 }

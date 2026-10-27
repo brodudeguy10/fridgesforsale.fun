@@ -9,6 +9,9 @@ import * as THREE from '../lib/three.module.min.js';
 import { G } from '../world/props.js';
 import { canvas, tex } from '../world/textures.js';
 import { rayOBB } from './combat.js';
+import { mergeGeometries } from '../lib/addons/utils/BufferGeometryUtils.js';
+/* one draw call per pile instead of one per bar */
+function merged(geo, list, mat){ const gs = list.map(([x, y, z, ry])=>{ const g = geo.clone(); if(ry) g.rotateY(ry); g.translate(x, y, z); return g; }); const m = new THREE.Mesh(mergeGeometries(gs, false), mat); gs.forEach(g=>g.dispose()); return m; }
 
 const R = (a, b)=>a + Math.random()*(b - a);
 const sm = t=>t <= 0 ? 0 : t >= 1 ? 1 : t*t*(3 - 2*t);
@@ -28,7 +31,8 @@ export class Vault {
     const steelM = new THREE.MeshStandardMaterial({ color:0x8a8e94, roughness:0.4, metalness:0.85 });
     const darkM = new THREE.MeshStandardMaterial({ color:0x2a2c30, roughness:0.5, metalness:0.7 });
     const floorTex = (()=>{ const c = canvas(256, 256), g = c.getContext('2d'); g.fillStyle = '#5a5e64'; g.fillRect(0, 0, 256, 256); for(let i=0;i<8;i++) for(let j=0;j<8;j++){ g.fillStyle = (i + j) % 2 ? '#62666c' : '#55595f'; g.fillRect(i*32 + 1, j*32 + 1, 30, 30); for(let k=0;k<6;k++){ g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(i*32 + 4 + k*4, j*32 + 4 + (k%2)*12, 2, 8); } } return tex(c, { repeat:[3, 3] }); })();
-    const room = new THREE.Group(); S.add(room); this.room = room;
+    /* nobody sees in here until the door moves, so it doesn't draw until then */
+    const room = new THREE.Group(); room.visible = false; S.add(room); this.room = room;
     const x0 = 30.15, x1 = 37, z0 = 14.5, z1 = 20.5, h = 3.2;
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshStandardMaterial({ map:floorTex, roughness:0.5, metalness:0.6 })); floor.rotation.x = -Math.PI/2; floor.position.set((x0 + x1)/2, 0.005, (z0 + z1)/2); room.add(floor);
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), darkM); ceil.rotation.x = Math.PI/2; ceil.position.set((x0 + x1)/2, h, (z0 + z1)/2); room.add(ceil);
@@ -46,15 +50,16 @@ export class Vault {
     /* shelves with loot along north and south walls */
     const shelf = (z, face)=>{ for(let i=0;i<3;i++){ const s = new THREE.Mesh(new THREE.BoxGeometry(5, 0.05, 0.6), steelM); s.position.set(33.4, 0.5 + i*0.85, z); room.add(s); } [31.0, 35.8].forEach(x=>{ const p = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.3, 0.6), steelM); p.position.set(x, 1.15, z); room.add(p); }); C.collide.box(30.9, z - 0.32, 35.9, z + 0.32, 'shelf'); };
     shelf(14.9, 1); shelf(20.1, -1);
-    const goldM = new THREE.MeshStandardMaterial({ color:0xf0c040, roughness:0.18, metalness:1, emissive:0x2a1a00, emissiveIntensity:0.3 });
+    const goldM = new THREE.MeshStandardMaterial({ color:0xf0c040, roughness:0.28, metalness:0.7, emissive:0x5a3a00, emissiveIntensity:0.45 });
     const cashTex = (()=>{ const c = canvas(64, 32), g = c.getContext('2d'); g.fillStyle = '#4a7a4a'; g.fillRect(0, 0, 64, 32); g.fillStyle = '#e8e0c0'; g.fillRect(26, 0, 12, 32); g.fillStyle = '#2a4a2a'; g.font = 'bold 14px monospace'; g.fillText('F', 6, 21); g.fillText('F', 46, 21); return tex(c); })();
     const cashM = new THREE.MeshStandardMaterial({ map:cashTex, roughness:0.8 });
-    const goldG = new THREE.BoxGeometry(0.22, 0.07, 0.1), cashG = new THREE.BoxGeometry(0.16, 0.05, 0.08);
+    const goldG = new THREE.BoxGeometry(0.22, 0.07, 0.1), cashG = new THREE.BoxGeometry(0.16, 0.05, 0.08), boxG = new THREE.BoxGeometry(0.3, 0.12, 0.25);
+    const boxM = new THREE.MeshStandardMaterial({ color:0x8a7a52, roughness:0.4, metalness:0.7 });
     const pile = (kind, x, z, shelfY, value, weight, label)=>{
       const g = new THREE.Group(); g.position.set(x, shelfY + 0.03, z); room.add(g);
-      if(kind === 'gold'){ for(let r=0;r<3;r++) for(let i=0;i<5 - r;i++) for(let j=0;j<2;j++){ const b = new THREE.Mesh(goldG, goldM); b.position.set(-0.45 + i*0.23 + r*0.11, 0.035 + r*0.07, -0.08 + j*0.13); g.add(b); } }
-      else if(kind === 'cash'){ for(let r=0;r<4;r++) for(let i=0;i<5;i++) for(let j=0;j<3;j++){ const b = new THREE.Mesh(cashG, cashM); b.position.set(-0.36 + i*0.17, 0.025 + r*0.05, -0.12 + j*0.09); g.add(b); } }
-      else { for(let i=0;i<4;i++){ const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.25), new THREE.MeshStandardMaterial({ color:0x8a7a52, roughness:0.4, metalness:0.7 })); b.position.set(-0.4 + i*0.28, 0.06 + (i%2)*0.12, 0); b.rotation.y = R(-0.3, 0.3); g.add(b); } }
+      if(kind === 'gold'){ const L = []; for(let r=0;r<3;r++) for(let i=0;i<5 - r;i++) for(let j=0;j<2;j++) L.push([-0.45 + i*0.23 + r*0.11, 0.035 + r*0.07, -0.08 + j*0.13]); g.add(merged(goldG, L, goldM)); }
+      else if(kind === 'cash'){ const L = []; for(let r=0;r<4;r++) for(let i=0;i<5;i++) for(let j=0;j<3;j++) L.push([-0.36 + i*0.17, 0.025 + r*0.05, -0.12 + j*0.09]); g.add(merged(cashG, L, cashM)); }
+      else { const L = []; for(let i=0;i<4;i++) L.push([-0.4 + i*0.28, 0.06 + (i%2)*0.12, 0, R(-0.3, 0.3)]); g.add(merged(boxG, L, boxM)); }
       const p = { kind, g, value, weight, label, taken:false, pos:new THREE.Vector3(x, shelfY + 0.3, z) };
       this.piles.push(p);
       C.world.interact.push({ heist:true, pos:p.pos, r:2.0, enabled:()=>!p.taken && this.state === 'open' && C.heist && C.heist.canLootVault(), text:()=>'grab the ' + label, use:()=>this.take(p) });
@@ -153,6 +158,7 @@ export class Vault {
   }
   async openDoor(){
     const C = this.C, K = this.K, v = K.vault;
+    this.room.visible = true;
     C.audio.heist && C.audio.heist.vaultDoor(v.position.clone().setY(1.3), true);
     /* the wheel spins, then the door swings */
     await C.tweens.add({ dur:1.2, update:k=>{ v.userData.wheel.rotation.x = k*Math.PI*2; } });

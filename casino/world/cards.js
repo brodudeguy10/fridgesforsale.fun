@@ -161,7 +161,10 @@ export function chipStack(amount, o){
     h += 0.0035;
   });
   const grp = new THREE.Group();
-  if(geos.length){ const merged = mergeGeometries(geos, false); geos.forEach(g=>g.dispose()); const mesh = new THREE.Mesh(merged, chipMaterial()); grp.add(mesh); }
+  if(geos.length){ const merged = mergeGeometries(geos, false); geos.forEach(g=>g.dispose()); const mesh = new THREE.Mesh(merged, chipMaterial()); grp.add(mesh);
+    /* every stack has its own merged geometry; when a stack is taken off the table, free the GPU copy
+       (dispose only drops the buffers, so a stack that gets put back simply uploads again) */
+    grp.addEventListener('removed', ()=>merged.dispose()); }
   grp.userData.amount = amount;
   return grp;
 }

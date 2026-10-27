@@ -28,7 +28,15 @@ export const SECRETS = [
   ,{ k:'mine', name:'Somebody Else\'s', hint:'if downstairs likes you, you might not have to finish the job yourself.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 2; }catch(e){ return false; } } }
   ,{ k:'reminder', name:'A Reminder', hint:'after it\'s rebuilt, look up at the big sign.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 3; }catch(e){ return false; } } }
   ,{ k:'payphone', name:'Collect Call', hint:'once it\'s over, something by the restrooms starts ringing.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 3; }catch(e){ return false; } } }
+  ,{ k:'hydrate', name:'Hydration Station', hint:'gus has a favorite customer. it\'s whoever orders the free thing, again and again and again.' }
+  ,{ k:'fourtwenty', name:'Four Twenty', hint:'casinos don\'t have clocks. the neon does, twice a day.' }
+  ,{ k:'slept', name:'Slept Through It', hint:'one man sleeps through the whole robbery. make some noise near him.', needs:()=>hs().story >= 2 }
+  ,{ k:'tinyrevenge', name:'Small Arms', hint:'somebody in the wall has been waiting for an excuse.', needs:()=>hs().story >= 2 }
+  ,{ k:'bullion', name:'Gold Standard', hint:'he wears six pieces of gold. take every one.', needs:()=>hs().story >= 2 }
+  ,{ k:'kingsbox', name:'For The King', hint:'the vault keeps one box with a familiar number on it.', needs:()=>hs().story >= 2 }
+  ,{ k:'poster', name:'Tear It Down', hint:'upstairs they put your face on the wall. it\'s only taped up.', needs:()=>hs().heat > 0 || !!hs().posterTorn }
 ];
+function hs(){ try{ return JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}; }catch(e){ return {}; } }
 
 export function initExtras(C){
   /* ---------- photo mode ---------- */
@@ -40,7 +48,7 @@ export function initExtras(C){
     { name:'vhs', sat:1.3, tint:[1.05, 0.95, 1.08], vig:1.3, grain:0.14, chroma:0.003 },
     { name:'vendor', sat:0.4, tint:[1.15, 0.8, 0.75], vig:1.5, grain:0.1, chroma:0.0015 }
   ];
-  let photo = false, fi = 0, el = null, fly = 0;
+  let photo = false, fi = 0, el = null, fly = 0, prevGrade = null;
   const U = C.engine.finish.uniforms;
   const apply = f=>{ U.uSat.value = f.sat; U.uTint.value.set(...f.tint); U.uVig.value = f.vig; U.uGrain.value = f.grain; U.uChroma.value = f.chroma; };
   function toggle(on){
@@ -49,7 +57,8 @@ export function initExtras(C){
     C.hud.el.style.display = on ? 'none' : '';
     if(!el){ el = document.createElement('div'); el.id = 'fp-photo'; C.root.appendChild(el); }
     el.style.display = on ? 'flex' : 'none';
-    if(on){ fly = 0; C.save.egg('photo'); render(); } else { apply(FILTERS[0]); }
+    /* remember the grade that was on (the heist has its own) and put it back after */
+    if(on){ fly = 0; prevGrade = { sat:U.uSat.value, tint:U.uTint.value.toArray(), vig:U.uVig.value, grain:U.uGrain.value, chroma:U.uChroma.value }; C.save.egg('photo'); render(); } else { apply(prevGrade || FILTERS[0]); prevGrade = null; }
   }
   function render(){ el.innerHTML = `<b>PHOTO MODE</b><span>filter: ${FILTERS[fi].name}</span><span>${C.input.touch ? '' : '1-6 filters · space/C up and down · enter snap · P exit'}</span><button data-a="f">FILTER</button><button data-a="s" class="fp-gold">SNAP</button><button data-a="x">EXIT</button>`;
     el.querySelector('[data-a="f"]').onclick = ()=>{ fi = (fi + 1) % FILTERS.length; apply(FILTERS[fi]); render(); };

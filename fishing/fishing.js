@@ -327,7 +327,9 @@ function frame(ts){
 }
 
 /* ---------- drawing ---------- */
-function resize(){ const dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight; cv.width = W*dpr; cv.height = H*dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+/* the top bar wraps onto two or three rows on a narrow phone; start the panel under it */
+function fitPanel(){ if(!root) return; const hud = root.querySelector('#fs-hud'), p = root.querySelector('#fs-panel'); if(!hud || !p) return; const b = hud.getBoundingClientRect().bottom; p.style.top = Math.max(56, Math.round(b + 6)) + 'px'; }
+function resize(){ fitPanel(); const dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight; cv.width = W*dpr; cv.height = H*dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
 const PAL = {
   puddle:  { sky:['#0b1220','#1b2a40'], day:['#6fa3d8','#cfe3f5'], water:['#1a2633','#0a0f16'], shore:'#0d1117', tint:'rgba(120,150,200,0.08)' },
   crisper: { sky:['#08140d','#163024'], day:['#8fcfb0','#e2f4ea'], water:['#1d3a2c','#0a1710'], shore:'#0b1a12', tint:'rgba(120,255,170,0.08)' },
@@ -475,6 +477,7 @@ function setTab(t){
   const p = root.querySelector('#fs-panel');
   if(t === 'fish'){ p.style.display = 'none'; return; }
   p.style.display = 'block';
+  fitPanel();
   if(t === 'cooler') renderCooler(); else if(t === 'dex') renderDex(); else renderTackle();
 }
 function rarTag(r){ return `<span class="rt" style="color:${RAR[r].col}">${RAR[r].name}</span>`; }

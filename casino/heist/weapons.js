@@ -179,7 +179,7 @@ export class Arsenal {
     C.engine.vmOn = this.root.visible && this.drawn;
     if(!this.drawn || !this.cur){ this.root.visible = false; C.engine.vmOn = false; I.lookScale = 1; this.adsK = 0; P.noRun = false; P.speedMul = C.heist && C.heist.carryMul ? C.heist.carryMul() : 1; this.applyFov(); return; }
     const W = this.W, a = this.a, m = this.models[this.cur], G = m.group, Pp = m.parts;
-    const canInput = this.enabled && !C.hud.paused && !C.hud.modalOpen && !C.seated && P.mode === 'walk';
+    const canInput = this.enabled && !C.hud.paused && !C.hud.modalOpen && !C.seated && !C.photo && P.mode === 'walk';
     this.stT += dt;
     /* aiming */
     const wantAds = canInput && (I.mouse.r || this.touch.ads) && this.state !== 'reload' && this.state !== 'draw' && this.state !== 'holster' && this.sprintK < 0.3;
@@ -208,6 +208,7 @@ export class Arsenal {
       const k = sm(this.stT/0.3); oy -= k*0.25; rx -= k*0.9; rz += k*0.3;
       if(this.stT >= 0.3){ G.visible = false; this.resetParts(m); if(this.next){ const n = this.next; this.next = null; this.drawn = false; this.select(n); return; } this.drawn = false; this.state = 'holstered'; this.root.visible = false; C.bus.emit('holster'); C.bus.emit('weapons'); return; }
     }
+    if(this.pumpT > 0 && this.cur !== 'shotgun'){ this.pumpT = 0; this._pb = this._pf = false; }
     if(this.pumpT > 0){
       this.pumpT -= dt; const t = 0.62 - this.pumpT;
       const k = t < 0.18 ? 0 : t < 0.36 ? (t - 0.18)/0.18 : t < 0.54 ? 1 - (t - 0.36)/0.18 : 0;

@@ -7,7 +7,7 @@
 import * as THREE from '../lib/three.module.min.js';
 import { canvas, tex } from '../world/textures.js';
 
-const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _c = new THREE.Color(), _q2 = new THREE.Quaternion();
 const R = (a, b)=>a + Math.random()*(b - a);
 
 /* ---------- textures ---------- */
@@ -48,7 +48,7 @@ class Pool {
     if(idx < 0) idx = this.next;
     this.next = (idx + 1) % this.n;
     const p = this.p[idx];
-    Object.assign(p, { x:0, y:0, z:0, vx:0, vy:0, vz:0, rx:0, ry:0, rz:0, wx:0, wy:0, wz:0, s:1, sx:1, sy:1, sz:1, grow:0, life:1, max:1, grav:9.8, bounce:0.3, drag:0, floor:0, rest:false, fade:true, col:null, fadeCol:false, onLand:null, stretch:0, billboard:false, keep:false, align:null });
+    Object.assign(p, { x:0, y:0, z:0, vx:0, vy:0, vz:0, rx:0, ry:0, rz:0, wx:0, wy:0, wz:0, s:1, sx:1, sy:1, sz:1, grow:0, life:1, max:1, grav:9.8, bounce:0.3, drag:0, floor:0, rest:false, fade:true, col:null, fadeCol:false, onLand:null, stretch:0, billboard:false, keep:false, align:null, written:false });
     f(p); p.max = p.life;
     if(p.col && this.mesh.instanceColor){ _c.set(p.col); p.cr = _c.r; p.cg = _c.g; p.cb = _c.b; this.mesh.setColorAt(idx, _c); this.mesh.instanceColor.needsUpdate = true; }
     if(idx + 1 > this.hi) this.hi = idx + 1;
@@ -60,7 +60,10 @@ class Pool {
     for(let i=0;i<this.hi;i++){
       const p = this.p[i];
       if(p.life <= 0){ if(p.alive){ p.alive = false; _m.makeScale(0, 0, 0); mesh.setMatrixAt(i, _m); any = true; } continue; }
-      p.alive = true; any = true; hi = i + 1;
+      hi = i + 1;
+      /* decals that have settled (holes, scorch, finished puddles) were already written: skip them */
+      if(p.keep && p.rest && p.written && !p.growing){ p.alive = true; continue; }
+      p.alive = true; any = true;
       if(!p.keep) p.life -= dt;
       if(!p.rest){
         p.vy -= p.grav*dt;
@@ -78,13 +81,13 @@ class Pool {
       const k = p.life/p.max;
       if(p.fade && k < 0.25) sc *= k/0.25;
       _p.set(p.x, p.y, p.z);
-      if(p.billboard && camQ){ _q.copy(camQ); if(p.rz){ _e.set(0, 0, p.rz); const q2 = new THREE.Quaternion().setFromEuler(_e); _q.multiply(q2); } }
+      if(p.billboard && camQ){ _q.copy(camQ); if(p.rz){ _e.set(0, 0, p.rz); _q2.setFromEuler(_e); _q.multiply(_q2); } }
       else if(p.stretch){ _v.set(p.vx, p.vy, p.vz); const l = _v.length() || 1; _v.multiplyScalar(1/l); _q.setFromUnitVectors(_up, _v); }
       else if(p.align){ _q.copy(p.align); }
       else { _e.set(p.rx, p.ry, p.rz); _q.setFromEuler(_e); }
       if(p.stretch) _s.set(p.sx*sc, Math.max(p.sy*sc, Math.hypot(p.vx, p.vy, p.vz)*p.stretch), p.sz*sc);
       else _s.set(p.sx*sc, p.sy*sc, p.sz*sc);
-      _m.compose(_p, _q, _s); mesh.setMatrixAt(i, _m);
+      _m.compose(_p, _q, _s); mesh.setMatrixAt(i, _m); p.written = true;
       if(cf && p.cr !== undefined){ const f = Math.min(1, k*1.6); _c.setRGB(p.cr*f, p.cg*f, p.cb*f); mesh.setColorAt(i, _c); }
     }
     if(any){ mesh.instanceMatrix.needsUpdate = true; if(cf) mesh.instanceColor.needsUpdate = true; }

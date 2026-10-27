@@ -111,6 +111,7 @@ export function init(C){
     body.querySelector('[data-a="coolant"]').onclick = ()=>{ C.hud.modal(null); bt.face.set('angry', 2); bt.face.say(1.5); C.hud.say('GUS', pick(["we talked about this.", "no. it's in the fishing shop upstairs and it's for fish.", "the last guy who drank coolant is the tank decoration now."])); };
     body.querySelector('[data-a="talk"]').onclick = ()=>{ C.hud.modal(null); const l = pick(TALK); bt.face.say(l.length*0.05); C.hud.say('GUS', l); C.save.d.stats.talked++; };
   };
+  let waterRun = 0;
   const serve = async (d)=>{
     if(d.price && C.freeDrink){ C.freeDrink = false; C.hud.say('GUS', 'on the house. grand reopening. don\'t get used to it.'); d = Object.assign({}, d, { price:0 }); }
     if(d.price && !C.save.bet(d.price, 'bar')){ C.audio.error(); C.hud.say('GUS', "that's " + d.price + " chips. the cage is by the door."); return; }
@@ -128,6 +129,9 @@ export function init(C){
     if(d.price) C.save.d.drinks++; C.save.write();
     if(d.tint){ const u = C.engine.finish.uniforms.uTint.value; u.set(d.tint[0], d.tint[1], d.tint[2]); C.tweens.add({ dur:6, update:k=>u.set(d.tint[0] + (1 - d.tint[0])*k, d.tint[1] + (1 - d.tint[1])*k, d.tint[2] + (1 - d.tint[2])*k) }); }
     if(d.cheer){ C.audio.cheer(pos, 1); C.bus.emit('cheer', { pos, big:true }); C.hud.big('CHEERS', '#ffd56a'); }
+    /* five waters in a row: gus respects it */
+    waterRun = d.id === 'water' ? waterRun + 1 : 0;
+    if(waterRun === 5){ C.drunk = 0; await C.tweens.sleep(1.4); bt.face.set('love', 3); bt.face.say(2.5); C.hud.say('GUS', 'five waters. in a casino. in this economy. you\'re the healthiest thing that\'s ever sat at this bar. this one\'s got a little umbrella in it.'); if(C.save.egg('hydrate')) C.hud.toast('secret: hydration station', 'gold'); C.audio.cheer && C.audio.cheer(pos, 0.4); }
     if(d.id === 'sauce'){ C.save.egg('sauce'); try{ VENDOR.see('casino:sauce'); }catch(e){} C.hud.toast('the room counts itself. it gets a different number.', 'gold'); }
     if(C.drunk > 1.25) blackout();
     else if(C.drunk > 0.9) C.hud.toast('you feel great. the floor disagrees.');

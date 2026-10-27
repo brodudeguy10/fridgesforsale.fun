@@ -38,10 +38,13 @@ export class Face {
     if(Math.random() < dt*0.4){ this.lookT.x = (Math.random() - 0.5)*1.2; this.lookT.y = (Math.random() - 0.5)*0.6; }
     this.look.x += (this.lookT.x - this.look.x)*Math.min(1, dt*6); this.look.y += (this.lookT.y - this.look.y)*Math.min(1, dt*6);
     if(this.talking > 0){ this.talking -= dt; this.talk = 0.3 + Math.abs(Math.sin(this.acc*18))*0.7*(Math.sin(this.acc*5) > -0.6 ? 1 : 0.1); } else this.talk *= 0.8;
-    if(near && this.acc > 1/14){ this.acc = 0; this.draw(); }
+    /* redraw (and re-upload) only when something you could see changed */
+    if(near && this.acc > 1/14){ this.acc = 0; if(this.key() !== this._k) this.draw(); }
   }
+  key(){ const m = this.mood; if(m === 'static' || m === 'hurt') return Math.random(); return m + (this.blink > 0 ? 'b' : '') + ((this.look.x*10)|0) + ',' + ((this.look.y*10)|0) + ',' + ((this.talk*8)|0) + (this.blackeye ? 'e' : '') + (this.scar ? 's' : '') + (this.shades ? 'g' : ''); }
   say(sec){ this.talking = sec; }
   draw(){
+    this._k = this.key();
     const g = this.g, W = 128, H = 96, c = this.col;
     g.fillStyle = this.bg; g.fillRect(0, 0, W, H);
     g.fillStyle = 'rgba(255,255,255,0.03)'; for(let y=0;y<H;y+=3) g.fillRect(0, y, W, 1);
@@ -152,12 +155,27 @@ export function makeFridge(o){
   compact(res);
   return res;
 }
-/* merge every static part of the fridge into one mesh per material.
-   the face plane and the arms stay separate because they move. */
+/* every plain painted part (a color, a roughness, a metalness, nothing else)
+   goes into ONE mesh per fridge: the color rides along as a vertex color and
+   roughness/metalness come from a tiny shared palette texture the part's uvs
+   point into. one material for every fridge in the building, so a room full
+   of them costs a few draw calls each instead of a dozen. anything fancier
+   (textures, transparency, glow) keeps its own material like before. */
+const PAL_N = 64, palData = new Uint8Array(PAL_N*4).fill(255), palIdx = new Map();
+const PAL = new THREE.DataTexture(palData, PAL_N, 1, THREE.RGBAFormat);
+PAL.magFilter = PAL.minFilter = THREE.NearestFilter; PAL.generateMipmaps = false; PAL.colorSpace = THREE.NoColorSpace; PAL.needsUpdate = true;
+export const FRIDGE_PBR = new THREE.MeshStandardMaterial({ vertexColors:true, roughnessMap:PAL, metalnessMap:PAL, roughness:1, metalness:1 });
+function palCell(rough, metal){
+  const r = Math.round(rough*255), m = Math.round(metal*255), k = r*256 + m;
+  let i = palIdx.get(k);
+  if(i === undefined){ i = Math.min(PAL_N - 1, palIdx.size); palIdx.set(k, i); palData[i*4] = 255; palData[i*4 + 1] = r; palData[i*4 + 2] = m; palData[i*4 + 3] = 255; PAL.needsUpdate = true; }
+  return (i + 0.5)/PAL_N;
+}
+const plain = m=>m && m.isMeshStandardMaterial && !m.map && !m.transparent && m.side === THREE.FrontSide && m.emissive.getHex() === 0 && !m.vertexColors && !m.userData.own;
 function mergeInto(root, skip){
   root.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
-  const byMat = new Map(), kill = [];
+  const byMat = new Map(), painted = [], kill = [];
   root.traverse(o=>{
     if(!o.isMesh || skip.has(o)) return;
     let p = o.parent, inSkip = false; while(p && p !== root){ if(skip.has(p)) inSkip = true; p = p.parent; }
@@ -165,16 +183,27 @@ function mergeInto(root, skip){
     const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
     let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
     for(const k of Object.keys(g.attributes)) if(k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
-    if(!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count*2), 2));
+    const n = g.attributes.position.count;
     g.applyMatrix4(m);
-    const a = byMat.get(o.material) || []; a.push(g); byMat.set(o.material, a);
+    if(plain(o.material)){
+      const mt = o.material, u = palCell(mt.roughness, mt.metalness), uv = new Float32Array(n*2), col = new Float32Array(n*3);
+      for(let i=0;i<n;i++){ uv[i*2] = u; uv[i*2 + 1] = 0.5; col[i*3] = mt.color.r; col[i*3 + 1] = mt.color.g; col[i*3 + 2] = mt.color.b; }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      painted.push(g);
+    } else {
+      if(!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n*2), 2));
+      const a = byMat.get(o.material) || []; a.push(g); byMat.set(o.material, a);
+    }
     kill.push(o);
   });
   kill.forEach(o=>o.parent.remove(o));
   /* drop now-empty groups */
   const empty = []; root.traverse(o=>{ if(o !== root && !o.isMesh && o.children.length === 0 && !skip.has(o)) empty.push(o); }); empty.forEach(o=>o.parent && o.parent.remove(o));
+  if(painted.length){ const mg = mergeGeometries(painted, false); painted.forEach(g=>g.dispose()); if(mg){ const mesh = new THREE.Mesh(mg, FRIDGE_PBR); root.add(mesh); } }
   for(const [mat, gs] of byMat){ const mg = mergeGeometries(gs, false); gs.forEach(g=>g.dispose()); if(mg){ const mesh = new THREE.Mesh(mg, mat); root.add(mesh); } }
 }
+/* the same trick for any small static prop (a slot lever, a knob): one mesh */
+export function bakePainted(root, keep){ mergeInto(root, new Set(keep || [])); return root; }
 function compact(F){
   const skip = new Set();
   if(F.facePlane) skip.add(F.facePlane);

@@ -7,9 +7,10 @@
    strategy (mostly). the pit boss watches the count.
 ============================================================ */
 import * as THREE from '../lib/three.module.min.js';
+import { mergeGeometries } from '../lib/addons/utils/BufferGeometryUtils.js';
 import { G, stool } from '../world/props.js';
 import { makeCard, setCardFace, chipStack, DENOMS, RANKS, SUITS } from '../world/cards.js';
-import { makeFridge, animateFridge } from '../world/fridge.js';
+import { makeFridge, animateFridge, bakePainted } from '../world/fridge.js';
 import { canvas, tex } from '../world/textures.js';
 import { fair, pick, rand, ease } from '../core/util.js';
 
@@ -133,8 +134,11 @@ export function init(C){
     /* tray, shoe, discard */
     const tray = new THREE.Mesh(G.box, M.black); tray.scale.set(0.7, 0.03, 0.16); tray.position.set(0, topY + 0.015, z0 + 0.1); grp.add(tray);
     const dv = [1000, 500, 100, 25, 5, 1];
-    dv.forEach((v, i)=>{ for(let k=0;k<2;k++){ const st = chipStack(v*(18 + k*4), { per:30 }); st.position.set(-0.3 + i*0.11 + k*0.045, topY + 0.03, z0 + 0.1); st.rotation.z = Math.PI/2; st.rotation.y = Math.PI/2; st.scale.setScalar(1); grp.add(st); } });
+    /* the dealer's chip tray: twelve stacks baked into one mesh */
+    { const tg = []; let tm = null; dv.forEach((v, i)=>{ for(let k=0;k<2;k++){ const st = chipStack(v*(18 + k*4), { per:30 }); st.position.set(-0.3 + i*0.11 + k*0.045, topY + 0.03, z0 + 0.1); st.rotation.z = Math.PI/2; st.rotation.y = Math.PI/2; st.updateMatrixWorld(true); st.traverse(o=>{ if(o.isMesh){ tm = o.material; tg.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); o.geometry.dispose(); } }); } });
+      if(tg.length){ const mg = mergeGeometries(tg, false); tg.forEach(g=>g.dispose()); grp.add(new THREE.Mesh(mg, tm)); } }
     const shoe = new THREE.Mesh(G.box, M.black); shoe.scale.set(0.16, 0.12, 0.32); shoe.position.set(0.9, topY + 0.06, z0 + 0.25); shoe.rotation.y = -0.3; grp.add(shoe);
+    { const stat = new THREE.Group(); grp.add(stat); [rail, wood, skirt, dealerEdge, tray, shoe].forEach(m=>stat.attach(m)); bakePainted(stat); }
     const disc = new THREE.Mesh(G.box, new THREE.MeshStandardMaterial({ color:0x2a2a30, transparent:true, opacity:0.7, roughness:0.1 })); disc.scale.set(0.14, 0.1, 0.2); disc.position.set(-0.95, topY + 0.05, z0 + 0.22); grp.add(disc);
     const plaque = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({ map:(()=>{ const c = canvas(256, 64), g = c.getContext('2d'); g.fillStyle = '#111'; g.fillRect(0, 0, 256, 64); g.fillStyle = '#ffd56a'; g.font = 'bold 26px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(a.min.toLocaleString() + ' – ' + a.max.toLocaleString(), 128, 34); return tex(c); })(), toneMapped:false }));
     plaque.scale.set(0.3, 0.075, 1); plaque.position.set(-0.6, topY + 0.04, z0 + 0.02); plaque.rotation.x = -0.6; grp.add(plaque);

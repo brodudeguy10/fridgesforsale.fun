@@ -8,7 +8,7 @@
 import * as THREE from '../lib/three.module.min.js';
 import { G, stool } from '../world/props.js';
 import { chipStack, DENOMS } from '../world/cards.js';
-import { makeFridge } from '../world/fridge.js';
+import { makeFridge, bakePainted } from '../world/fridge.js';
 import { canvas, tex } from '../world/textures.js';
 import { mergeGeometries } from '../lib/addons/utils/BufferGeometryUtils.js';
 import { fair, pick, rand, ease } from '../core/util.js';
@@ -108,13 +108,15 @@ export function init(C){
     const felt = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshStandardMaterial({ map:feltTexture(a.us, a.name), roughness:0.95 }));
     felt.rotation.x = -Math.PI/2; felt.position.y = topY; grp.add(felt);
     const railM = M.leatherBlack;
-    [[0, 0.7, 2.8, 0.14], [0, -0.7, 2.8, 0.14]].forEach(([x, z, w, d])=>{ const r = new THREE.Mesh(G.rbox(w, 0.12, d, 0.05), railM); r.position.set(x, topY + 0.03, z); grp.add(r); });
-    [[1.37, 0], [-1.37, 0]].forEach(([x, z])=>{ const r = new THREE.Mesh(G.rbox(0.14, 0.12, 1.54, 0.05), railM); r.position.set(x, topY + 0.03, z); grp.add(r); });
-    const body = new THREE.Mesh(G.rbox(2.7, 0.8, 1.4, 0.06), M.woodDark); body.position.y = topY - 0.42; grp.add(body);
+    /* everything on the table that never moves gets baked into a mesh or two */
+    const stat = new THREE.Group(); grp.add(stat);
+    [[0, 0.7, 2.8, 0.14], [0, -0.7, 2.8, 0.14]].forEach(([x, z, w, d])=>{ const r = new THREE.Mesh(G.rbox(w, 0.12, d, 0.05), railM); r.position.set(x, topY + 0.03, z); stat.add(r); });
+    [[1.37, 0], [-1.37, 0]].forEach(([x, z])=>{ const r = new THREE.Mesh(G.rbox(0.14, 0.12, 1.54, 0.05), railM); r.position.set(x, topY + 0.03, z); stat.add(r); });
+    const body = new THREE.Mesh(G.rbox(2.7, 0.8, 1.4, 0.06), M.woodDark); body.position.y = topY - 0.42; stat.add(body);
     /* the wheel */
     const wx = -0.92, wz = 0;
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 0.12, 48), M.wood); bowl.position.set(wx, topY + 0.04, wz); grp.add(bowl);
-    const track = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.025, 8, 64), M.woodDark); track.rotation.x = Math.PI/2; track.position.set(wx, topY + 0.1, wz); grp.add(track);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.38, 0.12, 48), M.wood); bowl.position.set(wx, topY + 0.04, wz); stat.add(bowl);
+    const track = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.025, 8, 64), M.woodDark); track.rotation.x = Math.PI/2; track.position.set(wx, topY + 0.1, wz); stat.add(track); bakePainted(stat);
     const rotor = new THREE.Group(); rotor.position.set(wx, topY + 0.08, wz); grp.add(rotor);
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.02, 64), [new THREE.MeshStandardMaterial({ color:0x3a2412 }), new THREE.MeshStandardMaterial({ map:wheelTexture(a.us ? US : EU), roughness:0.35, metalness:0.1 }), M.wood]);
     rotor.add(disc);
@@ -124,6 +126,7 @@ export function init(C){
     const turret = new THREE.Group(); turret.position.y = 0.1; rotor.add(turret);
     [0, Math.PI/2].forEach(r=>{ const bar = new THREE.Mesh(G.cyl8, M.gold); bar.scale.set(0.008, 0.18, 0.008); bar.rotation.z = Math.PI/2; bar.rotation.y = r; turret.add(bar); });
     [[0.09,0],[-0.09,0],[0,0.09],[0,-0.09]].forEach(([x,z])=>{ const k = new THREE.Mesh(G.sph, M.gold); k.scale.setScalar(0.014); k.position.set(x, 0, z); turret.add(k); });
+    bakePainted(rotor, [disc]);
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.011, 16, 12), new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.2 })); ball.position.set(wx + 0.37, topY + 0.11, wz); grp.add(ball);
     /* croupier at the wheel end */
     const cr = makeFridge({ face:true, arms:true, color:a.vip ? '#2a0a12' : '#f2efe8', acc:['bowtie', 'vest'], vest:a.vip ? '#d9a441' : '#0f5a32', eye:'#ffd56a', style:'std' });

@@ -154,6 +154,11 @@
   #fx-tkt .go button{ height:44px; }
   #fx-tkt .qtyq button{ height:30px; }
   #fx-gp .ctl button{ height:28px; padding:0 9px; }
+  /* the top bar squeezes instead of pushing the close button off a narrow screen */
+  #fx-top{ overflow:hidden; }
+  #fx-top > div{ min-width:0; flex-shrink:1; overflow:hidden; text-overflow:ellipsis; }
+  #fx-close{ flex:0 0 auto; min-width:44px; }
+  #fx-tfs button{ height:28px !important; min-width:36px; }
   #frdx td{ padding:3px 4px; }
 }
 @media (max-width: 999px) and (orientation:landscape) and (max-height:500px){
