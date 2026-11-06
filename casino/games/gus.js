@@ -70,6 +70,8 @@ export function talkGus(C, bt, ctx){
     { k:'payphone', t:'the guy by the payphone', on:()=>H.story >= 1, a:['the one who hangs around the restrooms making calls? never orders. tips in cash. that\'s how you know somebody\'s planning something.'] },
     { k:'robbery', t:'the robbery', on:()=>H.story >= 2 || H.robbedVisit, a:['i hid behind the bar with the champagne. the champagne made it. i\'m prouder of that than i should be.'],
       more:[{ t:'any idea who did it?', a:'nope. no idea. none. and if i did, i\'d say the same thing, wouldn\'t i. drink?' }] },
+    { k:'thatnight', t:'that night', on:()=>d.wake && d.wake.ending, a:[d.wake && d.wake.ending === 'stopped' ? 'you came back for them. i watched you from behind the bar. i didn\'t think anybody would. the drinks are on me until one of us dies.' : 'you got out. good. somebody should have. i stayed behind the bar until the sun came up and the fire went out by itself.'],
+      more:[{ t:'what was that thing?', a:'i\'ve poured for this place for thirty years and i\'ve never asked what was inside the prize fridge. i\'m not going to start. it knocks sometimes. i don\'t answer.' }, { t:'the man in tape?', a:'...hank sat right there. always the defrost. i\'m not saying anything else. i\'m not.' }] },
     { k:'basement', t:'downstairs', on:()=>(vm.deaths || 0) >= 1, a:['...you\'ve been down there. i can tell. people come back up quieter.'],
       more:[{ t:'what\'s down there?', a:'i don\'t go. i make one drink for people who have, and i don\'t ask. ask for it by name. you know the name.' }] }
   ];

@@ -38,6 +38,13 @@ export const SECRETS = [
   ,{ k:'whale', name:'A Good Listener', hint:'the whale tips people who sit through the stories.' }
   ,{ k:'goodboy', name:'Good Girl', hint:'dolores never goes anywhere alone. say hi to her date.' }
   ,{ k:'officehours', name:'Office Hours', hint:'the professor teaches until security cancels class. take three lessons.' }
+  ,{ k:'coldopen', name:'Cold Open', hint:'take too much off the man with the cups. he\'ll notice. then he\'ll make a call.' }
+  ,{ k:'unseen', name:'Not Even A Question Mark', hint:'crawl through the slot rows without anyone wondering about you.', needs:()=>{ try{ return !!(JSON.parse(localStorage.getItem('fridgepalace_v1')).wake || {}).runs; }catch(e){ return false; } } }
+  ,{ k:'quickdive', name:'First Try', hint:'when the prize comes for you, move the first time.', needs:()=>{ try{ return !!(JSON.parse(localStorage.getItem('fridgepalace_v1')).wake || {}).runs; }catch(e){ return false; } } }
+  ,{ k:'hank', name:'He Went Home', hint:'the man in tape leaves something behind. look at it.', needs:()=>{ try{ return !!(JSON.parse(localStorage.getItem('fridgepalace_v1')).wake || {}).runs; }catch(e){ return false; } } }
+  ,{ k:'callout', name:'Not This Time', hint:'his last game has the same trick as all the others.', needs:()=>{ try{ return !!(JSON.parse(localStorage.getItem('fridgepalace_v1')).wake || {}).runs; }catch(e){ return false; } } }
+  ,{ k:'nokill', name:'Cold Hands', hint:'go back for them and don\'t break anybody. frozen is enough.', needs:()=>{ try{ return !!(JSON.parse(localStorage.getItem('fridgepalace_v1')).wake || {}).runs; }catch(e){ return false; } } }
+  ,{ k:'bothways', name:'Both Ways Out', hint:'there are two ways out of the staff room. take both, on different nights.', needs:()=>{ try{ return !!(JSON.parse(localStorage.getItem('fridgepalace_v1')).wake || {}).runs; }catch(e){ return false; } } }
   ,{ k:'hydrate', name:'Hydration Station', hint:'gus has a favorite customer. it\'s whoever orders the free thing, again and again and again.' }
   ,{ k:'fourtwenty', name:'Four Twenty', hint:'casinos don\'t have clocks. the neon does, twice a day.' }
   ,{ k:'slept', name:'Slept Through It', hint:'one man sleeps through the whole robbery. make some noise near him.', needs:()=>hs().story >= 2 }

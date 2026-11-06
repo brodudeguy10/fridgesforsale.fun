@@ -150,7 +150,7 @@ export function buildWorld(C){
   const street = new THREE.Mesh(new THREE.PlaneGeometry(26, 13), new THREE.MeshBasicMaterial({ map:T.tex(sc), toneMapped:false }));
   street.position.set(0, 5, 30); street.rotation.y = Math.PI; scene.add(street);
   const sidewalk = new THREE.Mesh(new THREE.PlaneGeometry(26, 9), M.concrete); sidewalk.rotation.x = -Math.PI/2; sidewalk.position.set(0, -0.01, 26.5); scene.add(sidewalk);
-  W.interact.push({ pos:new THREE.Vector3(0, 1.4, 21.6), r:2.6, text:()=>'leave the palace', use:()=>C.confirmLeave() });
+  W.interact.push({ pos:new THREE.Vector3(0, 1.4, 21.6), r:2.6, text:()=>'leave the palace', use:()=>{ if(C.wake && C.wake.armed){ C.wake.doorTry(); return; } C.confirmLeave(); } });
   W.anchors.spawn = { x:0, z:19.6, yaw:0 };
   /* red carpet runner from the doors to the podium */
   const runner = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 9), new THREE.MeshStandardMaterial({ map:T.velvet(), roughness:0.95, color:0xff6670 })); runner.rotation.x = -Math.PI/2; runner.position.set(0, 0.008, 17.3); scene.add(runner);

@@ -168,6 +168,7 @@ export function init(C){
     }
     C.save.logLine('lucky wheel: ' + s.label);
   }
+  C.world.podium = { pod, top, gold, spot, plat, ledRing, podSign, P };
   return { name:'wheel', update(dt, t){
     chase += dt*(spinning ? 18 : 4);
     bulbs.forEach((b, i)=>{ const on = Math.floor(chase + i) % 4 === 0; b.material.color.setHex(C.disco ? new THREE.Color().setHSL((i/40 + t*0.3) % 1, 1, 0.6).getHex() : (on ? 0xfff1c0 : 0x3a2a10)); });

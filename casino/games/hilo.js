@@ -110,8 +110,11 @@ export function init(C){
   { const w = new THREE.Vector3(0, 0, 1.08).applyMatrix4(grp.matrixWorld); stool(B, M, w.x, w.z, 0.8); }
   C.collide.boxC(A.x, A.z, 1.3, 2.4, 0, 'table');
   /* lucky lou */
-  const lou = makeFridge({ face:true, arms:true, color:'#e8d9b0', trim:'#7a1220', acc:['bowtie', 'vest', 'nametag'], vest:'#7a1220', eye:'#ffd56a', style:'retro' });
-  lou.group.position.set(0, 0, -0.92); grp.add(lou.group); lou.name = 'LUCKY LOU'; lou.seed = 3.3; C.staff.push(lou);
+  /* after the cold open, lou isn't here anymore. lefty covers his table */
+  const louGone = !!(C.save.d.wake && C.save.d.wake.louDead);
+  const lou = makeFridge(louGone ? { face:true, arms:true, color:'#8a96a2', trim:'#22252b', acc:['bowtie', 'vest'], vest:'#111114', eye:'#7ff3ff', style:'std' } : { face:true, arms:true, color:'#e8d9b0', trim:'#7a1220', acc:['bowtie', 'vest', 'nametag'], vest:'#7a1220', eye:'#ffd56a', style:'retro' });
+  lou.group.position.set(0, 0, -0.92); grp.add(lou.group); lou.name = louGone ? 'LEFTY' : 'LUCKY LOU';
+  if(louGone){ LOU.hello = ['lefty. i\'m covering lou\'s table. ...i\'m covering lou\'s table for good, i guess.', 'sit. same rules. lou wrote them on the felt. i didn\'t change anything. i won\'t.', 'he used to sweat. i don\'t. i keep thinking i should, for him.']; LOU.talk = ['i didn\'t know him that well. everybody says he was the only honest dealer in the building.', 'the candles are from gus. the photo is from doug. the felt is still his.', 'people keep asking if i\'m lucky. i say no. it feels wrong to say yes.', 'i don\'t go near the slot rows anymore. nobody on staff does.']; } lou.seed = 3.3; C.staff.push(lou);
   { const w = new THREE.Vector3(0, 0, -0.92).applyMatrix4(grp.matrixWorld); C.collide.circle(w.x, w.z, 0.45, 'croupier'); }
   /* sweat: a few drops that slide down lou when the pot gets big */
   const dropM = new THREE.MeshStandardMaterial({ color:0xbfeeff, roughness:0.05, metalness:0.1, transparent:true, opacity:0.8 });
@@ -145,8 +148,8 @@ export function init(C){
   let cur = null, objs = [], stakeMesh = null;
   const ipos = new THREE.Vector3(0, 1.1, 0.95).applyMatrix4(grp.matrixWorld);
   C.world.interact.push({ pos:ipos, r:2.6, text:()=>'play higher or lower · ' + MIN + '–' + MAX.toLocaleString(), use:()=>sit() });
-  C.world.interact.push({ pos:new THREE.Vector3(0, 1.55, -0.92).applyMatrix4(grp.matrixWorld), r:2.4, enabled:()=>!cur, text:()=>'talk to lucky lou', use:()=>{ lou.face.say(2); lou.face.set('happy', 2); C.hud.say('LUCKY LOU', pick(LOU.talk)); } });
-  const say = (k, dur)=>{ const line = Array.isArray(k) ? pick(k) : k; lou.face.say(Math.min(4, line.length*0.05)); C.hud.say('LUCKY LOU', line, dur); };
+  C.world.interact.push({ pos:new THREE.Vector3(0, 1.55, -0.92).applyMatrix4(grp.matrixWorld), r:2.4, enabled:()=>!cur, text:()=>'talk to ' + lou.name.toLowerCase(), use:()=>{ lou.face.say(2); lou.face.set('happy', 2); C.hud.say(lou.name, pick(LOU.talk)); } });
+  const say = (k, dur)=>{ const line = Array.isArray(k) ? pick(k) : k; lou.face.say(Math.min(4, line.length*0.05)); C.hud.say(lou.name, line, dur); };
 
   /* ---------- sitting ---------- */
   function sit(){

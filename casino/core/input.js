@@ -30,7 +30,7 @@ export class Input {
     C.engine.canvas.addEventListener('click', this.canvasClick);
     if(this.touch) this.buildTouch();
   }
-  lock(){ try{ const p = this.C.engine.canvas.requestPointerLock({ unadjustedMovement:true }); if(p && p.catch) p.catch(()=>{ try{ this.C.engine.canvas.requestPointerLock(); }catch(e){} }); }catch(e){ try{ this.C.engine.canvas.requestPointerLock(); }catch(e2){} } }
+  lock(){ const cv = this.C.engine.canvas; const plain = ()=>{ try{ const q = cv.requestPointerLock(); if(q && q.catch) q.catch(()=>{}); }catch(e){} }; try{ const p = cv.requestPointerLock({ unadjustedMovement:true }); if(p && p.catch) p.catch(e=>{ if(!e || e.name !== 'NotAllowedError') plain(); }); }catch(e){ plain(); } }
   unlock(){ if(document.pointerLockElement) document.exitPointerLock(); }
   plchange(){
     const was = this.locked;

@@ -158,9 +158,10 @@ export function init(C){
   C.world.interact.push({ pos:new THREE.Vector3(cx, 1.3, cz), r:A.rOut + 1.4, text:()=>'order a drink or talk to GUS', use:order, enabled:()=>{ const d = Math.hypot(C.player.pos.x - cx, C.player.pos.z - cz); return d < A.rOut + 1.2; } });
   C.world.aquarium = { water, glassC, fish, cx, cz, tankR, tankLight, bubbles, broken:false };
   return {
-    name:'bar',
+    name:'bar', bt,
     update(dt, t){
-      /* the bartender patrols the ring and turns to customers */
+      /* the bartender patrols the ring and turns to customers (unless the night has other plans) */
+      if(C.gusHold){ bt.face.update(dt, true); } else {
       if(btS.busy > 0) btS.busy -= dt;
       else { btS.a += dt*0.12; btS.target = btS.a; }
       let da = btS.target - btS.a; da = Math.atan2(Math.sin(da), Math.cos(da)); btS.a += da*Math.min(1, dt*2);
@@ -168,6 +169,7 @@ export function init(C){
       bt.group.position.set(cx + Math.cos(btS.a)*r, 0, cz + Math.sin(btS.a)*r);
       bt.group.rotation.y = Math.atan2(Math.cos(btS.a), Math.sin(btS.a));
       animateFridge(bt, t, btS.busy > 0 ? 0 : 0.5);
+      }
       /* fish swim, bubbles rise */
       for(const f of fish){
         if(f.out) continue;

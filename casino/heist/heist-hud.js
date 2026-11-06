@@ -50,7 +50,7 @@ export class HeistHud {
     bind('ads', b=>{ const A = C.arsenal; if(!A) return; A.touch.ads = !A.touch.ads; b.classList.toggle('on', A.touch.ads); });
     bind('rel', ()=>{ C.arsenal && C.arsenal.reload(); });
     bind('swp', ()=>{ C.arsenal && (C.arsenal.drawn ? C.arsenal.cycle(1) : C.arsenal.select(C.arsenal.cur || C.arsenal.order[0])); });
-    bind('cro', b=>{ C.player.crouch = !C.player.crouch; b.classList.toggle('on', C.player.crouch); });
+    bind('cro', b=>{ if(C.wake && C.wake.active){ if(C.wake.qte){ C.wake.qte(); return; } C.wake.body.toggleProne(); b.classList.toggle('on', C.wake.body.prone); return; } C.player.crouch = !C.player.crouch; b.classList.toggle('on', C.player.crouch); });
     bind('yel', ()=>{ C.bus.emit('yell'); });
     bind('hea', ()=>{ C.heist && C.heist.useBandage(); });
   }

@@ -145,7 +145,8 @@ export class Engine {
     const loop = ()=>{
       if(!this.running) return;
       this.raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.05, this.clock.getDelta());
+      /* timeScale: the cold open's slow motion when you get spotted */
+      const dt = Math.min(0.05, this.clock.getDelta())*(this.timeScale === undefined ? 1 : this.timeScale);
       this.t += dt;
       for(let i=0;i<this.updaters.length;i++){ try{ this.updaters[i](dt, this.t); }catch(e){ console.error(e); } }
       this.finish.uniforms.uTime.value = this.t;
@@ -160,7 +161,7 @@ export class Engine {
   }
   stop(){ this.running = false; cancelAnimationFrame(this.raf); }
   /* advance the world without drawing (used by tests and by the blackout skip) */
-  tick(dt, n){ for(let k=0;k<(n || 1);k++){ this.t += dt; for(let i=0;i<this.updaters.length;i++){ try{ this.updaters[i](dt, this.t); }catch(e){ console.error(e); } } } }
+  tick(dt, n){ if(this.timeScale !== undefined) dt *= this.timeScale; for(let k=0;k<(n || 1);k++){ this.t += dt; for(let i=0;i<this.updaters.length;i++){ try{ this.updaters[i](dt, this.t); }catch(e){ console.error(e); } } } }
   /* dynamic resolution: if frames drag, render fewer pixels */
   adapt(dt){
     this.fpsAcc += dt; this.fpsN++;

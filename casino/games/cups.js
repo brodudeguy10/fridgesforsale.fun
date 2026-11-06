@@ -195,6 +195,7 @@ export function init(C){
       msg('the ' + SIDES[s] + ' cup. you got it. ' + cur.streak + ' in a row. let it ride or take it.');
       cur.pending = won; cur.stake = 0; setStake(0);
       cur.state = 'won';
+      if(C.wake) C.wake.nickyWon(won - cur.lastStake, cur.streak);
     } else {
       /* show where it "was" */
       await C.tweens.sleep(0.35);
@@ -236,6 +237,7 @@ export function init(C){
       C.audio.jackpot && C.audio.jackpot(grp.position); C.fx.coins(W2(new THREE.Vector3(0.2, topY + 0.1, 0.17)), 30);
       C.bus.emit('cheer', { pos:grp.position.clone(), big:true });
       S.cupsCaught++; if(C.save.egg('palmed')) C.hud.toast('secret: sleight of hand', 'gold');
+      if(C.wake) C.wake.nickyWon(won - cur.stake, cur.streak);
       msg('he palmed it. he pays you ' + C.fmt(won) + ' to keep quiet. he swears the next five are clean.');
       honest = 5; palmed = false; ballCup = -1;
       cur.stake = 0; setStake(0); cur.streak = 0;
@@ -329,10 +331,27 @@ export function init(C){
   };
   dom.addEventListener('pointerdown', onDown);
 
-  return { name:'cups', grp, nicky, dispose(){ dom.removeEventListener('pointerdown', onDown); }, _test:{ get palmed(){ return palmed; }, get ballSlot(){ return ballCup >= 0 ? cups[ballCup].userData.slot : -1; }, get cur(){ return cur; }, choose, callOut, play, ride }, update(dt, t){
+  /* ---------- the cold open: he packs up and makes a call ---------- */
+  let leaving = null, backSaid = null;
+  function setGone(text){ gone.material.map = signTex([[text.split(' · ')[0], text.length > 16 ? 40 : 54, '#8a1010', 80], [text.split(' · ')[1] || '', 34, '#1a1008', 160]]); gone.material.needsUpdate = true; gone.visible = true; }
+  function packUp(){
+    if(cur){ const c = cur; cur = null; if(c.stake > 0) C.save.refund(c.stake); setStake(0); C.standUp(); }
+    closed = true; cups.forEach(c=>c.visible = false); ball.visible = false; setGone('BACK IN 5 MINUTES · probably');
+    const wp = nicky.group.getWorldPosition(new THREE.Vector3()); scene.attach(nicky.group); nicky.group.position.copy(wp);
+    leaving = { t:0, from:wp, to:new THREE.Vector3(-28.9, 0, 10.7), said:0 };
+  }
+  function closeFor(text){ closed = true; nicky.group.visible = false; cups.forEach(c=>c.visible = false); ball.visible = false; setGone(text); }
+  function backLine(text){ backSaid = text; }
+  return { name:'cups', grp, nicky, packUp, closeFor, backLine, dispose(){ dom.removeEventListener('pointerdown', onDown); }, _test:{ get palmed(){ return palmed; }, get ballSlot(){ return ballCup >= 0 ? cups[ballCup].userData.slot : -1; }, get cur(){ return cur; }, choose, callOut, play, ride }, update(dt, t){
     /* the ball rides along under whichever cup it's in */
     if(ballCup >= 0 && !palmed){ const c = cups[ballCup]; ball.position.x = c.position.x; ball.position.z = c.position.z; }
     /* the crime scene the morning after: nicky lies low */
+    if(leaving){ const L = leaving; L.t += dt; const k = Math.min(1, L.t/3.2); if(k < 1){ nicky.group.position.lerpVectors(L.from, L.to, k); nicky.group.position.y = Math.abs(Math.sin(L.t*9))*0.05; nicky.group.rotation.y = Math.atan2(L.to.x - L.from.x, L.to.z - L.from.z); }
+      else { nicky.group.rotation.y = -Math.PI/2; nicky.group.position.y = 0;
+        if(L.said === 0 && L.t > 3.6){ L.said = 1; nicky.face.say(2); if(C.camera.position.distanceTo(nicky.group.position) < 16) C.hud.say('THREE CUP NICKY', 'yeah. it\'s me. tonight. ...because i found him. the perfect one.', 4); }
+        if(L.said === 1 && L.t > 8.5){ L.said = 2; nicky.face.say(2); if(C.camera.position.distanceTo(nicky.group.position) < 16) C.hud.say('THREE CUP NICKY', 'tell clement to bring the big bag. and the tape.', 3.5); }
+        if(L.said === 2 && L.t > 13){ L.said = 3; nicky.group.visible = false; C.audio.door(nicky.group.position); leaving = null; } } }
+    if(backSaid && !cur && C.camera.position.distanceTo(grp.position) < 5){ nicky.face.set('happy', 2); say(backSaid, 4); backSaid = null; }
     if(!closed && C.heistAftermath && C.heistAftermath.n === 1){ closed = true; nicky.group.visible = false; cups.forEach(c=>c.visible = false); ball.visible = false; gone.visible = true; }
     if(closed) return;
     /* he bobs on his crate */
