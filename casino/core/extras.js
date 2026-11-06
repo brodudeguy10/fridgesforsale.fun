@@ -28,6 +28,16 @@ export const SECRETS = [
   ,{ k:'mine', name:'Somebody Else\'s', hint:'if downstairs likes you, you might not have to finish the job yourself.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 2; }catch(e){ return false; } } }
   ,{ k:'reminder', name:'A Reminder', hint:'after it\'s rebuilt, look up at the big sign.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 3; }catch(e){ return false; } } }
   ,{ k:'payphone', name:'Collect Call', hint:'once it\'s over, something by the restrooms starts ringing.', needs:()=>{ try{ return (JSON.parse(localStorage.getItem('fridgepalace_v1')).heist || {}).story >= 3; }catch(e){ return false; } } }
+  ,{ k:'seeingdouble', name:'Seeing Double', hint:'lou has a button nobody presses. press it right three times in one run.' }
+  ,{ k:'rantable', name:'Ran The Table', hint:'lou has a light for every right call. light all of them.' }
+  ,{ k:'palmed', name:'Sleight of Hand', hint:'nicky\'s cups are honest. nicky isn\'t always.' }
+  ,{ k:'pity', name:'Pity Party', hint:'the scratch machine has a heart. lose to it enough and find out.' }
+  ,{ k:'basementticket', name:'Printed Downstairs', hint:'the scratch machine prints one ticket it isn\'t supposed to.' }
+  ,{ k:'regular', name:'Family', hint:'gus has four words for you. earn the last one.' }
+  ,{ k:'collar', name:'Citizen\'s Arrest', hint:'somebody in a beanie is faster than you think. you\'re faster than he thinks.' }
+  ,{ k:'whale', name:'A Good Listener', hint:'the whale tips people who sit through the stories.' }
+  ,{ k:'goodboy', name:'Good Girl', hint:'dolores never goes anywhere alone. say hi to her date.' }
+  ,{ k:'officehours', name:'Office Hours', hint:'the professor teaches until security cancels class. take three lessons.' }
   ,{ k:'hydrate', name:'Hydration Station', hint:'gus has a favorite customer. it\'s whoever orders the free thing, again and again and again.' }
   ,{ k:'fourtwenty', name:'Four Twenty', hint:'casinos don\'t have clocks. the neon does, twice a day.' }
   ,{ k:'slept', name:'Slept Through It', hint:'one man sleeps through the whole robbery. make some noise near him.', needs:()=>hs().story >= 2 }
@@ -90,7 +100,7 @@ export function initExtras(C){
     C.collide.boxes.forEach(b=>{ if(!b.on && b.tag !== 'staffdoor') return; g.fillRect(X(b.minX), Z(b.minZ), Math.max(1, (b.maxX - b.minX)*sx), Math.max(1, (b.maxZ - b.minZ)*sz)); });
     C.collide.circles.forEach(c=>{ g.beginPath(); g.arc(X(c.x), Z(c.z), c.r*sx, 0, 7); g.fill(); });
     const label = (t, x, z)=>{ g.fillStyle = '#f7dc95'; g.font = 'bold 11px Georgia'; g.textAlign = 'center'; g.fillText(t, X(x), Z(z)); };
-    label('SLOTS', -18, 5); label('BAR', 0, -6); label('TABLES', 16, -11); label("HOLD'EM", 21.5, 7.5); label('INSIDE TRACK', 0, -16); label('CLUB', 21, -16); label('STAFF', -21, -17); label('CAGE', 18, 17.5); label('WHEEL', -11, 14); label('PODIUM', 0, 12.6); label('EXIT', 0, 21);
+    label('SLOTS', -18, 5); label('BAR', 0, -6); label('TABLES', 16, -11); label("HOLD'EM", 21.5, 7.5); label('INSIDE TRACK', 0, -16); label('CLUB', 21, -16); label('STAFF', -21, -17); label('CAGE', 18, 17.5); label('HI-LO', 26.2, 2.9); label('CUPS', -23, 7.6); label('SCRATCH', -9.6, 20.2); label('WHEEL', -11, 14); label('PODIUM', 0, 12.6); label('EXIT', 0, 21);
     const p = C.player.pos; g.fillStyle = '#5dff9c'; g.beginPath(); g.arc(X(p.x), Z(p.z), 4, 0, 7); g.fill();
     g.strokeStyle = '#5dff9c'; g.lineWidth = 2; g.beginPath(); g.moveTo(X(p.x), Z(p.z)); g.lineTo(X(p.x) - Math.sin(C.player.yaw)*10, Z(p.z) - Math.cos(C.player.yaw)*10); g.stroke();
     if(C.games.npcs){ g.fillStyle = 'rgba(127,243,255,0.6)'; C.games.npcs.list.forEach(n=>{ g.fillRect(X(n.F.group.position.x) - 1.5, Z(n.F.group.position.z) - 1.5, 3, 3); }); }

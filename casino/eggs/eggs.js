@@ -110,17 +110,19 @@ export function init(C){
   /* the breaker */
   B.add(G.box, M.steel, -12.25, 1.5, -16, 0.1, 0.8, 0.55);
   let breakerCD = 0;
-  C.world.interact.push({ pos:new THREE.Vector3(-12.4, 1.5, -16), r:2, text:()=>breakerCD > 0 ? null : 'flip the main breaker', use:async ()=>{
+  C.world.interact.push({ pos:new THREE.Vector3(-12.4, 1.5, -16), r:2, text:()=>breakerCD > 0 || C.lightsBusy ? null : 'flip the main breaker', use:async ()=>{
+    if(C.lightsBusy) return; C.lightsBusy = true;
     breakerCD = 12; egg('breaker', 'you killed the lights');
     C.audio.tone({ f:80, f2:40, d:0.6, g:0.3, type:'square', filt:'lowpass', ff:300 });
     const ls = C.world.lights.map(l=>[l, l.intensity]); const hemi = C.scene.children.filter(o=>o.isHemisphereLight || o.isAmbientLight).map(l=>[l, l.intensity]);
-    ls.forEach(([l])=>l.intensity = 0); hemi.forEach(([l, i])=>l.intensity = i*0.08);
+    const env0 = C.scene.environmentIntensity; ls.forEach(([l])=>l.intensity = 0); hemi.forEach(([l, i])=>l.intensity = i*0.08); C.scene.environmentIntensity = env0*0.05;
     C.world.neon.forEach(n=>n.visible = false);
     C.audio.duck(true);
     C.hud.say('', 'everything goes dark. the whole building goes "aww".'); C.audio.aww(new THREE.Vector3(0, 2, 0));
     await C.tweens.sleep(2.5);
     if(vm().deaths >= 1){ C.audio.whisper('i like the dark'); C.hud.say('', 'in the dark, someone very close says "i like the dark."'); await C.tweens.sleep(2); }
-    ls.forEach(([l, i])=>l.intensity = i); hemi.forEach(([l, i])=>l.intensity = i); C.world.neon.forEach(n=>n.visible = true); C.audio.duck(false);
+    ls.forEach(([l, i])=>l.intensity = i); hemi.forEach(([l, i])=>l.intensity = i); C.scene.environmentIntensity = env0; C.world.neon.forEach(n=>n.visible = true); C.audio.duck(false);
+    C.lightsBusy = false;
     C.hud.say('NIGHT GUARD', 'who did that. was that you. don\'t do that.');
   } });
   C.world.breaker = { pos:new THREE.Vector3(-12.4, 1.5, -16) };

@@ -187,7 +187,7 @@ export class Combat {
       const toCam = cam.clone().sub(from), along = toCam.dot(dd);
       if(along > 0){ const closest = from.clone().addScaledVector(dd, along); const miss = closest.distanceTo(cam); if(miss < 1.8 && (!h || h.t > along - 0.2) && !hitRoll) C.audio.heist && C.audio.heist.whiz(closest); }
       if(h && h.world){ _n.set(h.n[0], h.n[1], h.n[2]); C.gore.impact(h.point, _n, h.surface); if(Math.random() < 0.5) C.audio.heist && C.audio.heist.hit(h.surface === 'metal' ? 'metal' : h.surface === 'wood' ? 'wood' : h.surface === 'glass' ? 'glass' : 'other', h.point); }
-      else if(h && h.target && h.target.kind !== 'player'){ h.target.hit({ dmg:(o.friendly ? dmg*0.5 : dmg), point:h.point, n:h.n, dir:dd.clone(), part:h.part, weapon:o.weapon || 'pistol', knock:1, src:'enemy', dist:h.t }); }
+      else if(h && h.target && h.target.kind !== 'player' && h.target.hit){ try{ h.target.hit({ dmg:(o.friendly ? dmg*0.5 : dmg), point:h.point, n:h.n, dir:dd.clone(), part:h.part, weapon:o.weapon || 'pistol', knock:1, src:'enemy', dist:h.t }); }catch(err){ if(!this._efWarn){ this._efWarn = true; console.warn('stray enemy round', h.target.kind, err); } } }
     }
     if(hitRoll && (seeHead || seeChest)){ C.heist && C.heist.hurt(dmg*(pellets > 1 ? Math.min(pellets, 4)*0.5 : 1), from, o.weapon || 'gun'); }
     C.audio.heist && C.audio.heist.gun(o.sound || 'pistol', from, { vol:o.vol || 0.9 });

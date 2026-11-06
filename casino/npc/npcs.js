@@ -77,6 +77,8 @@ export function init(C){
     for(let i=0;i<8;i++) L.push({ type:'race', x:-6 + i*1.7, z:-12.6 + (i%2)*0.6, face:Math.PI, cap:1 });
     (C.games.blackjack ? C.games.blackjack.tables : []).forEach(T=>{ if(T.a.vip) return; [[-1.6, 1.9], [1.6, 1.9]].forEach(([lx, lz])=>{ const w = new THREE.Vector3(lx, 0, lz).applyMatrix4(T.grp.matrixWorld); L.push({ type:'watch', x:w.x, z:w.z, face:Math.atan2(T.grp.position.x - w.x, T.grp.position.z - w.z), cap:1 }); }); });
     (C.games.roulette ? C.games.roulette.tables : []).forEach(T=>{ if(T.a.vip) return; [[0.8, 1.4], [-0.6, 1.5]].forEach(([lx, lz])=>{ const w = new THREE.Vector3(lx, 0, lz).applyMatrix4(T.grp.matrixWorld); L.push({ type:'watch', x:w.x, z:w.z, face:Math.atan2(T.grp.position.x - w.x, T.grp.position.z - w.z), cap:1 }); }); });
+    (C.games.hilo ? C.games.hilo.watch : []).forEach(w=>L.push({ type:'watch', x:w.x, z:w.z, face:w.face, cap:1 }));
+    if(C.games.cups) [[-21.6, 7.6], [-21.6, 10]].forEach(([x, z])=>L.push({ type:'watch', x, z, face:Math.atan2(-23 - x, 8.8 - z), cap:1 }));
     [[-3, 15.5], [3.5, 16.5], [-6, 18], [6, 18.5], [-16, 17], [-20, 15.5], [18, 9.5], [-4, 6], [4, 5.5], [0, 11.5]].forEach(([x, z])=>L.push({ type:'mingle', x, z, face:rand(0, 6.28), cap:2 }));
     L.push({ type:'podium', x:0, z:12, face:Math.PI, cap:3 });
     L.push({ type:'wheel', x:-8, z:17.2, face:-Math.PI/2, cap:2 });
@@ -91,8 +93,9 @@ export function init(C){
   function choose(n){
     const w = { slot:5, bar:3, race:2, watch:3, mingle:2, podium:1, wheel:1, cage:1, exit:n.age > 240 ? 6 : 0.2 };
     const free = POIS.filter(p=>(used.get(p) || 0) < p.cap && !(p.type === 'slot' && p.mc.npc));
-    const tot = free.reduce((s, p)=>s + (w[p.type] || 1), 0); let r = Math.random()*tot;
-    for(const p of free){ r -= (w[p.type] || 1); if(r <= 0) return p; }
+    const bias = C.npcBias || {}, wt = p=>(w[p.type] || 1)*(bias[p.type] || 1);
+    const tot = free.reduce((s, p)=>s + wt(p), 0); let r = Math.random()*tot;
+    for(const p of free){ r -= wt(p); if(r <= 0) return p; }
     return free[0];
   }
   /* ---------- the people ---------- */

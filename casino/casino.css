@@ -204,3 +204,33 @@
 #fp-photo b{ font:700 12px "Cinzel", Georgia, serif; letter-spacing:2px; color:var(--gold2); }
 #fp-photo button{ background:linear-gradient(180deg, #2a1d22, #160e12); border:1px solid rgba(230,182,90,.5); color:var(--txt); padding:6px 12px; font:700 11px "Cinzel", Georgia, serif; }
 @media (max-width:700px){ #fp-photo span{ display:none; } }
+
+/* with a game panel open the subtitles move to the top, out from behind it */
+#fp-hud:has(#fp-panel.on) #fp-say{ bottom:auto; top:calc(64px + env(safe-area-inset-top, 0px)); }
+
+/* ---------- scratch-o-matic ---------- */
+#fp-modal.fp-scratchm .fp-card{ width:min(720px, 100%); }
+.fp-tix{ display:grid; gap:8px; margin:10px 0; }
+.fp-tix button{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left; text-transform:none; background:linear-gradient(135deg, var(--c1), #12080c 140%) !important; border-color:var(--c2) !important; }
+.fp-tix button b{ font:700 16px "Cinzel", Georgia, serif; letter-spacing:2px; color:var(--c2); }
+.fp-tix button span{ font:400 13px Georgia, serif; color:#fff; letter-spacing:0; }
+.fp-tix button small{ font:400 11px Georgia, serif; color:rgba(255,255,255,.75); letter-spacing:0; }
+.fp-ticket{ position:relative; width:100%; aspect-ratio:16/9; margin:6px 0; border-radius:6px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,.6); transition:box-shadow .4s; }
+.fp-ticket canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.fp-ticket .t-foil{ touch-action:none; cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><circle cx='16' cy='16' r='13' fill='%23d8a83a' stroke='%237a5a10' stroke-width='2'/><text x='16' y='21' font-size='14' text-anchor='middle' fill='%237a5a10' font-family='Georgia' font-weight='bold'>FP</text></svg>") 16 16, crosshair; }
+.fp-ticket.won{ box-shadow:0 0 0 3px #7dff9a, 0 0 30px rgba(125,255,154,.6); animation:fpwin .5s ease-out 3; }
+.fp-ticket.lost{ filter:saturate(.75); }
+@keyframes fpwin{ 50%{ transform:scale(1.015); } }
+.fp-flake{ position:absolute; width:4px; height:4px; background:#c8ced6; border-radius:1px; pointer-events:none; animation:fpflake .7s ease-in forwards; }
+@keyframes fpflake{ to{ transform:translate(var(--dx), 40px) rotate(200deg); opacity:0; } }
+
+/* ---------- gus ---------- */
+#fp-modal.fp-gusm .fp-card{ width:min(600px, 100%); }
+.fp-gus .g-rep{ text-align:center; font:400 12px Georgia, serif; color:var(--dim); margin-top:-6px; }
+.fp-gus .g-rep b{ color:var(--gold2); font-weight:700; }
+.fp-gus .g-rep span{ color:#ff7ad0; letter-spacing:2px; margin-left:4px; }
+.fp-gus .g-line{ min-height:3.4em; font:italic 17px/1.45 Georgia, serif; color:#f2e8d0 !important; padding:12px 14px; margin:12px 0 !important; border-left:3px solid var(--gold); background:rgba(0,0,0,.25); cursor:pointer; }
+.fp-gus .g-opts{ display:flex; flex-direction:column; gap:6px; }
+.fp-gus .g-opts button{ text-align:left; text-transform:none; letter-spacing:.5px; font:400 14px Georgia, serif !important; display:flex; align-items:center; gap:10px; }
+.fp-gus .g-opts kbd{ display:inline-block; min-width:20px; text-align:center; font:700 11px monospace; color:var(--gold2); border:1px solid rgba(230,182,90,.5); border-radius:3px; padding:1px 4px; }
+@media (max-width:520px){ #fp-modal.fp-scratchm .fp-card, #fp-modal.fp-gusm .fp-card{ padding:16px 10px; } #fp-modal.fp-scratchm, #fp-modal.fp-gusm{ padding:8px; } }

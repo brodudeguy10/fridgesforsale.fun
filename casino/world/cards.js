@@ -86,7 +86,7 @@ let cardMat = null;
 /* card ids: 0..51 = suitIndex*13 + rankIndex */
 export function cardId(r, s){ return SUITS.indexOf(s)*13 + RANKS.indexOf(r); }
 export function makeCard(id){
-  if(!cardMat) cardMat = new THREE.MeshStandardMaterial({ map:cardAtlas(), roughness:0.55, metalness:0 });
+  if(!cardMat) cardMat = new THREE.MeshStandardMaterial({ map:cardAtlas(), color:0xd2d2d2, roughness:0.6, metalness:0 }); /* a touch under white so bloom doesn't wash the pips out */
   const grp = new THREE.Group();
   const front = new THREE.Mesh(cardGeo(id), cardMat); front.rotation.x = -Math.PI/2;
   const back = new THREE.Mesh(cardGeo('back'), cardMat); back.rotation.x = Math.PI/2; back.position.y = -0.0004;

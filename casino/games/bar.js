@@ -9,6 +9,7 @@ import { makeFridge, animateFridge } from '../world/fridge.js';
 import { neonSign } from '../world/signs.js';
 import { pick, rand } from '../core/util.js';
 import * as T from '../world/textures.js';
+import { talkGus } from './gus.js';
 
 const DRINKS = [
   { id:'water', name:'Ice Water', price:0, buzz:-0.25, line:"water. good call. i'll tell everyone you ordered a triple." },
@@ -95,6 +96,10 @@ export function init(C){
   bt.custom = true; bt.name = 'GUS'; scene.add(bt.group); C.staff.push(bt);
   const btS = { a:0, target:0, busy:0 };
   const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.1, 10), M.glass); bt.armR.add(glass); glass.position.set(0, -0.38, 0.05);
+  /* what you've won or lost since you walked in, so gus can comment */
+  const base = { won:C.save.d.stats.won, wag:C.save.d.stats.wagered };
+  const net = ()=>(C.save.d.stats.won - base.won) - (C.save.d.stats.wagered - base.wag);
+  const priceOf = d=>C.happyHour && d.price ? Math.ceil(d.price/2) : d.price;
   const order = ()=>{
     C.input.quietUnlock();
     const p = C.camera.position; btS.target = Math.atan2(p.z - cz, p.x - cx); btS.busy = 6;
@@ -104,15 +109,17 @@ export function init(C){
     if(vm.sauce > 0) list.push({ id:'sauce', name:'The Sauce', price:66, buzz:0.6, tint:[1.2, 0.85, 1.1], secret:true, line:"...where did you hear about the sauce. fine. one. don't make it weird." });
     const body = C.hud.modal({ title:'THE FREEZER BAR', html:`
       <p style="text-align:center" class="fp-dim">GUS · bartender · has been here since the ice age</p>
-      <div class="fp-drinks">${list.map(d=>`<button data-d="${d.id}" class="${d.secret ? 'fp-red' : ''}">${d.name}<small>${d.price ? d.price + ' chips' : 'free'}</small></button>`).join('')}</div>
+      ${C.happyHour ? '<p style="text-align:center;color:var(--gold2);font-weight:700;letter-spacing:2px">HAPPY HOUR · EVERYTHING HALF PRICE</p>' : ''}
+      <div class="fp-drinks">${list.map(d=>`<button data-d="${d.id}" class="${d.secret ? 'fp-red' : ''}">${d.name}<small>${d.price ? (C.happyHour ? '<s>' + d.price + '</s> ' : '') + priceOf(d) + ' chips' : 'free'}</small></button>`).join('')}</div>
       <div class="fp-row"><button data-a="coolant">ASK FOR COOLANT</button><button data-a="talk">TALK TO GUS</button></div>
       <div class="fp-dim" style="text-align:center">how you feel: ${['sober', 'warm', 'loose', 'wobbly', 'gone'][Math.min(4, Math.floor(C.drunk*3.2))]}</div>` });
     body.querySelectorAll('[data-d]').forEach(b=>b.onclick = ()=>{ const d = list.find(x=>x.id === b.dataset.d); C.hud.modal(null); serve(d); });
-    body.querySelector('[data-a="coolant"]').onclick = ()=>{ C.hud.modal(null); bt.face.set('angry', 2); bt.face.say(1.5); C.hud.say('GUS', pick(["we talked about this.", "no. it's in the fishing shop upstairs and it's for fish.", "the last guy who drank coolant is the tank decoration now."])); };
-    body.querySelector('[data-a="talk"]').onclick = ()=>{ C.hud.modal(null); const l = pick(TALK); bt.face.say(l.length*0.05); C.hud.say('GUS', l); C.save.d.stats.talked++; };
+    body.querySelector('[data-a="coolant"]').onclick = ()=>{ C.hud.modal(null); bt.face.set('angry', 2); if(C.save.d.gus) C.save.d.gus.rep = Math.max(0, (C.save.d.gus.rep || 0) - 0.5); bt.face.say(1.5); C.hud.say('GUS', pick(["we talked about this.", "no. it's in the fishing shop upstairs and it's for fish.", "the last guy who drank coolant is the tank decoration now."])); };
+    body.querySelector('[data-a="talk"]').onclick = ()=>{ C.hud.modal(null); C.save.d.stats.talked++; btS.busy = 30; talkGus(C, bt, { net, small:TALK, pos:new THREE.Vector3(cx, 1.2, cz), serve:d=>{ btS.busy = 6; serve(d); }, onClose:()=>{ btS.busy = Math.min(btS.busy, 3); } }); };
   };
   let waterRun = 0;
   const serve = async (d)=>{
+    if(d.price && C.happyHour) d = Object.assign({}, d, { price:priceOf(d) });
     if(d.price && C.freeDrink){ C.freeDrink = false; C.hud.say('GUS', 'on the house. grand reopening. don\'t get used to it.'); d = Object.assign({}, d, { price:0 }); }
     if(d.price && !C.save.bet(d.price, 'bar')){ C.audio.error(); C.hud.say('GUS', "that's " + d.price + " chips. the cage is by the door."); return; }
     btS.busy = 5; bt.armBusy = true;
@@ -148,7 +155,7 @@ export function init(C){
     C.hud.fade(0, 2500);
     C.hud.say('DOORMAN', lost ? "morning. you slept on the bench. your wallet looks " + lost + " chips lighter. that's not on me." : "morning. you slept on the bench. you didn't have anything to lose. respect.", 7);
   };
-  C.world.interact.push({ pos:new THREE.Vector3(cx, 1.3, cz), r:A.rOut + 1.4, text:()=>'order a drink from GUS', use:order, enabled:()=>{ const d = Math.hypot(C.player.pos.x - cx, C.player.pos.z - cz); return d < A.rOut + 1.2; } });
+  C.world.interact.push({ pos:new THREE.Vector3(cx, 1.3, cz), r:A.rOut + 1.4, text:()=>'order a drink or talk to GUS', use:order, enabled:()=>{ const d = Math.hypot(C.player.pos.x - cx, C.player.pos.z - cz); return d < A.rOut + 1.2; } });
   C.world.aquarium = { water, glassC, fish, cx, cz, tankR, tankLight, bubbles, broken:false };
   return {
     name:'bar',

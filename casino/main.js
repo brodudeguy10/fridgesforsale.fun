@@ -19,7 +19,7 @@ import { initExtras } from './core/extras.js';
 
 const MODULES = [
   './games/cashier.js', './games/bar.js', './games/slots.js', './games/blackjack.js', './games/roulette.js',
-  './games/poker.js', './games/wheel.js', './games/racing.js', './npc/npcs.js', './eggs/eggs.js', './heist/heist.js'
+  './games/poker.js', './games/hilo.js', './games/cups.js', './games/scratch.js', './games/wheel.js', './games/racing.js', './npc/npcs.js', './games/events.js', './eggs/eggs.js', './heist/heist.js'
 ];
 
 let C = null;
@@ -68,7 +68,7 @@ export async function start(o){
       const inst = await mod.init(C);
       if(inst){ C.modules.push(inst); if(inst.name) C.games[inst.name] = inst; }
     }catch(e){ console.error('module failed', path, e); }
-    progress(0.4 + 0.45*i/MODULES.length, ['counting chips', 'chilling the drinks', 'oiling the reels', 'shuffling six decks', 'spinning up the wheel', 'seating the regulars', 'greasing the big wheel', 'walking the race fridges', 'waking the staff', 'checking the basement', 'somebody by the restrooms is watching'][i - 1] || 'almost');
+    progress(0.4 + 0.45*i/MODULES.length, ['counting chips', 'chilling the drinks', 'oiling the reels', 'shuffling six decks', 'spinning up the wheel', 'seating the regulars', 'lucky lou is counting to fourteen', 'nicky is setting up his box', 'loading the scratch-o-matic', 'greasing the big wheel', 'walking the race fridges', 'waking the staff', 'booking the big shots', 'checking the basement', 'somebody by the restrooms is watching'][i - 1] || 'almost');
     await frame();
   }
   finishWorld(C);

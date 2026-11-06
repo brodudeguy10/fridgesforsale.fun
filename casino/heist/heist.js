@@ -132,6 +132,8 @@ class Heist {
     this.trays = [];
     const tables = [].concat((C.games.blackjack ? C.games.blackjack.tables : []).filter(t=>!t.a.vip), (C.games.roulette ? C.games.roulette.tables : []).filter(t=>!t.a.vip));
     if(C.games.poker && C.games.poker.grp) tables.push({ grp:C.games.poker.grp, poker:true });
+    if(C.games.hilo && C.games.hilo.grp) tables.push({ grp:C.games.hilo.grp });
+    if(C.games.cups && C.games.cups.grp) tables.push({ grp:C.games.cups.grp });
     tables.forEach(T=>{ T.grp.updateMatrixWorld(true); const w = new THREE.Vector3(0, 1.0, -0.6).applyMatrix4(T.grp.matrixWorld); const tr = { pos:w, done:false, v:Math.round(R(600, 1300)) }; this.trays.push(tr); C.world.interact.push({ heist:true, pos:w, r:2.6, enabled:()=>C.crowd.active && !tr.done && this.state === 'loud', text:()=>'grab the chip tray', use:()=>{ tr.done = true; C.audio.chipStack(w); C.fx.coins(w, 20); this.addLoot(Math.round(tr.v*this.lootMul), 'tables'); this.toast('+' + fmt(tr.v*this.lootMul) + ' · chip tray'); this.refreshObj(); } }); });
     /* telling clement to blow the gate */
     C.world.interact.push({ heist:true, pos:new THREE.Vector3((K.GX0 + K.GX1)/2, 1.4, K.z0 - 1.2), r:3.2, enabled:()=>this.state === 'loud' && this.atGate, text:()=>'tell ' + (this.partnerName || 'clement') + ' to blow the gate', use:()=>{ this.atGate = false; this.fire('gate'); } });
