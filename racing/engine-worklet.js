@@ -68,6 +68,7 @@ class EngineProc extends AudioWorkletProcessor {
   rnd() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296 * 2 - 1; }
   process(_in, outputs) {
     const out = outputs[0][0]; if (!out) return true;
+    if (this.t.sleep) { out.fill(0); return true; }
     const sr = sampleRate, t = this.t, c = this.c, s = this.sound, pat = this.pat;
     const n = out.length, nCyl = pat.ang.length;
     /* update filters once a block */
