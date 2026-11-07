@@ -1,0 +1,1228 @@
+{
+ "id": "kei",
+ "version": 1,
+ "parts": {
+  "shell": {
+   "kind": "panel",
+   "center": [
+    0.0,
+    0.7485,
+    0.0584
+   ],
+   "min": [
+    -0.71,
+    0.28,
+    1.275
+   ],
+   "max": [
+    0.71,
+    1.22,
+    -1.275
+   ]
+  },
+  "gasket_l": {
+   "kind": "rubber",
+   "center": [
+    -0.714,
+    0.844,
+    -0.0
+   ],
+   "min": [
+    -0.72,
+    0.8265,
+    1.2495
+   ],
+   "max": [
+    -0.708,
+    0.8615,
+    -1.2495
+   ]
+  },
+  "gasket_r": {
+   "kind": "rubber",
+   "center": [
+    0.714,
+    0.844,
+    -0.0
+   ],
+   "min": [
+    0.708,
+    0.8265,
+    1.2495
+   ],
+   "max": [
+    0.72,
+    0.8615,
+    -1.2495
+   ]
+  },
+  "gasket_n": {
+   "kind": "rubber",
+   "center": [
+    0.0,
+    0.844,
+    -1.279
+   ],
+   "min": [
+    -0.6271,
+    0.8265,
+    -1.273
+   ],
+   "max": [
+    0.6271,
+    0.8615,
+    -1.285
+   ]
+  },
+  "gasket_t": {
+   "kind": "rubber",
+   "center": [
+    0.0,
+    0.844,
+    1.279
+   ],
+   "min": [
+    -0.6816,
+    0.8265,
+    1.285
+   ],
+   "max": [
+    0.6816,
+    0.8615,
+    1.273
+   ]
+  },
+  "glass": {
+   "kind": "glass",
+   "center": [
+    0.0,
+    1.226,
+    0.2
+   ],
+   "min": [
+    -0.5112,
+    1.22,
+    0.35
+   ],
+   "max": [
+    0.5112,
+    1.232,
+    0.05
+   ]
+  },
+  "handle0": {
+   "kind": "bar",
+   "center": [
+    0.46,
+    1.29,
+    -0.2
+   ],
+   "min": [
+    0.43,
+    1.225,
+    0.1
+   ],
+   "max": [
+    0.49,
+    1.345,
+    -0.5
+   ]
+  },
+  "grille": {
+   "kind": "plastic",
+   "center": [
+    0.0,
+    0.4483,
+    -1.2972
+   ],
+   "min": [
+    -0.568,
+    0.323,
+    -1.272
+   ],
+   "max": [
+    0.568,
+    0.5996,
+    -1.315
+   ]
+  },
+  "bumper_f": {
+   "kind": "bar",
+   "center": [
+    0.0,
+    0.26,
+    -1.325
+   ],
+   "min": [
+    -0.6674,
+    0.215,
+    -1.275
+   ],
+   "max": [
+    0.6674,
+    0.305,
+    -1.375
+   ]
+  },
+  "bumper_r": {
+   "kind": "bar",
+   "center": [
+    0.0,
+    0.26,
+    1.325
+   ],
+   "min": [
+    -0.6674,
+    0.215,
+    1.375
+   ],
+   "max": [
+    0.6674,
+    0.305,
+    1.275
+   ]
+  },
+  "coils": {
+   "kind": "plastic",
+   "center": [
+    0.0,
+    0.609,
+    1.3021
+   ],
+   "min": [
+    -0.568,
+    0.3505,
+    1.32
+   ],
+   "max": [
+    0.568,
+    0.8675,
+    1.277
+   ]
+  },
+  "tip0": {
+   "kind": "bar",
+   "center": [
+    0.36,
+    0.32,
+    1.355
+   ],
+   "min": [
+    0.3124,
+    0.27,
+    1.455
+   ],
+   "max": [
+    0.4076,
+    0.37,
+    1.255
+   ]
+  },
+  "bezel_hl": {
+   "kind": "plastic",
+   "center": [
+    -0.4828,
+    0.716,
+    -1.279
+   ],
+   "min": [
+    -0.6177,
+    0.632,
+    -1.269
+   ],
+   "max": [
+    -0.3479,
+    0.8,
+    -1.289
+   ]
+  },
+  "bezel_tl": {
+   "kind": "plastic",
+   "center": [
+    -0.568,
+    0.9064,
+    1.279
+   ],
+   "min": [
+    -0.6887,
+    0.8224,
+    1.289
+   ],
+   "max": [
+    -0.4473,
+    0.9904,
+    1.269
+   ]
+  },
+  "bezel_hr": {
+   "kind": "plastic",
+   "center": [
+    0.4828,
+    0.716,
+    -1.279
+   ],
+   "min": [
+    0.3479,
+    0.632,
+    -1.269
+   ],
+   "max": [
+    0.6177,
+    0.8,
+    -1.289
+   ]
+  },
+  "bezel_tr": {
+   "kind": "plastic",
+   "center": [
+    0.568,
+    0.9064,
+    1.279
+   ],
+   "min": [
+    0.4473,
+    0.8224,
+    1.289
+   ],
+   "max": [
+    0.6887,
+    0.9904,
+    1.269
+   ]
+  },
+  "flap_l": {
+   "kind": "rubber",
+   "center": [
+    -0.63,
+    0.22,
+    1.24
+   ],
+   "min": [
+    -0.72,
+    0.14,
+    1.25
+   ],
+   "max": [
+    -0.54,
+    0.3,
+    1.23
+   ]
+  },
+  "flap_r": {
+   "kind": "rubber",
+   "center": [
+    0.63,
+    0.22,
+    1.24
+   ],
+   "min": [
+    0.54,
+    0.14,
+    1.25
+   ],
+   "max": [
+    0.72,
+    0.3,
+    1.23
+   ]
+  }
+ },
+ "components": [
+  {
+   "id": "bumper_f",
+   "label": "front bumper"
+  },
+  {
+   "id": "grille",
+   "label": "kick-plate grille"
+  },
+  {
+   "id": "nose",
+   "label": "nose panel"
+  },
+  {
+   "id": "hood",
+   "label": "door (front half)"
+  },
+  {
+   "id": "roof",
+   "label": "door"
+  },
+  {
+   "id": "fender_l",
+   "label": "left front fender"
+  },
+  {
+   "id": "door_l",
+   "label": "left side"
+  },
+  {
+   "id": "quarter_l",
+   "label": "left rear quarter"
+  },
+  {
+   "id": "skirt_l",
+   "label": "left skirt"
+  },
+  {
+   "id": "fender_r",
+   "label": "right front fender"
+  },
+  {
+   "id": "door_r",
+   "label": "right side"
+  },
+  {
+   "id": "quarter_r",
+   "label": "right rear quarter"
+  },
+  {
+   "id": "skirt_r",
+   "label": "right skirt"
+  },
+  {
+   "id": "tail",
+   "label": "tail panel"
+  },
+  {
+   "id": "bumper_r",
+   "label": "rear bumper"
+  },
+  {
+   "id": "coils",
+   "label": "compressor coils"
+  },
+  {
+   "id": "tips",
+   "label": "exhaust tips"
+  },
+  {
+   "id": "head_l",
+   "label": "left headlight"
+  },
+  {
+   "id": "head_r",
+   "label": "right headlight"
+  },
+  {
+   "id": "tail_l",
+   "label": "left tail light"
+  },
+  {
+   "id": "tail_r",
+   "label": "right tail light"
+  },
+  {
+   "id": "glass",
+   "label": "glass"
+  },
+  {
+   "id": "rails",
+   "label": "door handles"
+  },
+  {
+   "id": "gasket",
+   "label": "door gasket"
+  },
+  {
+   "id": "flaps",
+   "label": "mud flaps"
+  },
+  {
+   "id": "wheel_fl",
+   "label": "front left wheel"
+  },
+  {
+   "id": "wheel_fr",
+   "label": "front right wheel"
+  },
+  {
+   "id": "wheel_rl",
+   "label": "rear left wheel"
+  },
+  {
+   "id": "wheel_rr",
+   "label": "rear right wheel"
+  }
+ ],
+ "variations": [
+  {
+   "id": "fc",
+   "zone": "front",
+   "anchor": [
+    0,
+    0.75,
+    -1.275
+   ],
+   "dir": [
+    0,
+    0,
+    1
+   ],
+   "r": 0.5,
+   "comps": {
+    "bumper_f": 1,
+    "grille": 0.9,
+    "nose": 1,
+    "hood": 0.5,
+    "head_l": 0.8,
+    "head_r": 0.8,
+    "gasket": 0.3,
+    "wheel_fl": 0.6,
+    "wheel_fr": 0.6,
+    "roof": 0.3
+   },
+   "label": "folded at the taper",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "fc.a",
+    "b": "fc.b"
+   }
+  },
+  {
+   "id": "fkl",
+   "zone": "front",
+   "anchor": [
+    -0.6532,
+    0.75,
+    -1.275
+   ],
+   "dir": [
+    0.55,
+    0,
+    0.83
+   ],
+   "r": 0.45,
+   "comps": {
+    "bumper_f": 1,
+    "grille": 0.9,
+    "nose": 1,
+    "hood": 0.5,
+    "head_l": 1,
+    "head_r": 0.15,
+    "gasket": 0.3,
+    "fender_l": 1,
+    "wheel_fl": 1
+   },
+   "label": "corner folded into the wheel",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "fkl.a",
+    "b": "fkl.b"
+   }
+  },
+  {
+   "id": "fkr",
+   "zone": "front",
+   "anchor": [
+    0.6532,
+    0.75,
+    -1.275
+   ],
+   "dir": [
+    -0.55,
+    0,
+    0.83
+   ],
+   "r": 0.45,
+   "comps": {
+    "bumper_f": 1,
+    "grille": 0.9,
+    "nose": 1,
+    "hood": 0.5,
+    "head_l": 0.15,
+    "head_r": 1,
+    "gasket": 0.3,
+    "fender_r": 1,
+    "wheel_fr": 1
+   },
+   "label": "corner folded into the wheel",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "fkr.a",
+    "b": "fkr.b"
+   }
+  },
+  {
+   "id": "fl",
+   "zone": "front",
+   "anchor": [
+    0,
+    0.28,
+    -1.275
+   ],
+   "dir": [
+    0,
+    0.66,
+    0.75
+   ],
+   "r": 0.35,
+   "comps": {
+    "bumper_f": 1,
+    "grille": 0.9,
+    "nose": 1,
+    "hood": 0.5,
+    "head_l": 0.3,
+    "head_r": 0.3,
+    "gasket": 0.3
+   },
+   "label": "chin pushed up",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "fl.a",
+    "b": "fl.b"
+   }
+  },
+  {
+   "id": "fp",
+   "zone": "front",
+   "anchor": [
+    -0.1633,
+    0.75,
+    -1.275
+   ],
+   "dir": [
+    0,
+    0,
+    1
+   ],
+   "r": 0.28,
+   "comps": {
+    "bumper_f": 1,
+    "grille": 0.9,
+    "nose": 1,
+    "hood": 0.5,
+    "head_l": 0.8,
+    "head_r": 0.4,
+    "gasket": 0.3
+   },
+   "label": "pole dead center",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "fp.a",
+    "b": "fp.b"
+   }
+  },
+  {
+   "id": "rc",
+   "zone": "rear",
+   "anchor": [
+    0,
+    0.75,
+    1.275
+   ],
+   "dir": [
+    0,
+    0,
+    -1
+   ],
+   "r": 0.5,
+   "comps": {
+    "bumper_r": 1,
+    "coils": 0.9,
+    "tail": 1,
+    "tips": 0.7,
+    "tail_l": 0.8,
+    "tail_r": 0.8,
+    "gasket": 0.3
+   },
+   "label": "rear end crumpled",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "rc.a",
+    "b": "rc.b"
+   }
+  },
+  {
+   "id": "rkl",
+   "zone": "rear",
+   "anchor": [
+    -0.71,
+    0.75,
+    1.275
+   ],
+   "dir": [
+    0.55,
+    0,
+    -0.83
+   ],
+   "r": 0.45,
+   "comps": {
+    "bumper_r": 1,
+    "coils": 0.9,
+    "tail": 1,
+    "tips": 0.7,
+    "tail_l": 1,
+    "tail_r": 0.15,
+    "gasket": 0.3,
+    "quarter_l": 1,
+    "wheel_rl": 0.8
+   },
+   "label": "rear corner folded",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "rkl.a",
+    "b": "rkl.b"
+   }
+  },
+  {
+   "id": "rkr",
+   "zone": "rear",
+   "anchor": [
+    0.71,
+    0.75,
+    1.275
+   ],
+   "dir": [
+    -0.55,
+    0,
+    -0.83
+   ],
+   "r": 0.45,
+   "comps": {
+    "bumper_r": 1,
+    "coils": 0.9,
+    "tail": 1,
+    "tips": 0.7,
+    "tail_l": 0.15,
+    "tail_r": 1,
+    "gasket": 0.3,
+    "quarter_r": 1,
+    "wheel_rr": 0.8
+   },
+   "label": "rear corner folded",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "rkr.a",
+    "b": "rkr.b"
+   }
+  },
+  {
+   "id": "sfl",
+   "zone": "side",
+   "anchor": [
+    -0.71,
+    0.75,
+    -0.9
+   ],
+   "dir": [
+    1,
+    0,
+    0
+   ],
+   "r": 0.35,
+   "comps": {
+    "fender_l": 1,
+    "wheel_fl": 0.7
+   },
+   "label": "fender dent",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "sfl.a",
+    "b": "sfl.b"
+   }
+  },
+  {
+   "id": "sdl",
+   "zone": "side",
+   "anchor": [
+    -0.71,
+    0.75,
+    -0.0
+   ],
+   "dir": [
+    1,
+    0,
+    0
+   ],
+   "r": 0.55,
+   "comps": {
+    "door_l": 1,
+    "glass": 0.7,
+    "gasket": 0.6,
+    "roof": 0.3
+   },
+   "label": "side caved in",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "sdl.a",
+    "b": "sdl.b"
+   }
+  },
+  {
+   "id": "sql",
+   "zone": "side",
+   "anchor": [
+    -0.71,
+    0.75,
+    0.86
+   ],
+   "dir": [
+    1,
+    0,
+    0
+   ],
+   "r": 0.35,
+   "comps": {
+    "quarter_l": 1,
+    "wheel_rl": 0.5
+   },
+   "label": "quarter dent",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "sql.a",
+    "b": "sql.b"
+   }
+  },
+  {
+   "id": "ssl",
+   "zone": "side",
+   "anchor": [
+    -0.71,
+    0.764,
+    0
+   ],
+   "dir": [
+    1,
+    0,
+    0
+   ],
+   "r": 0.2,
+   "comps": {
+    "door_l": 0.7,
+    "gasket": 0.5
+   },
+   "label": "scraped",
+   "needs": 0,
+   "scrape": true,
+   "keys": {
+    "a": "ssl.a",
+    "b": "ssl.b"
+   }
+  },
+  {
+   "id": "skl",
+   "zone": "side",
+   "anchor": [
+    -0.71,
+    0.28,
+    0
+   ],
+   "dir": [
+    0.7,
+    0.7,
+    0
+   ],
+   "r": 0.25,
+   "comps": {
+    "skirt_l": 1
+   },
+   "label": "skirt kinked",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "skl.a",
+    "b": "skl.b"
+   }
+  },
+  {
+   "id": "sfr",
+   "zone": "side",
+   "anchor": [
+    0.71,
+    0.75,
+    -0.9
+   ],
+   "dir": [
+    -1,
+    0,
+    0
+   ],
+   "r": 0.35,
+   "comps": {
+    "fender_r": 1,
+    "wheel_fr": 0.7
+   },
+   "label": "fender dent",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "sfr.a",
+    "b": "sfr.b"
+   }
+  },
+  {
+   "id": "sdr",
+   "zone": "side",
+   "anchor": [
+    0.71,
+    0.75,
+    -0.0
+   ],
+   "dir": [
+    -1,
+    0,
+    0
+   ],
+   "r": 0.55,
+   "comps": {
+    "door_r": 1,
+    "glass": 0.7,
+    "gasket": 0.6,
+    "roof": 0.3
+   },
+   "label": "side caved in",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "sdr.a",
+    "b": "sdr.b"
+   }
+  },
+  {
+   "id": "sqr",
+   "zone": "side",
+   "anchor": [
+    0.71,
+    0.75,
+    0.86
+   ],
+   "dir": [
+    -1,
+    0,
+    0
+   ],
+   "r": 0.35,
+   "comps": {
+    "quarter_r": 1,
+    "wheel_rr": 0.5
+   },
+   "label": "quarter dent",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "sqr.a",
+    "b": "sqr.b"
+   }
+  },
+  {
+   "id": "ssr",
+   "zone": "side",
+   "anchor": [
+    0.71,
+    0.764,
+    0
+   ],
+   "dir": [
+    -1,
+    0,
+    0
+   ],
+   "r": 0.2,
+   "comps": {
+    "door_r": 0.7,
+    "gasket": 0.5
+   },
+   "label": "scraped",
+   "needs": 0,
+   "scrape": true,
+   "keys": {
+    "a": "ssr.a",
+    "b": "ssr.b"
+   }
+  },
+  {
+   "id": "skr",
+   "zone": "side",
+   "anchor": [
+    0.71,
+    0.28,
+    0
+   ],
+   "dir": [
+    -0.7,
+    0.7,
+    0
+   ],
+   "r": 0.25,
+   "comps": {
+    "skirt_r": 1
+   },
+   "label": "skirt kinked",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "skr.a",
+    "b": "skr.b"
+   }
+  },
+  {
+   "id": "tr",
+   "zone": "top",
+   "anchor": [
+    0,
+    1.22,
+    0
+   ],
+   "dir": [
+    0,
+    -1,
+    0
+   ],
+   "r": 0.6,
+   "comps": {
+    "roof": 1,
+    "glass": 1,
+    "rails": 0.8
+   },
+   "label": "door caved in and sprung",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "tr.a",
+    "b": "tr.b"
+   }
+  },
+  {
+   "id": "tel",
+   "zone": "top",
+   "anchor": [
+    -0.6,
+    1.22,
+    0
+   ],
+   "dir": [
+    0.6,
+    -0.8,
+    0
+   ],
+   "r": 0.45,
+   "comps": {
+    "roof": 0.8,
+    "door_l": 0.5,
+    "glass": 0.5
+   },
+   "label": "top edge rolled in",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "tel.a",
+    "b": "tel.b"
+   }
+  },
+  {
+   "id": "ter",
+   "zone": "top",
+   "anchor": [
+    0.6,
+    1.22,
+    0
+   ],
+   "dir": [
+    -0.6,
+    -0.8,
+    0
+   ],
+   "r": 0.45,
+   "comps": {
+    "roof": 0.8,
+    "door_r": 0.5,
+    "glass": 0.5
+   },
+   "label": "top edge rolled in",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "ter.a",
+    "b": "ter.b"
+   }
+  },
+  {
+   "id": "th",
+   "zone": "top",
+   "anchor": [
+    0.355,
+    1.22,
+    0
+   ],
+   "dir": [
+    0,
+    -1,
+    0
+   ],
+   "r": 0.5,
+   "comps": {
+    "roof": 0.7,
+    "hood": 0.7
+   },
+   "label": "door sprung on its hinge",
+   "needs": 0,
+   "scrape": false,
+   "keys": {
+    "a": "th.a",
+    "b": "th.b"
+   }
+  }
+ ],
+ "detach": {
+  "bumper_f": {
+   "mode": "hang",
+   "comp": "bumper_f",
+   "at": 3.0,
+   "off": 3.8,
+   "pivot": [
+    -0.6532,
+    0.26,
+    -1.325
+   ],
+   "pivot2": [
+    0.6532,
+    0.26,
+    -1.325
+   ]
+  },
+  "bumper_r": {
+   "mode": "hang",
+   "comp": "bumper_r",
+   "at": 3.0,
+   "off": 3.8,
+   "pivot": [
+    -0.6532,
+    0.26,
+    1.325
+   ],
+   "pivot2": [
+    0.6532,
+    0.26,
+    1.325
+   ]
+  },
+  "grille": {
+   "mode": "drop",
+   "comp": "grille",
+   "at": 3.85,
+   "off": 3.85
+  },
+  "gasket_l": {
+   "mode": "hang",
+   "comp": "gasket",
+   "side": "l",
+   "at": 2.6,
+   "off": 3.9,
+   "pivot": [
+    -0.71,
+    0.844,
+    1.175
+   ],
+   "pivot2": [
+    -0.71,
+    0.844,
+    -1.175
+   ]
+  },
+  "gasket_r": {
+   "mode": "hang",
+   "comp": "gasket",
+   "side": "r",
+   "at": 2.6,
+   "off": 3.9,
+   "pivot": [
+    0.71,
+    0.844,
+    1.175
+   ],
+   "pivot2": [
+    0.71,
+    0.844,
+    -1.175
+   ]
+  },
+  "gasket_n": {
+   "mode": "hang",
+   "comp": "nose",
+   "at": 3.0,
+   "off": 3.7,
+   "pivot": [
+    -0.6532,
+    0.844,
+    -1.275
+   ],
+   "pivot2": [
+    0.6532,
+    0.844,
+    -1.275
+   ]
+  },
+  "gasket_t": {
+   "mode": "hang",
+   "comp": "tail",
+   "at": 3.0,
+   "off": 3.7,
+   "pivot": [
+    -0.71,
+    0.844,
+    1.275
+   ],
+   "pivot2": [
+    0.71,
+    0.844,
+    1.275
+   ]
+  },
+  "flap_l": {
+   "mode": "drop",
+   "comp": "flaps",
+   "side": "l",
+   "at": 2.8,
+   "off": 2.8
+  },
+  "flap_r": {
+   "mode": "drop",
+   "comp": "flaps",
+   "side": "r",
+   "at": 2.8,
+   "off": 2.8
+  },
+  "handle0": {
+   "mode": "snap",
+   "comp": "rails",
+   "at": 3.4,
+   "off": 3.4
+  },
+  "tip0": {
+   "mode": "droop",
+   "comp": "tips",
+   "x": 0.36,
+   "at": 2.5,
+   "off": 3.7,
+   "pivot": [
+    0.36,
+    0.32,
+    1.275
+   ]
+  },
+  "glass": {
+   "mode": "pop",
+   "comp": "glass",
+   "at": 3.2,
+   "off": 3.2
+  }
+ },
+ "tune": {
+  "stiff": 1.3,
+  "paint": "enamel",
+  "glassK": 1.25,
+  "wheelK": 1.3
+ }
+}
