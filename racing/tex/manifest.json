@@ -1,0 +1,194 @@
+{
+ "road": {
+  "file": "road.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Asphalt019"
+ },
+ "road_b": {
+  "file": "road_b.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Asphalt023S"
+ },
+ "deck": {
+  "file": "deck.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Road009C"
+ },
+ "lot": {
+  "file": "lot.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Asphalt023S"
+ },
+ "walk": {
+  "file": "walk.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Concrete031"
+ },
+ "curb": {
+  "file": "curb.jpg",
+  "w": 64,
+  "h": 64,
+  "src": "Concrete049"
+ },
+ "struct": {
+  "file": "struct.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Concrete030"
+ },
+ "grass": {
+  "file": "grass.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Grass004"
+ },
+ "leaf": {
+  "file": "leaf.jpg",
+  "w": 64,
+  "h": 64,
+  "src": "Grass002"
+ },
+ "lawn": {
+  "file": "lawn.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Grass005"
+ },
+ "gravel": {
+  "file": "gravel.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Gravel024"
+ },
+ "dirt": {
+  "file": "dirt.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Ground110"
+ },
+ "roof": {
+  "file": "roof.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Gravel028"
+ },
+ "path": {
+  "file": "path.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "PavingStones070"
+ },
+ "plaza": {
+  "file": "plaza.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "PavingStones151"
+ },
+ "promenade": {
+  "file": "promenade.jpg",
+  "w": 128,
+  "h": 64,
+  "src": "PavingStones143"
+ },
+ "hex": {
+  "file": "hex.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "PavingStones130"
+ },
+ "brick_red": {
+  "file": "brick_red.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Bricks059"
+ },
+ "brick_old": {
+  "file": "brick_old.jpg",
+  "w": 128,
+  "h": 64,
+  "src": "Bricks097"
+ },
+ "brick_bright": {
+  "file": "brick_bright.jpg",
+  "w": 128,
+  "h": 64,
+  "src": "Bricks104"
+ },
+ "brick_gray": {
+  "file": "brick_gray.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Bricks058"
+ },
+ "panel": {
+  "file": "panel.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Concrete031"
+ },
+ "ware": {
+  "file": "ware.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Metal053C"
+ },
+ "ware_b": {
+  "file": "ware_b.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "Metal054B"
+ },
+ "glass": {
+  "file": "glass.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Facade001"
+ },
+ "apart": {
+  "file": "apart.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Facade018A"
+ },
+ "apart_mask": {
+  "file": "apart_mask.png",
+  "w": 256,
+  "h": 256,
+  "src": "Facade018A"
+ },
+ "skyline": {
+  "file": "skyline.jpg",
+  "w": 256,
+  "h": 256,
+  "src": "Facade011"
+ },
+ "hazard": {
+  "file": "hazard.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "PaintedMetal016"
+ },
+ "danger": {
+  "file": "danger.jpg",
+  "w": 128,
+  "h": 128,
+  "src": "PaintedMetal017"
+ },
+ "chipped": {
+  "file": "chipped.jpg",
+  "w": 64,
+  "h": 64,
+  "src": "PaintedMetal013"
+ },
+ "graffiti": {
+  "file": "graffiti.png",
+  "w": 256,
+  "h": 256,
+  "src": "GraffitiSet001"
+ }
+}
