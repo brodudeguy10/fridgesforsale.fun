@@ -84,7 +84,8 @@ export class Crew {
       state:o.state || 'route', route:o.route || null, ri:0, waitT:0, path:null, pi:0, speed:o.speed || 1.05,
       look:0, lookPh:Math.random()*6, sweep:o.sweep === undefined ? 0.45 : o.sweep, sus:0, seen:false, lastSeen:null, heard:0,
       alive:true, hp:o.hp || 110, freeze:0, frozen:false, frozenT:0, light:o.light !== false, lightLen:len,
-      spotT:0, fireCD:R(0.6, 1.2), burst:0, chatter:R(6, 14), yawWant:o.yaw || 0, deaf:false, blind:false, tag:o.tag || '', aimAt:null, stopFor:0, combat:!!o.combat, gone:false
+      spotT:0, fireCD:0.6 + (this.list.length % 3)*0.25, burst:0, chatter:8 + (this.list.length % 4)*2.5, yawWant:o.yaw || 0, deaf:false, blind:false, tag:o.tag || '', aimAt:null, stopFor:0, combat:!!o.combat, gone:false,
+      v:0, hold:false, holdT:0, lookAt:null, noticeT:0, stuckT:0, idx:this.list.length, scripted:o.scripted !== undefined ? o.scripted : !((o.state || 'route') === 'route' || o.state === 'hold' || o.state === 'combat')
     }, o.extra || {});
     e.target = { kind:'crew', e, get alive(){ return e.alive; }, shootableDead:true,
       ray:(oo, d, maxT)=>this.ray(e, oo, d, maxT), hit:info=>this.hit(e, info),
@@ -97,10 +98,58 @@ export class Crew {
   clear(){ this.list.slice().forEach(e=>this.remove(e)); }
   eye(e){ const p = e.F.group.position; return this._v.set(p.x, (e.F.top || 1.7)*0.82, p.z); }
   say(e, line, dur){ if(!line) return; e.F.face.say(Math.min(3, line.length*0.05)); const d = e.F.group.position.distanceTo(this.C.camera.position); if(d < 14) this.C.hud.say(e.name, line, dur || 2.4); }
-  /* ---------- moving ---------- */
-  goTo(e, x, z){ const N = this.C.heist.nav, p = e.F.group.position; const pth = N.path(p.x, p.z, x, z); e.path = pth && pth.length ? pth : [[x, z]]; e.pi = 0; e.dest = [x, z]; }
-  walkTo(e, x, z, speed){ if(speed) e.speed = speed; this.goTo(e, x, z); return new Promise(res=>{ e.onArrive = res; }); }
+  /* ---------- moving ----------
+     a path is the nav grid's waypoints. no path means no walking: they
+     hold where they are and the script carries on, instead of sliding
+     through a wall to get there. */
+  goTo(e, x, z){
+    const N = this.C.heist.nav, p = e.F.group.position;
+    let pth = N.path(p.x, p.z, x, z, 14000);
+    if(!pth || !pth.length){ if(N.walk && N.clearLine(p.x, p.z, x, z)) pth = [[p.x, p.z], [x, z]]; }
+    e.dest = [x, z]; e.stuckT = 0;
+    if(!pth || !pth.length){
+      e.path = null; e.pi = 0; e.blocked = (e.blocked || 0) + 1;
+      if(this.W.debugOn) console.warn('[wake] no path for', e.name, e.idx, 'to', x.toFixed(1), z.toFixed(1));
+      if(e.onArrive){ const f = e.onArrive; e.onArrive = null; setTimeout(f, 60); }
+      return false;
+    }
+    /* the end of the path is the cell nearest the goal: finish on the goal itself if it's open */
+    const endC = pth[pth.length - 1]; if(Math.hypot(endC[0] - x, endC[1] - z) < 0.6 && N.clearLine(endC[0], endC[1], x, z)) pth = pth.slice(0, -1).concat([[x, z]]);
+    e.path = pth; e.pi = pth.length > 1 && Math.hypot(pth[0][0] - p.x, pth[0][1] - p.z) < 0.5 ? 1 : 0;
+    return true;
+  }
+  walkTo(e, x, z, speed){ if(speed) e.speed = speed; return new Promise(res=>{ e.onArrive = res; this.goTo(e, x, z); }); }
   arrived(e){ return !e.path || e.pi >= e.path.length; }
+  stop(e){ e.path = null; e.pi = 0; }
+  /* turn the body at a fixed rate, not a snap */
+  turn(e, want, rate, dt){ const g = e.F.group, d = ang(want, g.rotation.y), m = rate*dt; g.rotation.y += Math.abs(d) < m ? d : Math.sign(d)*m; return Math.abs(d); }
+  /* one step along the path: stop and turn first if the next leg bends hard,
+     ease up to speed, ease down into the last mark */
+  step(e, dt, slow){
+    const C = this.C, g = e.F.group, p = g.position;
+    const wp = e.path[e.pi], dx = wp[0] - p.x, dz = wp[1] - p.z, dd = Math.hypot(dx, dz);
+    const last = e.pi === e.path.length - 1;
+    if(dd < (last ? 0.12 : 0.28)){ e.pi++; if(e.pi >= e.path.length){ e.path = null; this.arrive(e); } return e.v; }
+    const want = Math.atan2(dx, dz), diff = Math.abs(ang(want, g.rotation.y));
+    const top = e.speed*slow;
+    /* aiming at something while walking (a gun on a hostage, a light on a body): he sidesteps, the gun stays put */
+    const strafe = !!e.aimAt;
+    let tv = strafe ? top*0.8 : diff > 0.9 && e.v < 0.35 ? 0 : top*Math.max(0.3, Math.cos(Math.min(1.35, diff)));
+    if(last) tv = Math.min(tv, Math.sqrt(2*2.4*dd) + 0.06);
+    e.v += Math.max(-4.5*dt, Math.min(2.6*dt, tv - e.v));
+    if(!strafe){ this.turn(e, want, e.v < 0.35 ? 3.4 : 4.8, dt); e.yawWant = want; }
+    if(e.v <= 0.01) return 0;
+    const s = Math.min(dd, e.v*dt); let sx = dx/dd*s, sz = dz/dd*s;
+    for(const o of this.list){ if(o === e || !o.alive) continue; const ox = p.x - o.F.group.position.x, oz = p.z - o.F.group.position.z, od = Math.hypot(ox, oz); if(od < 0.8 && od > 0.01){ sx += ox/od*(0.8 - od)*dt*1.5; sz += oz/od*(0.8 - od)*dt*1.5; } }
+    const bx = p.x, bz = p.z;
+    p.x += sx; p.z += sz;
+    if(!e.ghostWalk) C.collide.resolve(p, 0.3);
+    /* stuck on something: skip ahead rather than grind into it */
+    const moved = Math.hypot(p.x - bx, p.z - bz);
+    if(tv > 0.2 && moved < e.v*dt*0.25){ e.stuckT += dt; if(e.stuckT > 1.4){ e.stuckT = 0; e.pi++; if(e.pi >= e.path.length){ e.path = null; this.arrive(e); } } } else e.stuckT = Math.max(0, e.stuckT - dt);
+    return e.v;
+  }
+  arrive(e){ e.v = Math.min(e.v, 0.2); if(e.onArrive){ const f = e.onArrive; e.onArrive = null; f(); } }
   /* ---------- seeing you ---------- */
   visibility(e, dt){
     const C = this.C, W = this.W, cam = C.camera.position;
@@ -122,6 +171,30 @@ export class Crew {
     if(W.flashlitPlayer) v *= 1.4;
     return v;
   }
+  /* can this one leave what it's doing to go look? only patrols and posts.
+     a guard in the middle of a scripted beat stops and stares instead, then
+     carries on with the beat, so the scene stays the scene. */
+  canInvestigate(e){ return e.investigate !== false && !e.scripted && ((e.state === 'route' && e.route) || (e.state === 'hold' && e.holdAt) || e.state === 'search' || e.state === 'investigate'); }
+  /* "?" → stop, turn to the spot, a beat to decide, then walk over. never a straight sprint */
+  notice(e, quick){
+    if(e.noticeT > 0 || e.state === 'investigate') return;
+    e.hold = true; e.lookAt = e.lastSeen ? e.lastSeen.slice() : null; e.noticeT = quick ? 0.6 : 1.1; e.v = 0;
+    this.say(e, CREW_LINES.huh[e.idx % CREW_LINES.huh.length]);
+  }
+  beginInvestigate(e){
+    const p = e.F.group.position, ls = e.lastSeen; if(!ls){ e.hold = false; return; }
+    if(e.state !== 'search' && e.state !== 'investigate'){ e.home = e.state; e.homeRi = e.route ? Math.max(0, e.ri - 1) : 0; e.baseSpeed = e.speed; }
+    e.state = 'investigate'; e.hold = false; e.lookAt = null;
+    /* stop a little short of the spot and shine the light on it */
+    const dx = ls[0] - p.x, dz = ls[1] - p.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, d - 1.1)/d;
+    e.speed = 0.95; this.goTo(e, p.x + dx*k, p.z + dz*k); e.lookAt = ls.slice();
+  }
+  /* after a reflex escape: scripted ones stare a while, patrols come look */
+  afterReflex(e){
+    e.sus = 0.6; e.aimAt = null;
+    if(e.state === 'aim' && !e.scripted && (e.route || e.holdAt || e.preAim === 'investigate' || e.preAim === 'search')){ e.state = e.preAim && e.preAim !== 'aim' ? e.preAim : (e.route ? 'route' : 'hold'); if(e.state === 'investigate' || e.state === 'search'){ e.state = 'search'; e.searchT = 0.01; } this.notice(e, true); }
+    else { if(e.state === 'aim') e.state = e.preAim || 'walk'; e.hold = true; e.holdT = 2.4; e.lookAt = e.lastSeen ? e.lastSeen.slice() : null; this.say(e, CREW_LINES.lost[e.idx % CREW_LINES.lost.length]); }
+  }
   /* ---------- per frame ---------- */
   update(dt, t){
     const C = this.C, W = this.W, cam = C.camera.position;
@@ -135,35 +208,45 @@ export class Crew {
       if(e.frozen){ e.frozenT += dt; if(!e.freezeLock) e.freeze -= dt*6; e.cone.visible = false; e.pool.visible = false; e.mark.visible = false; if(e.freeze < 30){ e.frozen = false; if(e.ice){ C.scene.remove(e.ice); e.ice = null; } F.face.set('angry', 2); C.gore.mistPuff(new THREE.Vector3(p.x, 1, p.z), '#d8f6ff', 6, { size:0.3 }); } continue; }
       if(e.freeze > 0) e.freeze = Math.max(0, e.freeze - dt*18);
       const slow = 1 - Math.min(0.75, e.freeze/120);
+      /* timers */
+      if(e.holdT > 0){ e.holdT -= dt; if(e.holdT <= 0){ e.hold = false; e.lookAt = null; } }
+      if(e.noticeT > 0){ e.noticeT -= dt; if(e.noticeT <= 0) this.beginInvestigate(e); }
       /* the brain */
-      let moving = 0;
-      if(e.state === 'route' || e.state === 'investigate' || e.state === 'search' || e.state === 'walk' || e.state === 'combat'){
-        if(e.state === 'route' && e.route && this.arrived(e)){
-          if(e.waitT > 0){ e.waitT -= dt; }
-          else { const wp = e.route[e.ri % e.route.length]; e.ri++; if(wp.wait){ e.waitT = wp.wait; if(wp.yaw !== undefined) e.yawWant = wp.yaw; } this.goTo(e, wp[0], wp[1]); }
-        }
-        if(e.state === 'investigate' && this.arrived(e)){ e.state = 'search'; e.searchT = R(3, 4.5); e.yawWant = g.rotation.y; }
-        if(e.state === 'search'){ e.searchT -= dt; e.look = Math.sin(t*1.6 + e.lookPh)*0.9; if(e.searchT <= 0){ e.state = e.home || 'route'; if(e.route) e.ri = this.nearestWp(e); this.say(e, pick(CREW_LINES.lost)); e.path = null; if(e.state === 'hold' && e.holdAt) this.goTo(e, e.holdAt[0], e.holdAt[1]); } }
-        if(e.state === 'combat') moving = this.brainCombat(e, dt, slow);
+      if(e.state === 'route' && e.route && this.arrived(e) && !e.hold){
+        if(e.waitT > 0){ e.waitT -= dt; }
+        else { const wp = e.route[e.ri % e.route.length]; e.ri++; if(wp.wait){ e.waitT = wp.wait; e.wpYaw = wp.yaw; } else e.wpYaw = undefined; this.goTo(e, wp[0], wp[1]); }
       }
-      if(e.path && e.pi < e.path.length && e.stopFor <= 0 && e.state !== 'aim'){
-        const wp = e.path[e.pi], dx = wp[0] - p.x, dz = wp[1] - p.z, dd = Math.hypot(dx, dz);
-        if(dd < 0.18){ e.pi++; if(e.pi >= e.path.length && e.onArrive){ const f = e.onArrive; e.onArrive = null; f(); } }
-        else { const sp = e.speed*slow, s = Math.min(dd, sp*dt); let sx = dx/dd*s, sz = dz/dd*s;
-          for(const o of this.list){ if(o === e || !o.alive) continue; const ox = p.x - o.F.group.position.x, oz = p.z - o.F.group.position.z, od = Math.hypot(ox, oz); if(od < 0.8 && od > 0.01){ sx += ox/od*(0.8 - od)*dt*2; sz += oz/od*(0.8 - od)*dt*2; } }
-          p.x += sx; p.z += sz; moving = sp; e.yawWant = Math.atan2(dx, dz); }
-      } else if(e.path && e.pi >= e.path.length && e.onArrive){ const f = e.onArrive; e.onArrive = null; f(); }
+      if(e.state === 'route' && this.arrived(e) && e.wpYaw !== undefined) e.yawWant = e.wpYaw;
+      if(e.state === 'hold' && this.arrived(e) && e.holdYaw !== undefined) e.yawWant = e.holdYaw;
+      if(e.state === 'investigate' && this.arrived(e)){ e.state = 'search'; e.searchT = 3.6; e.searchYaw = g.rotation.y; e.yawWant = g.rotation.y; e.lookAt = null; }
+      if(e.state === 'search'){
+        e.searchT -= dt;
+        /* a fixed sweep: left, right, left. you can count it */
+        const k = 1 - Math.max(0, e.searchT)/3.6; e.look = Math.sin(k*Math.PI*3)*0.95;
+        if(e.searchT <= 0){ e.state = e.home || 'route'; e.home = null; this.say(e, CREW_LINES.lost[e.idx % CREW_LINES.lost.length]); e.path = null; e.look = 0; e.speed = e.baseSpeed || 1.05;
+          if(e.route){ e.ri = e.homeRi || this.nearestWp(e); e.waitT = 0; }
+          if(e.state === 'hold' && e.holdAt) this.goTo(e, e.holdAt[0], e.holdAt[1]); }
+      }
+      let moving = 0;
+      if(e.state === 'combat') this.brainCombat(e, dt, slow);
+      const canStep = e.path && e.pi < e.path.length && e.stopFor <= 0 && e.state !== 'aim' && !e.hold;
+      if(canStep) moving = this.step(e, dt, slow);
+      else { e.v = Math.max(0, e.v - 5*dt); if(e.path && e.pi >= e.path.length){ e.path = null; this.arrive(e); } }
       if(e.stopFor > 0) e.stopFor -= dt;
-      /* aim at a point if told to, else face where you're going */
-      let want = e.yawWant;
-      if(e.aimAt){ want = Math.atan2(e.aimAt.x - p.x, e.aimAt.z - p.z); }
-      g.rotation.y += ang(want, g.rotation.y)*Math.min(1, dt*(e.state === 'aim' || e.state === 'combat' ? 9 : 4));
-      /* the light sweeps a little while they walk, more while they search */
-      if(e.state === 'route' || e.state === 'hold' || e.state === 'walk') e.look += (Math.sin(t*0.9 + e.lookPh)*e.sweep - e.look)*Math.min(1, dt*2);
+      /* facing: a gun aimed at something turns fast, a body at rest turns slow */
+      if(!canStep || e.aimAt){
+        let want = e.yawWant;
+        if(e.aimAt) want = Math.atan2(e.aimAt.x - p.x, e.aimAt.z - p.z);
+        else if(e.lookAt && e.hold) want = Math.atan2(e.lookAt[0] - p.x, e.lookAt[1] - p.z);
+        this.turn(e, want, e.state === 'aim' || e.state === 'combat' || e.aimAt ? 7 : e.hold ? 3.2 : 2.4, dt);
+      }
+      /* the light */
+      if(e.lookAt && !e.aimAt){ const want = ang(Math.atan2(e.lookAt[0] - p.x, e.lookAt[1] - p.z), g.rotation.y); const cl = Math.max(-1.1, Math.min(1.1, want)); e.look += (cl - e.look)*Math.min(1, dt*5); }
+      else if(e.state === 'route' || e.state === 'hold' || e.state === 'walk') e.look += (Math.sin(t*0.9 + e.lookPh)*e.sweep - e.look)*Math.min(1, dt*2);
       else if(e.state === 'aim' || e.state === 'combat' || e.aimAt) e.look *= Math.max(0, 1 - dt*8);
       /* arms: gun up and pointed when looking for you */
       F.armBusy = true;
-      const up = e.state === 'aim' || e.state === 'combat' || e.aimAt ? -1.5 : e.state === 'search' || e.state === 'investigate' ? -1.25 : e.state === 'drag' ? -0.6 : -1.05;
+      const up = e.state === 'aim' || e.state === 'combat' || e.aimAt ? -1.5 : e.state === 'search' || e.state === 'investigate' || e.hold ? -1.25 : e.state === 'drag' ? -0.6 : -1.05;
       F.armR.rotation.x += (up - F.armR.rotation.x)*Math.min(1, dt*6); F.armR.rotation.y = -e.look*0.8; F.armR.rotation.z = 0.12;
       if(e.state !== 'drag' && e.state !== 'script') F.armL.rotation.x += ((up + 0.15) - F.armL.rotation.x)*Math.min(1, dt*5);
       if(e.state !== 'script') animateFridge(F, t + F.seed, moving, {});
@@ -176,18 +259,21 @@ export class Crew {
         e.pool.visible = true; e.pool.position.set(lp.x + Math.sin(yaw)*hitD, 0.012, lp.z + Math.cos(yaw)*hitD); const ps = 0.6 + hitD*0.18; e.pool.scale.set(ps, ps*1.6, 1); e.pool.rotation.z = -yaw; e.pool.material.opacity = 0.42;
       } else { e.cone.visible = false; e.pool.visible = false; }
       /* noticing */
-      if(e.state !== 'script' && e.state !== 'drag' && e.state !== 'combat' && !e.deaf){
+      if(e.state !== 'script' && e.state !== 'drag' && e.state !== 'combat' && e.state !== 'aim' && !e.deaf){
         e.visT = (e.visT || 0) - dt;
         if(e.visT <= 0){ e.visT = 0.08; e.vis = this.visibility(e, dt); }
         const v = e.vis || 0;
-        if(v > 0.02){ e.sus = Math.min(1.2, e.sus + v*1.5*0.08*12.5*dt); e.lastSeen = [cam.x, cam.z]; }
+        if(v > 0.02){ e.sus = Math.min(1.2, e.sus + v*1.5*dt); e.lastSeen = [cam.x, cam.z]; }
         else e.sus = Math.max(0, e.sus - dt*0.22);
         /* noise: running and knocking things over */
         if(W.body.noise > 0){ const dd = Math.sqrt(d2); if(dd < W.body.noise){ e.sus = Math.min(1.2, e.sus + dt*1.4); e.lastSeen = [cam.x, cam.z]; } }
-        if(e.sus > 0.3 && (e.state === 'route' || e.state === 'hold' || e.state === 'walk' || e.state === 'search') && e.lastSeen && e.investigate !== false){
-          if(e.state !== 'search' || e.sus > 0.55){ if(!e.home) e.home = e.state === 'search' ? (e.home || 'route') : e.state; e.state = 'investigate'; this.goTo(e, e.lastSeen[0], e.lastSeen[1]); e.speed = 1.3; this.say(e, pick(CREW_LINES.huh)); }
-        }
-        if(e.sus >= 1 && W.onSpotted){ e.state = 'aim'; e.aimAt = cam.clone(); e.path = null; this.say(e, pick(CREW_LINES.spot), 1.6); W.onSpotted(e); }
+        if(e.sus > 0.3 && e.lastSeen){
+          if(this.canInvestigate(e)){ if(e.state === 'search' ? e.sus > 0.55 && e.noticeT <= 0 : e.state !== 'investigate') this.notice(e); else if(e.state === 'investigate') e.lookAt = e.lastSeen.slice(); }
+          /* scripted: stop and stare at it until it goes away */
+          else if(!e.peek){ e.peek = true; e.hold = true; e.lookAt = e.lastSeen.slice(); this.say(e, CREW_LINES.huh[e.idx % CREW_LINES.huh.length]); }
+          else e.lookAt = e.lastSeen.slice();
+        } else if(e.peek && e.sus < 0.18){ e.peek = false; if(e.holdT <= 0){ e.hold = false; e.lookAt = null; } }
+        if(e.sus >= 1 && W.onSpotted){ e.preAim = e.state; e.hold = false; e.noticeT = 0; e.peek = false; e.state = 'aim'; e.aimAt = cam.clone(); this.say(e, CREW_LINES.spot[e.idx % CREW_LINES.spot.length], 1.6); W.onSpotted(e); }
         worst = Math.max(worst, e.sus);
         if(e.sus > 0.3) anyAlert++;
       }
@@ -195,7 +281,7 @@ export class Crew {
       if(e.sus > 0.3 || e.state === 'aim'){ e.mark.visible = true; e.mark.material = e.sus >= 1 || e.state === 'aim' ? XM : QM; e.mark.position.set(p.x, (F.top || 1.7) + 0.45 + Math.sin(t*6)*0.03, p.z); const s = 0.3 + Math.min(1, e.sus)*0.2; e.mark.scale.setScalar(s); }
       else e.mark.visible = false;
       /* chatter */
-      e.chatter -= dt; if(e.chatter <= 0){ e.chatter = R(9, 18); if(d2 < 120 && (e.state === 'route' || e.state === 'hold') && Math.random() < 0.6) this.say(e, pick(CREW_LINES.idle), 2.2); }
+      e.chatter -= dt; if(e.chatter <= 0){ e.chatter = 12; if(d2 < 120 && (e.state === 'route' || e.state === 'hold') && !e.hold) this.say(e, CREW_LINES.idle[(e.idx + Math.floor(t/12)) % CREW_LINES.idle.length], 2.2); }
       F.group.visible = d2 < 3600;
     }
     this.worst = worst; this.alerted = anyAlert;
@@ -295,6 +381,7 @@ export class Crew {
     if(e.ice){ C.scene.remove(e.ice); e.ice = null; }
     C.gore.iceBurst(p, 26); C.gore.spill(p.clone().setY(0.6), dir || new THREE.Vector3(0, 1, 0), { n:8, sauce:6 });
     C.audio.heist && C.audio.heist.hit('ice', p); C.audio.heist && C.audio.heist.explosion(p, 0.2);
+   
     e.alive = false; e.state = 'dead'; e.F.group.visible = false; e.cone.visible = false; e.pool.visible = false; e.mark.visible = false; C.combat.remove(e.target);
     C.bus.emit('crewkill', { e, shatter:true });
     if(this.W.onCrewKill) this.W.onCrewKill(e);

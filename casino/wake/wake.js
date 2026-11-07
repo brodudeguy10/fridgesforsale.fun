@@ -19,6 +19,7 @@ import { canvas, tex } from '../world/textures.js';
 import { los } from '../heist/nav.js';
 import { WakeFX, Mood, glowTex } from './fx.js';
 import { Crew } from './crew.js';
+import { WakeDebug } from './debug.js';
 import { People } from './people.js';
 import { GoldFridge, Defroster } from './beasts.js';
 import { STORY } from './story.js';
@@ -135,7 +136,17 @@ class Hank {
       const lag = Math.hypot(C.player.pos.x - p.x, C.player.pos.z - p.z);
       const sp = lag > 6 && !this.noWait ? 0 : this.speed;
       if(d < 0.15) this.pi++;
-      else { const s = Math.min(d, sp*dt); p.x += dx/d*s; p.z += dz/d*s; moving = sp; g.rotation.y += ang(Math.atan2(dx, dz), g.rotation.y)*Math.min(1, dt*5); }
+      else {
+        /* turn toward the next leg first, then go. eases in, eases out */
+        const want = Math.atan2(dx, dz), diff = ang(want, g.rotation.y), last = this.pi === this.path.length - 1;
+        let tv = Math.abs(diff) > 1.0 && (this.v || 0) < 0.25 ? 0 : sp*Math.max(0.35, Math.cos(Math.min(1.3, Math.abs(diff))));
+        if(last) tv = Math.min(tv, Math.sqrt(2*2*d) + 0.05);
+        this.v = (this.v || 0) + Math.max(-4*dt, Math.min(2.2*dt, tv - (this.v || 0)));
+        const m = (this.posture === 'prone' ? 2.2 : 3.6)*dt; g.rotation.y += Math.abs(diff) < m ? diff : Math.sign(diff)*m;
+        const s = Math.min(d, this.v*dt), bx = p.x, bz = p.z; p.x += dx/d*s; p.z += dz/d*s; moving = this.v;
+        C.collide.resolve(p, 0.26);
+        if(tv > 0.15 && Math.hypot(p.x - bx, p.z - bz) < this.v*dt*0.25){ this.stuckT = (this.stuckT || 0) + dt; if(this.stuckT > 1.2){ this.stuckT = 0; this.pi++; } } else this.stuckT = 0;
+      }
     } else if(this.path && this.onArrive){ const f = this.onArrive; this.onArrive = null; this.path = null; f(); }
     else { let fy = this.faceYaw; const cp = C.player.pos, dd = Math.hypot(cp.x - p.x, cp.z - p.z); if(this.posture === 'prone' && dd < 2.4){ fy = Math.atan2(cp.x - p.x, cp.z - p.z) + Math.PI/2; } if(fy !== undefined) g.rotation.y += ang(fy, g.rotation.y)*Math.min(1, dt*3); }
     /* posture */
@@ -231,6 +242,7 @@ export class Wake {
     this.hank = new Hank(C, this); this.cams = new Cams(C, this);
     this.gold = new GoldFridge(C, this); this.def = new Defroster(C, this);
     this.ui = buildHud(C);
+    this.dbg = new WakeDebug(C, this);
     C.bus.on('crewkill', ()=>{ if(this.stats) this.stats.kills++; });
     this.hp = 100; this.ghost = false; this.t = 0; this.spottedBy = null;
     /* one light for fire, made now so the shaders already know about it */
@@ -295,7 +307,7 @@ export class Wake {
       C.engine.timeScale = 1; this.ui.$('.seen').className = 'seen';
       const v = this.crew.visibility(e, 0);
       if(e.alive && !e.frozen && v > 0.05){ this.caught(e); }
-      else { e.state = 'investigate'; e.sus = 0.7; e.aimAt = null; if(e.lastSeen) this.crew.goTo(e, e.lastSeen[0], e.lastSeen[1]); this.spottedBy = null; this.stats.reflex++; }
+      else { this.crew.afterReflex(e); this.spottedBy = null; this.stats.reflex++; }
     };
     requestAnimationFrame(chk);
   }
@@ -422,6 +434,7 @@ export class Wake {
     }
     this.fx.update(dt);
     if(this.after) this.after.update(dt, t);
+    this.dbg.update(dt);
     if(!this.active) return;
     if(this.godT > 0) this.godT -= dt;
     for(let i=this.waiters.length - 1; i>=0; i--){ const w = this.waiters[i]; if(w.tok !== this.tok){ this.waiters.splice(i, 1); w.res(false); continue; } let r = false; try{ r = w.fn(); }catch(e){ console.error(e); } if(r){ this.waiters.splice(i, 1); w.res(true); } }

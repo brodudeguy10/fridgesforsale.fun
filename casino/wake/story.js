@@ -15,6 +15,11 @@ const pick = a=>a[(Math.random()*a.length)|0];
 const V = (x, y, z)=>new THREE.Vector3(x, y, z);
 const near = (W, x, z, r)=>Math.hypot(W.C.player.pos.x - x, W.C.player.pos.z - z) < r;
 const yawTo = (fx, fz, tx, tz)=>Math.atan2(-(tx - fx), -(tz - fz));
+/* a hand-placed mark, nudged onto the nearest floor a fridge can stand on */
+const snap = (W, x, z)=>{ const N = W.C.heist.nav, c = N.walk && N.nearest(x, z, 4); return c ? N.pos(c[0], c[1]) : [x, z]; };
+/* walk something that isn't crew (the defroster, a body being dragged) along the nav grid */
+const navFollow = (W, from, to, speed, tok, each)=>{ const N = W.C.heist.nav; const pth = (N.walk && N.path(from.x, from.z, to.x, to.z, 14000)) || [[to.x, to.z]]; let i = pth.length > 1 ? 1 : 0, t = 0;
+  return W.until(()=>{ t += 1/60; if(i >= pth.length || t > 14) return true; const w = pth[i], dx = w[0] - from.x, dz = w[1] - from.z, d = Math.hypot(dx, dz); if(d < 0.15){ i++; return false; } const s = Math.min(d, speed/60); from.x += dx/d*s; from.z += dz/d*s; if(each) each(Math.atan2(dx, dz)); return false; }, tok); };
 
 /* where things happen */
 const PILE = { x:-6.8, z:-0.6 };
@@ -265,7 +270,7 @@ export const STORY = {
     if(!await W.wait(1.6, tok)) return;
     /* one of them is still moving */
     if(last){ last.script = true; W.people.pose(last, 'face'); last.F.face.set('hurt', 1e9); W.hank.say('don\'t look. ...look away.', 3); if(!await W.wait(1.0, tok)) return; const e = shooters[1]; await W.crew.walkTo(e, last.F.group.position.x, last.F.group.position.z - 1.0, 0.9); if(!W.ok(tok)) return; await W.people.execute(last, W.crew, e, { plead:false, aim:0.6, shots:1 }); if(!W.ok(tok)) return; }
-    shooters.forEach((e, i)=>{ e.state = 'route'; e.aimAt = null; e.investigate = true; e.route = [Object.assign([-1.5 + i*4, 18.8], { wait:R(3, 6) }), Object.assign([-0.5 + i*4, 16.4], { wait:R(3, 6) })]; });
+    shooters.forEach((e, i)=>{ e.state = 'route'; e.scripted = false; e.aimAt = null; e.investigate = true; e.ri = 0; e.waitT = 0; e.route = [Object.assign([-1.5 + i*4, 18.8], { wait:3 + i*1.5, yaw:Math.PI }), Object.assign([-0.5 + i*4, 16.4], { wait:4.5 - i*0.75, yaw:Math.PI })]; });
     beam.on = true;
     W.hank.say('the light. from the doors. it sweeps. wait for it to pass, then the wheel. then the column. then the podium.', 6);
     W.tip('wait for the searchlight to pass. move between cover: the wheel, the column, the podium', 7000);
@@ -461,7 +466,9 @@ export const STORY = {
     W.blinkAfter = 4; W.defrostMul = 1.05;
     W.onDefrosterTouch = ()=>{ if(!W.dead){ W.hurt(200, D.F.group.position, 'fire'); } };
     /* the crew scatter */
-    W.crew.list.forEach(e=>{ if(e.alive && e.state !== 'dead'){ e.state = 'walk'; e.deaf = true; W.crew.goTo(e, R(5, 20), R(-10, 10)); e.speed = 2.4; } });
+    /* the crew bolt for the far side of the floor, away from the fire. each to his own spot */
+    const FLEE = [[14.5, -6.5], [18.5, 3.5], [9.5, 10.5], [23.5, -9.5], [13, 12], [20.5, 9.5]];
+    W.crew.list.filter(e=>e.alive && e.state !== 'dead').forEach((e, i)=>{ e.state = 'walk'; e.scripted = true; e.deaf = true; e.hold = false; e.lookAt = null; const [x, z] = snap(W, ...FLEE[i % FLEE.length]); e.speed = 2.4; W.crew.goTo(e, x, z); });
     W.hank.show(STAFF_DOOR.x + 1.5, STAFF_DOOR.z + 2.5, Math.PI); W.hank.posture = 'stand'; W.hank.noWait = true;
     C.world.staffDoor && C.world.staffDoor.open();
     C.heist.navBuild && C.heist.navBuild();
@@ -664,7 +671,7 @@ export const STORY = {
     W.scope({ remove:()=>{ W.crew.shatter = origShatter; } });
     if(!await W.until(()=>!cl.alive || cl.hp < (wrong ? 360 : 280), tok)) return;
     /* the end of clement */
-    W.cutscene = true; cl.state = 'script'; cl.aimAt = null;
+    W.cutscene = true; cl.state = 'script'; cl.aimAt = null; W.crew.stop(cl);
     const cp = cl.F.group.position.clone();
     D.appear(cp.x - Math.sin(cl.F.group.rotation.y)*1.6, cp.z - Math.cos(cl.F.group.rotation.y)*1.6, cl.F.group.rotation.y); D.state = 'script';
     C.hud.say(cl.name, wrong ? '...you. you came up. you came UP' : patched ? 'n-no. not again. not AGAIN' : 'oh no. no no. not you. not tonight', 3);
@@ -674,8 +681,8 @@ export const STORY = {
     const G = W.gold, gp = G.F.group.position.clone();
     W.fx.cook(cl.F, { dur:6 });
     C.audio.heist && C.audio.heist.scream(cp, 2);
-    const st = { t:0 };
-    await W.until(()=>{ st.t += 1/60; const p = D.F.group.position, q = cl.F.group.position; const dx = gp.x - p.x, dz = gp.z - p.z, d = Math.hypot(dx, dz); if(d < 1.6 || st.t > 9) return true; p.x += dx/d*0.025; p.z += dz/d*0.025; D.F.group.rotation.y = Math.atan2(dx, dz); q.set(p.x - Math.sin(D.F.group.rotation.y)*0.9, 0, p.z - Math.cos(D.F.group.rotation.y)*0.9); cl.F.group.rotation.y = D.F.group.rotation.y; W.fx.smear(cl, q.x, q.z, '#1a1210', 0.6); if(Math.random() < 0.05) C.audio.heist && C.audio.heist.scream(q, 1); return false; }, tok);
+    { const p = D.F.group.position, q = cl.F.group.position; let sc = 0;
+      await navFollow(W, p, V(gp.x, 0, gp.z + (gp.z > p.z ? -1.6 : 1.6)), 1.5, tok, yaw=>{ D.F.group.rotation.y = yaw; q.set(p.x - Math.sin(yaw)*0.9, 0, p.z - Math.cos(yaw)*0.9); cl.F.group.rotation.y = yaw; W.fx.smear(cl, q.x, q.z, '#1a1210', 0.6); if(++sc % 40 === 0) C.audio.heist && C.audio.heist.scream(q, 1); }); }
     if(!W.ok(tok)) return;
     D.hide(); cl.F.group.visible = false; cl.alive = false; cl.cone.visible = false; cl.pool.visible = false;
     W.fx.flash(gp.clone().setY(1), 0xff6020, 8, 0.6); C.audio.heist && C.audio.heist.slam(gp); W.shake(1);
