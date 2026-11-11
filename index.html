@@ -338,7 +338,7 @@ function initAudio() {
   analyser = audioCtx.createAnalyser();
   masterGain = audioCtx.createGain();
   biquadFilter = audioCtx.createBiquadFilter();
-  biquadFilter.type = "lowpass"; biquadFilter.frequency.value = 24000;
+  biquadFilter.type = "lowpass"; biquadFilter.frequency.value = Math.min(24000, audioCtx.sampleRate / 2);
   analyser.fftSize = 64;
   source.connect(analyser); analyser.connect(biquadFilter); biquadFilter.connect(masterGain); masterGain.connect(audioCtx.destination);
 }

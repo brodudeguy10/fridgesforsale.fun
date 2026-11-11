@@ -115,7 +115,8 @@ class EngineProc extends AudioWorkletProcessor {
   }
   rnd() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296 * 2 - 1; }
   /* unburnt fuel going off in the pipe */
-  bang(k) { this.pulses.push({ t: -this.rnd() * 0.0004, a: 1.8 + 1.4 * k, tau: 0.0045 + 0.002 * k, b: (this.rnd() > 0 ? 1 : 0) % this.P.banks }); this.crackE = Math.max(this.crackE, 0.5 + 0.5 * k); }
+  /* stage 4b: tell the car, so flames come out of the tips on the same bang you hear */
+  bang(k) { if (currentTime - (this.popAt || 0) > 0.03) { this.popAt = currentTime; this.port.postMessage({ pop: k }); } this.pulses.push({ t: -this.rnd() * 0.0004, a: 1.8 + 1.4 * k, tau: 0.0045 + 0.002 * k, b: (this.rnd() > 0 ? 1 : 0) % this.P.banks }); this.crackE = Math.max(this.crackE, 0.5 + 0.5 * k); }
 
   process(_in, outputs, params) {
     const out = outputs[0][0]; if (!out) return true;

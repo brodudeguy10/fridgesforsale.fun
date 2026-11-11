@@ -84,6 +84,8 @@ export class Engine {
     this.setupPost();
     this.resize = this.resize.bind(this);
     window.addEventListener('resize', this.resize);
+    /* everything that listens on the canvas passes this signal, so leaving drops every listener at once */
+    this.abort = new AbortController(); this.signal = this.abort.signal;
     this.resize();
   }
   isMobile(){ return (navigator.maxTouchPoints > 0 && Math.min(innerWidth, innerHeight) < 900) || innerWidth < 760; }
@@ -181,7 +183,20 @@ export class Engine {
   dispose(){
     this.stop();
     window.removeEventListener('resize', this.resize);
-    try{ this.renderer.dispose(); this.renderer.forceContextLoss(); }catch(e){}
+    try{ this.abort.abort(); }catch(e){}
+    /* release everything the scene used before the renderer goes. three hangs a 'dispose' listener on every
+       geometry, material and texture it uploads; the ones that outlive a visit (shared, module-level ones) would
+       otherwise keep the old renderer, its context and all its buffers alive, about 5 MB a visit */
+    try{
+      const geos = new Set(), mats = new Set(), texs = new Set();
+      const addTex = v => { if(v && v.isTexture) texs.add(v); };
+      const addMat = m => { if(!m || mats.has(m)) return; mats.add(m); for(const k in m){ const v = m[k]; addTex(v); if(v && v.value) addTex(v.value); } if(m.uniforms) for(const k in m.uniforms){ const u = m.uniforms[k]; if(u) addTex(u.value); } };
+      this.scene.traverse(o => { if(o.geometry) geos.add(o.geometry); if(o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(addMat); });
+      addTex(this.scene.background); addTex(this.scene.environment);
+      geos.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); texs.forEach(t => t.dispose());
+      if(this.composer){ for(const p of this.composer.passes) try{ p.dispose && p.dispose(); }catch(e){} try{ this.composer.dispose && this.composer.dispose(); }catch(e){} }
+    }catch(e){ console.warn('engine dispose', e); }
+    try{ this.renderer.renderLists.dispose(); this.renderer.dispose(); this.renderer.forceContextLoss(); }catch(e){}
     this.canvas.remove();
   }
 }

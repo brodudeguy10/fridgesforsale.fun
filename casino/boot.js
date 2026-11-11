@@ -22,6 +22,16 @@ function button(){
   const after = document.getElementById('fxOpenBtn');
   if(after && after.nextSibling) eco.insertBefore(b, after.nextSibling); else eco.appendChild(b);
 }
+/* the fridge page under a full-screen 3d game: nobody can see it, so its physics and its full-window canvas stop
+   until the game closes (both boot files carry this; a counter keeps them from fighting) */
+function holdPage(on){
+  var W = window; W.__pageHold = Math.max(0, (W.__pageHold || 0) + (on ? 1 : -1));
+  try{
+    if(typeof Matter === 'undefined' || typeof render === 'undefined' || typeof matterRunner === 'undefined') return;
+    if(on && W.__pageHold === 1){ Matter.Render.stop(render); Matter.Runner.stop(matterRunner); }
+    if(!on && W.__pageHold === 0){ Matter.Runner.run(matterRunner, engine); Matter.Render.run(render); }
+  }catch(e){}
+}
 async function open(){
   if(busy) return; busy = true;
   css();
@@ -35,6 +45,7 @@ async function open(){
   document.body.appendChild(root);
   document.documentElement.classList.add('overlay-open');
   try{ prevActive = gameActive; gameActive = true; }catch(e){}
+  holdPage(true);
   try{ if(typeof audio !== 'undefined' && audio && !audio.paused){ audio.pause(); musicWasOn = true; } }catch(e){}
   const tips = ['tip: the house edge on single-zero roulette is 2.7%. on double zero it\'s 5.26%.', 'tip: basic strategy says always split aces and eights.', 'tip: the bartender knows things. ask him. he likes being asked.', 'tip: the scratch-o-matic prints the odds on every ticket.', 'tip: nicky by the restrooms pays even money. the palace says he doesn\'t work here.', 'tip: if somebody bumps into you on the floor, check your chips.', 'tip: when the whale makes it rain, stand close.', 'tip: there is a door that needs a code.', 'tip: the lucky wheel is free once a day.', 'tip: nobody has ever beaten the out of order machine.', 'tip: if the pit boss starts watching you, bet smaller.', 'tip: some of the fish in the tank are yours.', 'tip: at lucky lou\'s table, the odds are printed right on the buttons.'];
   root.querySelector('.fp-tip').textContent = tips[(Math.random()*tips.length)|0];
@@ -52,7 +63,7 @@ async function open(){
   busy = false;
 }
 function close(opts){
-  if(root){ root.remove(); root = null; }
+  if(root){ root.remove(); root = null; holdPage(false); }
   /* out the front doors and onto the page */
   if(opts && opts.escape){
     document.documentElement.classList.remove('overlay-open');

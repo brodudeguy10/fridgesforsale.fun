@@ -477,5 +477,5 @@ export async function init(C){
     W.body.hands.visible = true;
     W._warm = ()=>{ W.crew.remove(e); W.gold.F.group.visible = false; W.gold.F.group.position.set(0, 0, 0); W.gold.cav.visible = false; W.gold.doorL.visible = false; W.gold.doorR.visible = false; W.def.F.group.visible = false; W.hank.F.group.visible = false; W.cams.list.forEach(c=>c.cone.visible = false); W.body.hands.visible = false; W.fx.clear(); };
   }catch(err){ console.warn('cold open warm-up', err); }
-  return { name:'wake', update(dt, t){ if(W._warm){ const f = W._warm; W._warm = null; f(); } W.update(dt, t); }, dispose(){ W.mood.stopAll(); } };
+  return { name:'wake', update(dt, t){ if(W._warm){ const f = W._warm; W._warm = null; f(); } W.update(dt, t); }, dispose(){ W.mood.stopAll(); if(W.dbg) W.dbg.dispose(); } };
 }

@@ -27,7 +27,7 @@ export class Input {
     this._cm = e=>{ if(this.locked) e.preventDefault(); };
     document.addEventListener('mousedown', this._md); document.addEventListener('mouseup', this._mu); document.addEventListener('contextmenu', this._cm);
     this.canvasClick = ()=>{ if(this.walk && this.enabled && !this.touch) this.lock(); };
-    C.engine.canvas.addEventListener('click', this.canvasClick);
+    C.engine.canvas.addEventListener('click', this.canvasClick, { signal: C.engine.signal });
     if(this.touch) this.buildTouch();
   }
   lock(){ const cv = this.C.engine.canvas; const plain = ()=>{ try{ const q = cv.requestPointerLock(); if(q && q.catch) q.catch(()=>{}); }catch(e){} }; try{ const p = cv.requestPointerLock({ unadjustedMovement:true }); if(p && p.catch) p.catch(e=>{ if(!e || e.name !== 'NotAllowedError') plain(); }); }catch(e){ plain(); } }
@@ -111,6 +111,8 @@ export class Input {
     document.removeEventListener('mousemove', this._mm);
     document.removeEventListener('pointerlockchange', this._plc);
     document.removeEventListener('mousedown', this._md); document.removeEventListener('mouseup', this._mu); document.removeEventListener('contextmenu', this._cm);
+    /* the canvas outlives the visit inside three.js's own module-level textures; nothing on it may point back at the casino */
+    try{ this.C.engine.canvas.removeEventListener('click', this.canvasClick); }catch(e){}
     this.unlock();
   }
 }

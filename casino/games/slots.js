@@ -346,11 +346,11 @@ export function init(C){
   /* clicking the lever in 3D */
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   C.engine.canvas.addEventListener('pointerdown', e=>{
-    if(!cur || !C.seated) return;
+    if(!cur || !C.seated || !C.engine) return;
     const r = C.engine.canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left)/r.width)*2 - 1, -((e.clientY - r.top)/r.height)*2 + 1);
     ray.setFromCamera(ndc, C.camera);
     if(ray.intersectObject(cur.mc.lever, true).length || ray.intersectObject(cur.mc.screen, false).length) spin();
-  });
+  }, { signal: C.engine.signal });
   /* NPCs can borrow machines too */
   C.slots = { machines, attract,
     npcSpin(mc){ const pos = mc.screen.getWorldPosition(new THREE.Vector3()); if(C.camera.position.distanceTo(pos) < 14){ if(Math.random() < 0.25) C.audio.slotWin(pos, 1 + Math.floor(Math.random()*2)); else C.audio.reelStop(pos); } mc.flash = Math.random() < 0.2 ? 1.5 : 0; mc.lever.rotation.x = 0.8; setTimeout(()=>{ mc.lever.rotation.x = 0; }, 300); }

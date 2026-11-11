@@ -24,19 +24,32 @@
     var after = document.getElementById('fpOpenBtn') || document.getElementById('fxOpenBtn');
     if (after && after.nextSibling) eco.insertBefore(b, after.nextSibling); else eco.appendChild(b);
   }
+/* the fridge page under a full-screen 3d game: nobody can see it, so its physics and its full-window canvas stop
+     until the game closes (both boot files carry this; a counter keeps them from fighting) */
+  function holdPage(on){
+    var W = window; W.__pageHold = Math.max(0, (W.__pageHold || 0) + (on ? 1 : -1));
+    try{
+      if(typeof Matter === 'undefined' || typeof render === 'undefined' || typeof matterRunner === 'undefined') return;
+      if(on && W.__pageHold === 1){ Matter.Render.stop(render); Matter.Runner.stop(matterRunner); }
+      if(!on && W.__pageHold === 0){ Matter.Runner.run(matterRunner, engine); Matter.Render.run(render); }
+    }catch(e){}
+  }
+  
   function open() {
     if (wrap) return;
     wrap = document.createElement('div'); wrap.id = 'cs-wrap';
-    var f = document.createElement('iframe'); f.src = GAME; f.allow = 'autoplay; fullscreen; gamepad'; f.setAttribute('allowfullscreen', '');
+    var f = document.createElement('iframe'); f.src = GAME; f.allow = 'autoplay; fullscreen; gamepad';
     wrap.appendChild(f); document.body.appendChild(wrap);
     document.documentElement.classList.add('overlay-open');
     try { prevActive = gameActive; gameActive = true; } catch (e) {}
+    holdPage(true);
     try { if (typeof audio !== 'undefined' && audio && !audio.paused) { audio.pause(); musicWasOn = true; } } catch (e) {}
     setTimeout(function () { try { f.focus(); } catch (e) {} }, 300);
   }
   function close() {
     if (!wrap) return;
     wrap.remove(); wrap = null;
+    holdPage(false);
     document.documentElement.classList.remove('overlay-open');
     try { if (!prevActive) gameActive = false; } catch (e) {}
     try { if (musicWasOn && typeof audio !== 'undefined' && audio) audio.play().catch(function () {}); } catch (e) {}

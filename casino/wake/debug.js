@@ -11,6 +11,12 @@ import { canvas, tex } from '../world/textures.js';
 
 const COLORS = { route:'#5ad8ff', hold:'#6dff8a', walk:'#ffffff', script:'#c8c8c8', drag:'#ff6ad0', investigate:'#ffd84a', search:'#ffb020', aim:'#ff2a2a', dead:'#555555' };
 
+let current = null, hooked = false;
+function hookConsole(){
+  if(hooked) return; hooked = true;
+  const ow = console.warn.bind(console);
+  console.warn = (...a)=>{ const d = current; if(d && typeof a[0] === 'string' && a[0].startsWith('[wake]')){ d.warns.unshift(a.join(' ').slice(7)); d.warns.length = Math.min(d.warns.length, 4); } ow(...a); };
+}
 export class WakeDebug {
   constructor(C, W){
     this.C = C; this.W = W; this.on = false; this.t = 0;
@@ -21,9 +27,11 @@ export class WakeDebug {
     el.style.cssText = 'position:absolute;right:10px;top:60px;z-index:60;pointer-events:none;font:11px/1.35 monospace;color:#e8e2d0;background:rgba(0,0,0,.62);padding:8px 10px;border:1px solid rgba(255,255,255,.18);max-width:min(360px,46vw);white-space:pre;display:none';
     (C.root || document.body).appendChild(el); this.el = el;
     this.warns = [];
-    const ow = console.warn.bind(console);
-    console.warn = (...a)=>{ if(typeof a[0] === 'string' && a[0].startsWith('[wake]')){ this.warns.unshift(a.join(' ').slice(7)); this.warns.length = Math.min(this.warns.length, 4); } ow(...a); };
+    /* one console hook for the whole page, pointed at whichever debugger is live. (it used to wrap console.warn
+       again on every visit, and each wrapper held the whole previous casino in memory) */
+    hookConsole(); current = this;
   }
+  dispose(){ if(current === this) current = null; }
   toggle(){ this.on = !this.on; this.W.debugOn = this.on; this.grp.visible = this.on; this.el.style.display = this.on ? '' : 'none'; this.C.hud.toast(this.on ? 'wakedebug on · type it again to hide' : 'wakedebug off'); if(!this.on){ this.clearLines(); } }
   clearLines(){ this.lines.children.slice().forEach(l=>{ this.lines.remove(l); l.geometry.dispose(); l.material.dispose(); }); }
   line(pts, col){ if(pts.length < 2) return; const g = new THREE.BufferGeometry().setFromPoints(pts); const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color:col, depthTest:false, transparent:true, opacity:0.9, toneMapped:false, fog:false, linewidth:2 })); l.renderOrder = 51; this.lines.add(l); }

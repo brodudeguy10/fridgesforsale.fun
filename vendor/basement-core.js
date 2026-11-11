@@ -1465,6 +1465,10 @@ function updateWhispers(){
    LOOP
 ============================================================ */
 let fpsShow = 0, frames = 0, fpsT = 0;
+/* the hud writes only when something changed: the same text or opacity written every frame still makes the page
+   recalculate its styles and lay itself out again, sixty times a second */
+function setTxt(el, v){ if(el.__t !== v){ el.__t = v; el.textContent = v; } }
+function setSty(el, k, v){ const c = el.__s || (el.__s = {}); if(c[k] !== v){ c[k] = v; el.style[k] = v; } }
 function frame(t){
   if(!running) return;
   rafId = requestAnimationFrame(frame);
@@ -1483,18 +1487,18 @@ function frame(t){
     /* interact prompt */
     interactTarget = findInteract();
     if(interactTarget){
-      ui.vbPrompt.textContent = touchMode ? interactTarget.label : '[E] ' + interactTarget.label;
+      setTxt(ui.vbPrompt, touchMode ? interactTarget.label : '[E] ' + interactTarget.label);
       ui.vbPrompt.classList.add('on');
       ui.vbBtnUse.classList.add('on');
-      ui.vbBtnUse.textContent = shortLabel(interactTarget.o.kind);
+      setTxt(ui.vbBtnUse, shortLabel(interactTarget.o.kind));
     } else { ui.vbPrompt.classList.remove('on'); ui.vbBtnUse.classList.remove('on'); }
     /* stamina bar only when it's moving */
     ui.vbStam.classList.toggle('on', P.stamina < 0.99);
-    ui.stamBar.style.transform = 'scaleX(' + P.stamina.toFixed(3) + ')';
+    setSty(ui.stamBar, 'transform', 'scaleX(' + P.stamina.toFixed(3) + ')');
     ui.vbStam.classList.toggle('ex', P.exhausted);
     /* fear on the edges */
-    ui.vbVig.style.opacity = (0.65 + fear*0.35).toFixed(2);
-    ui.vbRed.style.opacity = (Math.max(0, fear-0.45)*0.9 + exposure*0.25).toFixed(2);
+    setSty(ui.vbVig, 'opacity', (0.65 + fear*0.35).toFixed(2));
+    setSty(ui.vbRed, 'opacity', (Math.max(0, fear-0.45)*0.9 + exposure*0.25).toFixed(2));
     /* sound */
     let tb = null;
     { let bd = 36; for(const L of lights){ if(L.k !== 'tube' || L.cur < 0.1) continue; const dd = d2(L.x,L.y,P.x,P.y); if(dd < bd){ bd = dd; tb = { x:L.x, y:L.y, amt: L.cur*(1 - Math.sqrt(dd)/6) }; } } }

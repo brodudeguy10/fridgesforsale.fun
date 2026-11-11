@@ -66,6 +66,9 @@ function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
 function tickSize(p){ return p < 1 ? 0.0001 : 0.01; }
 function rp(p){ const ts = tickSize(p); return Math.max(ts, +(Math.round(p/ts)*ts).toFixed(ts < 0.01 ? 4 : 2)); }
 function round2(x){ return Math.round(x*100)/100; }
+/* the executions list: the last 250 are kept (the blotter re-renders all of them every second, and they go into
+   the save), the lifetime count is what the options desk looks at for experience */
+function addFill(a, f){ a.fillsTotal = (a.fillsTotal || a.fills.length) + 1; a.fills.push(f); if(a.fills.length > 250) a.fills.splice(0, a.fills.length - 250); }
 MKT.util = { tickSize, rp, round2 };
 
 /* ---------- state ---------- */
@@ -93,12 +96,12 @@ function fresh(){
 function save(){
   if(!S) return;
   try{
-    const copy = JSON.parse(JSON.stringify(S));
-    for(const k in copy.tk){ copy.tk[k].candles = copy.tk[k].candles.slice(-150); copy.tk[k].ref = []; copy.tk[k].lastPx = copy.tk[k].lastPx.slice(-20); }
-    copy.idx.candles = copy.idx.candles.slice(-150);
-    copy.acct.fills = copy.acct.fills.slice(-200);
-    copy.news = copy.news.slice(-60);
-    copy.lastSave = Date.now();
+    /* the trimmed copy is built shallowly: the old version deep-copied the whole state (every candle of every
+       ticker) through JSON and back before trimming it, and that was nine tenths of the market's cpu */
+    const tk = {};
+    for(const k in S.tk){ const t = S.tk[k]; tk[k] = Object.assign({}, t, { candles: t.candles.slice(-150), ref: [], lastPx: t.lastPx.slice(-20) }); }
+    const copy = Object.assign({}, S, { tk, idx: Object.assign({}, S.idx, { candles: S.idx.candles.slice(-150) }),
+      acct: Object.assign({}, S.acct, { fills: S.acct.fills.slice(-200) }), news: S.news.slice(-60), lastSave: Date.now() });
     localStorage.setItem(KEY, JSON.stringify(copy));
   }catch(e){}
 }
@@ -420,7 +423,7 @@ function fill(o, qty, px, cond){
   if(o.filled >= o.qty){ o.status = 'FILLED'; }
   else o.status = 'OPEN';
   applyStockFill(o.sym, o.side, qty, px, o);
-  S.acct.fills.push({ id:o.id, sym:o.sym, side:o.side, q:qty, px, day:S.day, t:S.sessT, cond });
+  addFill(S.acct, { id:o.id, sym:o.sym, side:o.side, q:qty, px, day:S.day, t:S.sessT, cond });
   printTape(o.sym, px, qty, 'Y' + cond);
   const tk = S.tk[o.sym]; tk.dvol += qty; tk.pv += px*qty; tk.vv += qty;
   if(o.status === 'FILLED') onFilled(o);
@@ -545,7 +548,7 @@ function applyStockFill(sym, side, qty, px, o){
       if(a.type === 'cash') a.unsettled.push({ amt:qty*px - fees, day:S.day + 2 });
       else a.cash += qty*px - fees;
     } else a.cash -= qty*px + fees;
-    if(dayTrade && a.type === 'margin' && o && !o.dtCounted){ o.dtCounted = 1; a.dayTrades.push(S.day); }
+    if(dayTrade && a.type === 'margin' && o && !o.dtCounted){ o.dtCounted = 1; a.dayTrades.push(S.day); a.dayTrades = a.dayTrades.filter(d=>d > S.day - 5); }
   }
 }
 
@@ -591,7 +594,7 @@ function workOpt(o){
   if(Math.sign(p.q) === sgn || p.q === 0){ p.avg = (p.avg*Math.abs(p.q) + px*qty)/(Math.abs(p.q) + qty); p.q += sgn*qty; }
   else { const close = Math.min(qty, Math.abs(p.q)); a.realized += (sgn < 0 ? (px - p.avg) : (p.avg - px))*close*MULT; a.realizedST += (sgn < 0 ? (px - p.avg) : (p.avg - px))*close*MULT; p.q += sgn*qty; if(p.q === 0) delete a.opts[o.key]; }
   a.cash += (buy ? -1 : 1)*px*MULT*qty - fees; a.fees += fees;
-  a.fills.push({ id:o.id, sym:o.key, side:o.side, q:qty, px, day:S.day, t:S.sessT, cond:'O' });
+  addFill(a, { id:o.id, sym:o.key, side:o.side, q:qty, px, day:S.day, t:S.sessT, cond:'O' });
   emit('fill', { o, qty, px });
 }
 
@@ -634,7 +637,7 @@ MKT.applyOptions = function(level){
   level = clamp(level|0, 0, 4);
   if(a.appliedLevelDay === S.day) return { ok:false, msg:'ONE APPLICATION PER SESSION' };
   a.appliedLevelDay = S.day;
-  const exp = a.fills.length, eq = equity();
+  const exp = a.fillsTotal || a.fills.length, eq = equity();
   const max = exp < 10 ? 1 : (exp < 30 || eq < 2000 ? 2 : (a.type !== 'margin' || eq < 10000 ? 3 : 4));
   if(level > max){ a.optLevel = Math.max(a.optLevel, max); save(); return { ok:false, msg:'APPROVED FOR LEVEL ' + max + ' ONLY. REASON: ' + (exp < 30 ? 'INSUFFICIENT INVESTMENT EXPERIENCE (' + exp + ' FILLS)' : 'NET LIQUIDATION / ACCOUNT TYPE') }; }
   a.optLevel = level; save();
@@ -833,7 +836,7 @@ function onClose(){
     const p = S.tk[o.sym].p, intr = Math.max(0, o.type === 'C' ? p - o.K : o.K - p);
     const cash = intr*MULT*o.q;
     a.cash += cash; const pl = (intr - o.avg)*MULT*o.q; a.realized += pl; a.realizedST += pl;
-    a.fills.push({ id:0, sym:key, side: intr > 0 ? (o.q > 0 ? 'EXERCISE' : 'ASSIGNED') : 'EXPIRED', q:Math.abs(o.q), px:intr, day:S.day, t:S.sessT, cond:'X' });
+    addFill(a, { id:0, sym:key, side: intr > 0 ? (o.q > 0 ? 'EXERCISE' : 'ASSIGNED') : 'EXPIRED', q:Math.abs(o.q), px:intr, day:S.day, t:S.sessT, cond:'X' });
     delete a.opts[key];
   }
   /* margin */
@@ -878,7 +881,7 @@ function onNewDay(){
     /* dividends every 15 sessions for payers */
     if(t.divQ > 0 && (S.day + t.earnOff) % 15 === 7){
       const q = posQty(t.sym);
-      if(q){ const amt = q*t.divQ; a.cash += amt; a.divs += amt; a.fills.push({ id:0, sym:t.sym, side: q > 0 ? 'DIV' : 'DIV OWED', q:Math.abs(q), px:t.divQ, day:S.day, t:0, cond:'$' }); }
+      if(q){ const amt = q*t.divQ; a.cash += amt; a.divs += amt; addFill(a, { id:0, sym:t.sym, side: q > 0 ? 'DIV' : 'DIV OWED', q:Math.abs(q), px:t.divQ, day:S.day, t:0, cond:'$' }); }
       k.p = rp(k.p - t.divQ); k.prevClose = k.p;
       news(t.sym, t.sym + ' goes ex-dividend ' + t.divQ.toFixed(2) + 'F', 0);
     }
