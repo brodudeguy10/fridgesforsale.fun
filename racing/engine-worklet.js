@@ -71,7 +71,9 @@ class EngineProc extends AudioWorkletProcessor {
       { name: 'rev', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       { name: 'view', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
       /* 0 off, 1 cranking (compression, no fire), 2 running */
-      { name: 'mode', defaultValue: 2, minValue: 0, maxValue: 2, automationRate: 'k-rate' }
+      { name: 'mode', defaultValue: 2, minValue: 0, maxValue: 2, automationRate: 'k-rate' },
+      /* a supercharger's load: its whine follows the crank, louder under boost */
+      { name: 'sc', defaultValue: 0, minValue: 0, maxValue: 2, automationRate: 'k-rate' }
     ];
   }
   constructor(opts) {
@@ -81,7 +83,7 @@ class EngineProc extends AudioWorkletProcessor {
     this.layout = o.layout || 'I4';
     this.pat = PATTERNS[this.layout] || PATTERNS.I4;
     this.s = o.sound || { rough: 0.4, bass: 0.5, intake: 0.5, exhaust: 0.5, whine: 0.3 };
-    this.P = Object.assign({ pipe: 3, header: 0.9, header2: 0, banks: 1, bankOf: null, muffler: 0.5, valve: 0.3, lope: 0, pops: 0.2, rotary: false, whine: 'helical', whineK: 0.3, turbo: 0, intakeF: 600, chain: 0, chainOrder: 24, vol: 1 }, P);
+    this.P = Object.assign({ sc: 0, pipe: 3, header: 0.9, header2: 0, banks: 1, bankOf: null, muffler: 0.5, valve: 0.3, lope: 0, pops: 0.2, rotary: false, whine: 'helical', whineK: 0.3, turbo: 0, intakeF: 600, chain: 0, chainOrder: 24, vol: 1 }, P);
     this.idle = o.idle || 800; this.redline = o.redline || 7000;
     this.sr = sampleRate;
     const sr = this.sr, P2 = this.P;
@@ -107,7 +109,7 @@ class EngineProc extends AudioWorkletProcessor {
     this.pulses = []; this.inPulses = [];
     this.tickE = 0; this.crackE = 0;
     this.whineP = 0; this.whineP2 = 0; this.turboP = 0; this.turboF = 2000; this.chainP = 0;
-    this.skipped = 0;
+    this.skipped = 0; this.scP = 0; this.scP2 = 0; this.scL = 0;
     this.seed = (o.seed || 1234) >>> 0;
     this.port.onmessage = (e) => { const d = e.data; if (d.bang) this.bang(d.bang); };
   }
@@ -119,12 +121,12 @@ class EngineProc extends AudioWorkletProcessor {
     const out = outputs[0][0]; if (!out) return true;
     const c = this.c, P = this.P, s = this.s, pat = this.pat, sr = this.sr;
     const tg = (k) => params[k][0];
-    const T = { rpm: tg('rpm'), thr: tg('thr'), load: tg('load'), boost: tg('boost'), cut: tg('cut'), gain: tg('gain'), whine: tg('whine'), rev: tg('rev'), view: tg('view'), mode: tg('mode') };
+    const T = { rpm: tg('rpm'), thr: tg('thr'), load: tg('load'), boost: tg('boost'), cut: tg('cut'), gain: tg('gain'), whine: tg('whine'), rev: tg('rev'), view: tg('view'), mode: tg('mode'), sc: tg('sc') };
     if (T.gain < 0.0005 && c.gain < 0.0005) { out.fill(0); for (let ch = 1; ch < outputs[0].length; ch++) outputs[0][ch].fill(0); return true; }
     const n = out.length, nCyl = pat.ang.length;
     const sm = 1 - Math.exp(-n / (sr * 0.01)), smS = 1 - Math.exp(-n / (sr * 0.05));
     c.rpm += (T.rpm - c.rpm) * Math.min(1, sm * 2.2); c.thr += (T.thr - c.thr) * sm; c.load += (T.load - c.load) * sm; c.boost += (T.boost - c.boost) * smS;
-    c.cut = T.cut; c.gain += (T.gain - c.gain) * smS; c.whine += (T.whine - c.whine) * sm; c.rev = T.rev; c.view += (T.view - c.view) * smS; c.mode = T.mode;
+    c.sc = T.sc; c.cut = T.cut; c.gain += (T.gain - c.gain) * smS; c.whine += (T.whine - c.whine) * sm; c.rev = T.rev; c.view += (T.view - c.view) * smS; c.mode = T.mode;
     const rpmK = Math.min(1, c.rpm / this.redline), running = c.mode >= 2, cranking = c.mode === 1;
     const onLoad = Math.max(0, c.load), lifted = c.thr < 0.06;
     /* the turbo's whistle follows the shaft, which lags the boost a little */
@@ -200,8 +202,12 @@ class EngineProc extends AudioWorkletProcessor {
       /* gear-driven cams (the V12): a fine whine at a high crank order */
       let ch = 0;
       if (P.chain > 0) { this.chainP += c.rpm / 60 * P.chainOrder / sr; if (this.chainP > 1) this.chainP -= 1; ch = Math.sin(this.chainP * TAU) * P.chain * rpmK * rpmK * 0.02; }
+      /* the blower: belt-driven off the crank (about 2.4x), three-lobe rotors, so a whine at a high crank order that
+         climbs with the revs and gets louder on boost */
+      let scw = 0;
+      if (P.sc > 0) { this.scP += c.rpm / 60 * 2.4 * 6 / sr; if (this.scP > 1) this.scP -= 1; this.scP2 += c.rpm / 60 * 2.4 * 12 / sr; if (this.scP2 > 1) this.scP2 -= 1; this.scL += ((0.25 + c.sc * 2) - this.scL) * 0.0005; scw = (Math.sin(this.scP * TAU) + 0.35 * Math.sin(this.scP2 * TAU)) * P.sc * this.scL * 0.085 * (0.3 + rpmK); }
       const inK = 1 + view * 0.9;
-      let y = exOut * (1 - view * 0.35) * 0.5 + body * (0.35 + view * 0.8) + intake * inK + vac + tk + cr + tb + wh + ch;
+      let y = exOut * (1 - view * 0.35) * 0.5 + body * (0.35 + view * 0.8) + intake * inK + vac + tk + cr + tb + wh + ch + scw;
       /* dc out, then a little drive, no harder than a console mixer would have taken */
       const dy = y - this.dcx + 0.995 * this.dcy; this.dcx = y; this.dcy = dy; y = dy;
       const drive = 1.1 + s.rough * 2.0;
