@@ -214,3 +214,97 @@ class EngineProc extends AudioWorkletProcessor {
   }
 }
 registerProcessor('cs-engine', EngineProc);
+
+/* ============================================================
+   the tires: stick-slip, live.
+   a squeal is rubber gripping the road, being dragged until it
+   lets go, grabbing again, hundreds of times a second. each wheel
+   here has two tread elements (a mass on a spring, the road sliding
+   under it with stribeck friction: grippier when it's nearly
+   stopped, slipperier once it's moving) and the game tells it how
+   fast the contact patch is sliding and how hard the wheel is
+   pressed down. at a little slip it chatters and groans; as the
+   slip builds it locks into a squeal and the pitch climbs; at a
+   full slide it settles into a steady screech with the rubber
+   hissing under it. a wet road takes the grip difference away, so
+   it barely sings at all.
+============================================================ */
+class TireProc extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    const p = [];
+    for (let i = 0; i < 4; i++) p.push({ name: 's' + i, defaultValue: 0, minValue: 0, maxValue: 60, automationRate: 'k-rate' }, { name: 'l' + i, defaultValue: 1, minValue: 0, maxValue: 3, automationRate: 'k-rate' }, { name: 'g' + i, defaultValue: 0, minValue: 0, maxValue: 2, automationRate: 'k-rate' });
+    p.push({ name: 'wet', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }, { name: 'pitch', defaultValue: 1, minValue: 0.5, maxValue: 2, automationRate: 'k-rate' });
+    return p;
+  }
+  constructor(opts) {
+    super();
+    const o = (opts && opts.processorOptions) || {};
+    this.sr = sampleRate; this.seed = (o.seed || 99) >>> 0;
+    this.side = o.side || [-1, 1, -1, 1];
+    this.w = [];
+    for (let i = 0; i < 4; i++) {
+      const els = [0, 1].map(j => ({ f0: (j ? 1190 : 960) * (1 + 0.04 * (i - 1.5) / 1.5), x: 0, v: 0 }));
+      this.w.push({ els, g: 0, s: 0, l: 1, tex1: 0, tex2: 0, hp: 0, hpx: 0 });
+    }
+    this.bp = [0, 1].map(() => [new Biquad().bp(1900, 1.1, this.sr), new Biquad().bp(3100, 1.6, this.sr)]);
+    this.hissF = [0, 1].map(() => new Biquad().bp(2600, 0.9, this.sr));
+    this.lp = [0, 1].map(() => new Biquad().lp(7500, 0.7, this.sr));
+    this.hiss = 0;
+  }
+  rnd() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296 * 2 - 1; }
+  process(_in, outputs, params) {
+    const out = outputs[0]; if (!out || !out[0]) return true;
+    const L = out[0], R = out[1] || out[0], n = L.length, sr = this.sr, dt = 1 / sr;
+    const wet = params.wet[0], pitch = params.pitch[0];
+    let any = false, hissT = 0;
+    for (let i = 0; i < 4; i++) {
+      const W = this.w[i];
+      W.g += (params['g' + i][0] - W.g) * 0.25; W.s += (params['s' + i][0] - W.s) * 0.3; W.l += (params['l' + i][0] - W.l) * 0.3;
+      if (W.g > 0.0005) any = true;
+      hissT += W.g * Math.min(1, W.s / 8);
+    }
+    this.hiss += (hissT - this.hiss) * 0.2;
+    if (!any && this.hiss < 0.0005) { L.fill(0); if (R !== L) R.fill(0); return true; }
+    L.fill(0); if (R !== L) R.fill(0);
+    const ms = 1.0, mc = 0.5 + 0.32 * wet, vs = 0.09 + 0.05 * wet;
+    const texK = 1 - Math.exp(-2 * Math.PI * 30 / sr);
+    for (let i = 0; i < 4; i++) {
+      const W = this.w[i]; if (W.g <= 0.0005) continue;
+      const vb = 0.03 + 0.22 * (1 - Math.exp(-W.s / 3));
+      const gl = W.g, pan = this.side[i];
+      const gL = gl * (pan < 0 ? 0.62 : 0.38), gR = gl * (pan < 0 ? 0.38 : 0.62);
+      const ks = W.els.map(e => { const w = 2 * Math.PI * e.f0 * pitch; return { k: w * w, c: 2 * 0.03 * w }; });
+      for (let t = 0; t < n; t++) {
+        /* the road: the load wanders with its texture, slowly */
+        W.tex1 += (this.rnd() - W.tex1) * texK; W.tex2 += (W.tex1 * 6 - W.tex2) * texK;
+        let acc = 0;
+        for (let j = 0; j < 2; j++) {
+          const e = W.els[j], K = ks[j];
+          const N = W.l * K.k * 1e-4 * (1 + 0.12 * W.tex2) * (1 + 0.08 * j);
+          const vr = e.v - vb, Fs = -K.k * e.x - K.c * e.v;
+          if (vr < 1e-3 && vr > -1e-3 && Math.abs(Fs) <= N * ms) { e.v = vb; }
+          else { const mu = mc + (ms - mc) * Math.exp(-(vr / vs) * (vr / vs)); e.v += (Fs - N * mu * Math.sign(vr)) * dt; }
+          e.x += e.v * dt;
+          if (!(e.x > -10 && e.x < 10)) { e.x = 0; e.v = 0; }
+          acc += e.v - vb;
+        }
+        /* dc out */
+        const y = acc - W.hpx + 0.995 * W.hp; W.hpx = acc; W.hp = y;
+        L[t] += y * gL; R[t] += y * gR;
+      }
+    }
+    /* the tire's own body colours it; the rubber hisses as it slides */
+    for (let ch = 0; ch < 2; ch++) {
+      const buf = ch ? R : L; if (ch && R === L) break;
+      const [b1, b2] = this.bp[ch], hf = this.hissF[ch], lp = this.lp[ch];
+      for (let t = 0; t < n; t++) {
+        const x = buf[t] * 2.2;
+        let y = x * 0.55 + b1.run(x) * 0.9 + b2.run(x) * 0.4 + hf.run(this.rnd()) * this.hiss * 0.18;
+        y = Math.tanh(y * 1.3) / 1.3;
+        buf[t] = lp.run(y);
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('cs-tire', TireProc);

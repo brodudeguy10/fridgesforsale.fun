@@ -1,0 +1,19 @@
+COLD START sound bank: recordings from freesound.org, cut up and processed for the game.
+
+"Screeching Tyres (Tires)" by johnnydekk · https://freesound.org/s/614627/
+"Car Screech" by sgak · https://freesound.org/s/467794/
+"Car Crash" by nsstudios · https://freesound.org/s/351513/
+"Car Crash M-S" by pauliusi · https://freesound.org/s/346301/
+"Car Crash with Glass" by magnuswaker · https://freesound.org/s/592388/
+"Custom Metal Crash with Glass Debris" by artninja · https://freesound.org/s/847085/
+"Car Crash Long 1" by logicogonist · https://freesound.org/s/807437/
+"Impacts Metal Crunch" by pnmcarrierailfan · https://freesound.org/s/682439/
+"Machine Hydraulic Metal Cutter Close Crunch 2" by kyles · https://freesound.org/s/453304/
+"Car Accident Real Interior" by softwalls · https://freesound.org/s/449062/
+"Breaking Glass Mirror (Audio-Technica MB2k)" by gladkiy · https://freesound.org/s/276939/
+"Hard Glass Break 2" by elevatorfan2020 · https://freesound.org/s/861043/
+"Car Headlight Smashing Inside Garage" by tonumuzic · https://freesound.org/s/877216/
+"Metal Scraping Cement" by brucefenn_190335 · https://freesound.org/s/541539/
+"Scraping Metal" by freekit · https://freesound.org/s/691644/
+
+Everything else in the bank is designed from scratch (tools/sfx).
