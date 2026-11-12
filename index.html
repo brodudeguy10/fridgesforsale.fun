@@ -309,8 +309,7 @@ window.addEventListener('resize', () => {
     Matter.Body.setPosition(ceiling,   { x: W/2,  y: -100 });
     Matter.Body.setPosition(leftWall,  { x: -25,  y: H/2  });
     Matter.Body.setPosition(rightWall, { x: W+25, y: H/2  });
-    /* the guy waiting in the corner follows the corner */
-    try{ if(!guyActivated && ragdollParts.length){ const dx = (W - 80) - BASE_X, dy = (H - 180) - BASE_Y; ragdollParts.forEach(p=>Matter.Body.setPosition(p, { x:p.position.x + dx, y:p.position.y + dy })); BASE_X = W - 80; BASE_Y = H - 180; updateNamePosition(); } }catch(e){}
+    /* the guy waiting in the corner follows the corner: extras/guygore.js does that now */
   }, 120);
 });
 
@@ -495,96 +494,12 @@ function animateBlood(timestamp) {
   bloodAnimationId=requestAnimationFrame(animateBlood);
 }
 
-/* ===== RAGDOLL GUY ===== */
+/* ===== RAGDOLL GUY =====
+   he lives in extras/guygore.js now: the body, the wounds, the tools.
+   these two stay here because the resize code and the music still ask after him */
 let ragdollParts = [];
-let ragdollConstraints = [];
 let guyActivated = false;
-let ragdollDamage = 0;
-const RAGDOLL_DAMAGE_THRESHOLD = 50;
-let respawnTimer = null;
-let activationStartTime = null;
-let currentGuyName = '';
-let currentGuyColors = { skin: '#ffccaa', shirt: '#3366cc', pants: '#333' };
-let BASE_X = window.innerWidth - 80, BASE_Y = window.innerHeight - 180;
-const nameList = ['Frank','Blurst','Theodore','Rustbucket','Gregory','Mortimer','Bartholomew','Cletus','Jebediah','Hank','Lenny','Stumpy'];
-function randomColor(baseHue, range) { return `hsl(${baseHue + Math.random()*range}, 70%, 60%)`; }
-function buildGuy() {
-  currentGuyColors.skin = randomColor(25, 20);
-  currentGuyColors.shirt = randomColor(200, 60);
-  currentGuyColors.pants = `hsl(0, 0%, ${20 + Math.random()*20}%)`;
-  currentGuyName = nameList[Math.floor(Math.random()*nameList.length)];
-  const ragdollCategory = 0x0002;
-  const mask = 0xFFFF & ~ragdollCategory;
-  const opts = { isStatic: true, collisionFilter: { category: ragdollCategory, mask: mask }, render: { strokeStyle: '#000', lineWidth: 1.5 } };
-  const head = Bodies.circle(BASE_X, BASE_Y - 62, 10, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-  const torso = Bodies.rectangle(BASE_X, BASE_Y - 28, 14, 30, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.shirt } });
-  const leftUpperArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 42, 20, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-  const rightUpperArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 42, 20, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-  const leftLowerArm = Bodies.rectangle(BASE_X - 15, BASE_Y - 20, 18, 5, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-  const rightLowerArm = Bodies.rectangle(BASE_X + 15, BASE_Y - 20, 18, 5, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.skin } });
-  const leftUpperLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 10, 22, 7, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-  const rightUpperLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 10, 22, 7, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-  const leftLowerLeg = Bodies.rectangle(BASE_X - 5, BASE_Y + 34, 22, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-  const rightLowerLeg = Bodies.rectangle(BASE_X + 5, BASE_Y + 34, 22, 6, { ...opts, render: { ...opts.render, fillStyle: currentGuyColors.pants } });
-  return [head, torso, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm, leftUpperLeg, rightUpperLeg, leftLowerLeg, rightLowerLeg];
-}
-function spawnGuy() {
-  /* respawn where the screen is now, not where it was at load */
-  BASE_X = window.innerWidth - 80; BASE_Y = window.innerHeight - 180;
-  ragdollParts = buildGuy(); World.add(world, ragdollParts);
-  guyActivated = false; ragdollDamage = 0;
-  document.getElementById('guyPrompt').style.display = 'block';
-  document.getElementById('guyName').style.display = 'block';
-  document.getElementById('guyName').textContent = currentGuyName;
-  updateNamePosition();
-}
-spawnGuy();
-function updateNamePosition() {
-  const nameDiv = document.getElementById('guyName');
-  if (ragdollParts.length > 0) { const headPos = ragdollParts[0].position; nameDiv.style.left = (headPos.x - 20) + 'px'; nameDiv.style.top = (headPos.y - 25) + 'px'; }
-}
-function killRagdoll() {
-  if (!guyActivated) return;
-  guyActivated = false;
-  try{ VENDOR.noteGuyKill(); }catch(e){}
-  ragdollParts.forEach(p => { Matter.Body.setVelocity(p, { x: (Math.random()-0.5)*15, y: -Math.random()*10 - 5 }); Matter.Body.setAngularVelocity(p, (Math.random()-0.5)*2); });
-  ragdollConstraints.forEach(c => Matter.World.remove(world, c)); ragdollConstraints = [];
-  const center = ragdollParts[1].position;
-  for (let i=0; i<80; i++) { ragdollBloodParticles.push({ x: center.x, y: center.y, vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12 - 3, life: 30 + Math.random()*20, size: 3 + Math.random()*5, color: 'rgba(140,0,0,0.9)' }); }
-  document.getElementById('guyName').style.display = 'none';
-  clearTimeout(respawnTimer);
-  respawnTimer = setTimeout(() => { ragdollParts.forEach(p => Matter.World.remove(world, p)); spawnGuy(); }, 3000);
-}
-function tryActivateGuy(clientX, clientY){
-  if (guyActivated || ragdollParts.length === 0) return;
-  const pos = { x: clientX, y: clientY };
-  if (Matter.Query.point(ragdollParts, pos).length > 0) { activationStartTime = Date.now(); activateGuy(); }
-}
-render.canvas.addEventListener('mousedown', (e) => tryActivateGuy(e.clientX, e.clientY));
-render.canvas.addEventListener('touchstart', (e) => {
-  const t = e.touches[0];
-  if (t) tryActivateGuy(t.clientX, t.clientY);
-}, { passive: true });
-function activateGuy() {
-  if (guyActivated) return;
-  guyActivated = true;
-  ragdollParts.forEach(p => Matter.Body.setStatic(p, false));
-  const stiff = 0.9, damp = 0.2;
-  const cOpts = (a, b, pa, pb) => Constraint.create({ bodyA:a, bodyB:b, pointA:pa, pointB:pb, stiffness:stiff, damping:damp, render:{visible:false} });
-  ragdollConstraints = [
-    cOpts(ragdollParts[0], ragdollParts[1], {x:0,y:10}, {x:0,y:-15}),
-    cOpts(ragdollParts[1], ragdollParts[2], {x:-7,y:-13}, {x:10,y:0}),
-    cOpts(ragdollParts[1], ragdollParts[3], {x:7,y:-13}, {x:-10,y:0}),
-    cOpts(ragdollParts[2], ragdollParts[4], {x:-10,y:0}, {x:9,y:0}),
-    cOpts(ragdollParts[3], ragdollParts[5], {x:10,y:0}, {x:-9,y:0}),
-    cOpts(ragdollParts[1], ragdollParts[6], {x:-5,y:15}, {x:0,y:-11}),
-    cOpts(ragdollParts[1], ragdollParts[7], {x:5,y:15}, {x:0,y:-11}),
-    cOpts(ragdollParts[6], ragdollParts[8], {x:0,y:11}, {x:0,y:-11}),
-    cOpts(ragdollParts[7], ragdollParts[9], {x:0,y:11}, {x:0,y:-11})
-  ];
-  World.add(world, ragdollConstraints);
-  document.getElementById('guyPrompt').style.display = 'none';
-}
+function updateNamePosition() {}
 
 /* ===== HUMAN SCREAM OF PAIN ===== */
 function playScream() {
@@ -620,28 +535,10 @@ const driedCtx = driedBloodCanvas.getContext('2d');
 driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
 function stampDriedBlood(x, y, size) { driedCtx.beginPath(); driedCtx.arc(x, y, size, 0, Math.PI*2); driedCtx.fillStyle = 'rgba(60, 20, 0, 0.8)'; driedCtx.fill(); }
 
-/* ===== RAGDOLL BLEEDING & DAMAGE ===== */
+/* ===== RAGDOLL BLEEDING & DAMAGE =====
+   extras/guygore.js does all of it now */
 const ragdollBloodCanvas = document.getElementById('ragdollBloodCanvas');
-const ragdollCtx = ragdollBloodCanvas.getContext('2d');
 let ragdollBloodParticles = [];
-Events.on(engine, 'collisionStart', (event) => {
-  if (!guyActivated) return;
-  for (const pair of event.pairs) {
-    const bodyA = pair.bodyA, bodyB = pair.bodyB;
-    const ragdollPart = ragdollParts.includes(bodyA) ? bodyA : (ragdollParts.includes(bodyB) ? bodyB : null);
-    const otherBody = ragdollPart === bodyA ? bodyB : bodyA;
-    if (!ragdollPart || !otherBody || otherBody.label !== 'wall') continue;
-    const relVel = { x: ragdollPart.velocity.x - (otherBody.isStatic ? 0 : otherBody.velocity.x), y: ragdollPart.velocity.y - (otherBody.isStatic ? 0 : otherBody.velocity.y) };
-    const speed = Math.sqrt(relVel.x**2 + relVel.y**2);
-    if (speed > 3.5) {
-      ragdollDamage++;
-      const contact = pair.collision.supports ? pair.collision.supports[0] : ragdollPart.position;
-      for (let i=0; i<15; i++) { ragdollBloodParticles.push({ x: contact.x, y: contact.y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8 - 2, life: 15 + Math.random()*10, size: 2 + Math.random()*3, color: 'rgba(140,0,0,0.9)' }); }
-      if (speed > 6) playScream();
-      if (ragdollDamage >= RAGDOLL_DAMAGE_THRESHOLD) killRagdoll();
-    }
-  }
-});
 
 /* ===== PAINT TOOL ===== */
 const pCanvas = document.getElementById("paintCanvas");
@@ -860,14 +757,6 @@ function drawVisualizer() {
   } else if (!isDead && !gameActive) {
     document.body.style.transform = "none";
   }
-  if (guyActivated && ragdollParts.length > 0) updateNamePosition();
-  ragdollCtx.clearRect(0,0,ragdollBloodCanvas.width,ragdollBloodCanvas.height);
-  for (let i=ragdollBloodParticles.length-1; i>=0; i--) {
-    const p = ragdollBloodParticles[i];
-    p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95+0.03; p.life--;
-    if (p.life <= 0) { stampDriedBlood(p.x, p.y, p.size); ragdollBloodParticles.splice(i,1); continue; }
-    ragdollCtx.beginPath(); ragdollCtx.arc(p.x,p.y,p.size,0,Math.PI*2); ragdollCtx.fillStyle = p.color; ragdollCtx.fill();
-  }
 }
 drawVisualizer();
 
@@ -880,6 +769,8 @@ window.addEventListener('resize', () => {
 ragdollBloodCanvas.width = window.innerWidth; ragdollBloodCanvas.height = window.innerHeight;
 driedBloodCanvas.width = window.innerWidth; driedBloodCanvas.height = window.innerHeight;
 </script>
+
+<script src="extras/guygore.js"></script>
 
 <!-- THE VENDOR: the basement, the visual novel, the room -->
 <script src="vendor/shared.js"></script>
