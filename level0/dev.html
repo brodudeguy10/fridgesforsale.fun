@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>level 0 (dev)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#0b0f14;color:#9fb0c0;font:14px/1.5 ui-monospace,monospace}main{padding:24px;max-width:70ch}button{font:inherit;padding:8px 14px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<main>
+<p>level 0, on its own. this page is for looking at the place without waiting on the 1-in-5.</p>
+<p>?seed=123 picks the floor. ?q=0 is the light pipeline (no MSAA, 720x540).</p>
+<p><button id="go" disabled>loading</button></p>
+<pre id="log"></pre>
+</main>
+<script type="module">
+const q = new URLSearchParams(location.search), log = document.getElementById('log'), go = document.getElementById('go');
+const t0 = performance.now();
+try {
+  const m = await import('./level0.js');
+  const L = window.__l0 = await m.prepare({ seed: q.has('seed') ? Number(q.get('seed')) | 0 : undefined, quality: q.has('q') ? Number(q.get('q')) : undefined });
+  if (q.has('manual')) L.manual = true;
+  log.textContent = 'seed ' + L.seed + '\nready in ' + Math.round(performance.now() - t0) + ' ms\n' + JSON.stringify(L.stats);
+  go.disabled = false; go.textContent = 'go in';
+  go.onclick = () => L.enter({ onExit: i => { log.textContent = 'out. ' + JSON.stringify(i); go.disabled = true; go.textContent = 'reload for another'; window.__l0exit = i; } });
+} catch (e) { log.textContent = String(e && e.stack || e); window.__l0err = String(e); }
+</script>
