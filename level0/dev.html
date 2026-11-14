@@ -6,6 +6,7 @@
 <main>
 <p>level 0, on its own. this page is for looking at the place without waiting on the 1-in-5.</p>
 <p>?seed=123 picks the floor. ?q=0 is the light pipeline (no MSAA, 720x540).</p>
+<p>?event=figure makes that one thing happen five seconds in (if there's somewhere for it). ?quiet=1 makes nothing happen. the names are printed in the console.</p>
 <p><button id="go" disabled>loading</button></p>
 <pre id="log"></pre>
 </main>
@@ -16,8 +17,10 @@ try {
   const m = await import('./level0.js');
   const L = window.__l0 = await m.prepare({ seed: q.has('seed') ? Number(q.get('seed')) | 0 : undefined, quality: q.has('q') ? Number(q.get('q')) : undefined });
   if (q.has('manual')) L.manual = true;
+  if (q.has('quiet')) L.events.enabled = false;                    // ?quiet=1: nothing happens. ?event=figure: that one, five seconds after you go in (see the list in the console)
+  console.log('events:', L.events.names().join(' '));
   log.textContent = 'seed ' + L.seed + '\nready in ' + Math.round(performance.now() - t0) + ' ms\n' + JSON.stringify(L.stats);
   go.disabled = false; go.textContent = 'go in';
-  go.onclick = () => L.enter({ onExit: i => { log.textContent = 'out. ' + JSON.stringify(i); go.disabled = true; go.textContent = 'reload for another'; window.__l0exit = i; } });
+  go.onclick = () => { if (q.has('event')) { let n = 0; const iv = setInterval(() => { if (L.disposed || n++ > 40) return clearInterval(iv); if (L.t > 5 && L.events.force(q.get('event'))) clearInterval(iv); }, 500); } L.enter({ onExit: i => { log.textContent = 'out. ' + JSON.stringify(i); go.disabled = true; go.textContent = 'reload for another'; window.__l0exit = i; } }); };
 } catch (e) { log.textContent = String(e && e.stack || e); window.__l0err = String(e); }
 </script>

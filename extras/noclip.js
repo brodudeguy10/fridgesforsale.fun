@@ -16,9 +16,13 @@
    exactly as you left it, and it won't happen again until you
    reload (and roll again).
 
-   switches, for looking at it on purpose:
+   after a load wins the roll, the odds drop to 1 in 100 for seven
+   days (kept in localStorage as level0.cool, the time it ends).
+
+   switches, for looking at it on purpose (these never touch the cooldown):
      ?backrooms=1     arm this load
      ?backrooms=0     never arm this load
+     ?backrooms=clear forget the cooldown, then roll as normal
      &seed=12345      which floor (any whole number)
    the last floor's seed is kept in sessionStorage as level0.seed.
 ============================================================ */
@@ -28,10 +32,30 @@
   var MOD = new URL('../level0/level0.js', here).href;
   var q; try { q = new URLSearchParams(location.search); } catch (e) { q = { get: function () { return null; } }; }
 
-  /* ---- the roll. once. a fair d5 ---- */
-  function d5() { try { var b = new Uint32Array(1); do { crypto.getRandomValues(b); } while (b[0] >= 4294967295); return b[0] % 5; } catch (e) { return Math.floor(Math.random() * 5); } }
-  var forced = q.get('backrooms'), roll = d5();
-  var S = { roll: roll, armed: forced === '1' ? true : forced === '0' ? false : roll === 0, ready: false, used: false, inside: false, seed: null, error: null, info: null };
+  /* ---- the roll. once per load ----
+     normally a fair d5. the moment a roll wins, a seven day cooldown is written to the browser's storage (before any
+     button is pressed, whether or not you ever go in), and until it runs out every load rolls a d100 instead.
+     a win on the d100 does not start the seven days again. */
+  var KEY = 'level0.cool', WEEK = 7 * 24 * 3600 * 1000, now = Date.now();
+  function dN(n) { try { var b = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n; do { crypto.getRandomValues(b); } while (b[0] >= lim); return b[0] % n; } catch (e) { return Math.floor(Math.random() * n); } }
+  function writeCool(t) {
+    var ok = false; try { localStorage.setItem(KEY, String(t)); ok = localStorage.getItem(KEY) === String(t); } catch (e) {}
+    if (!ok) { try { document.cookie = 'level0cool=' + t + '; max-age=604800; path=/; SameSite=Lax'; } catch (e) {} }      /* storage refused: a cookie will do */
+  }
+  function readCool() {
+    var v = null; try { v = localStorage.getItem(KEY); } catch (e) {}
+    if (v === null) { try { var m = document.cookie.match(/(?:^|; )level0cool=(\d+)/); if (m) v = m[1]; } catch (e) {} }
+    if (v === null || !/^\d{1,16}$/.test(v)) return 0;                      /* nothing there, or not a time: no cooldown */
+    var t = Number(v); if (!isFinite(t) || t <= now) return 0;               /* run out */
+    if (t > now + WEEK) { t = now + WEEK; writeCool(t); }                    /* further off than seven days can be (a clock that was wrong): seven days from now */
+    return t;
+  }
+  var forced = q.get('backrooms');
+  if (forced === 'clear') { try { localStorage.removeItem(KEY); } catch (e) {} try { document.cookie = 'level0cool=; max-age=0; path=/'; } catch (e) {} forced = null; }
+  var until = 0; try { until = readCool(); } catch (e) { until = 0; }
+  var cooling = until > now, sides = cooling ? 100 : 5, roll = dN(sides), won = roll === 0;
+  if (won && !cooling && forced === null) { try { writeCool(now + WEEK); until = now + WEEK; } catch (e) {} }
+  var S = { roll: roll, sides: sides, cooling: cooling, until: until, armed: forced === '1' ? true : forced === '0' ? false : won, ready: false, used: false, inside: false, seed: null, error: null, info: null };
   try { Object.defineProperty(window, '__noclip', { value: S, enumerable: false }); } catch (e) {}
   if (!S.armed) return;
 
