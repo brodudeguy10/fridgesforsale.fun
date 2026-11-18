@@ -316,11 +316,11 @@
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21,
-  "rms": -18.8,
-  "peak": -1.6,
+  "len": 0.26003,
+  "rms": -26.6,
+  "peak": -5.6,
   "kind": "shot",
-  "note": "a footstep on concrete",
+  "note": "a footstep on concrete (recorded)",
   "at": 147.99319
  },
  "l1_step1": {
@@ -328,264 +328,240 @@
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.19981,
-  "rms": -24.3,
-  "peak": -2.7,
+  "len": 0.26,
+  "rms": -26.2,
+  "peak": -5.5,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 148.32319
+  "note": "a footstep on concrete (recorded)",
+  "at": 148.37322
  },
  "l1_step2": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.20037,
-  "rms": -21.2,
-  "peak": -1.2,
+  "len": 0.26,
+  "rms": -23.1,
+  "peak": -4.6,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 148.643
+  "note": "a footstep on concrete (recorded)",
+  "at": 148.75322
  },
  "l1_step3": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.19269,
-  "rms": -20.7,
-  "peak": -2.1,
+  "len": 0.26,
+  "rms": -26.1,
+  "peak": -5.8,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 148.96338
+  "note": "a footstep on concrete (recorded)",
+  "at": 149.13322
  },
  "l1_step4": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.18966,
-  "rms": -21.9,
-  "peak": -2.0,
+  "len": 0.26,
+  "rms": -25.7,
+  "peak": -4.2,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 149.27606
+  "note": "a footstep on concrete (recorded)",
+  "at": 149.51322
  },
  "l1_step5": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.215,
-  "rms": -19.7,
-  "peak": -2.6,
+  "len": 0.26,
+  "rms": -24.5,
+  "peak": -6.4,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 149.58572
+  "note": "a footstep on concrete (recorded)",
+  "at": 149.89322
  },
  "l1_step6": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21541,
-  "rms": -20.2,
-  "peak": -1.9,
+  "len": 0.26,
+  "rms": -24.7,
+  "peak": -4.9,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 149.92072
+  "note": "a footstep on concrete (recorded)",
+  "at": 150.27322
  },
  "l1_step7": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.214,
-  "rms": -21.7,
-  "peak": -1.4,
+  "len": 0.26,
+  "rms": -25.1,
+  "peak": -4.1,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 150.25612
+  "note": "a footstep on concrete (recorded)",
+  "at": 150.65322
  },
  "l1_step8": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.20494,
-  "rms": -19.9,
-  "peak": -2.6,
+  "len": 0.21644,
+  "rms": -29.2,
+  "peak": -7.7,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 150.59013
+  "note": "a footstep on concrete (recorded)",
+  "at": 151.03322
  },
  "l1_step9": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.19112,
-  "rms": -24.2,
-  "peak": -2.9,
+  "len": 0.26,
+  "rms": -29.3,
+  "peak": -8.4,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 150.91506
+  "note": "a footstep on concrete (recorded)",
+  "at": 151.36966
  },
  "l1_step10": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.19228,
-  "rms": -24.6,
-  "peak": -2.1,
+  "len": 0.26003,
+  "rms": -24.4,
+  "peak": -6.2,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 151.22619
+  "note": "a footstep on concrete (recorded)",
+  "at": 151.74966
  },
  "l1_step11": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.20125,
-  "rms": -23.5,
-  "peak": -1.9,
+  "len": 0.23997,
+  "rms": -26.4,
+  "peak": -5.2,
   "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 151.53847
- },
- "l1_step12": {
-  "file": "shots1.mp3",
-  "sr": 32000,
-  "ch": 1,
-  "loop": 0,
-  "len": 0.18213,
-  "rms": -25.0,
-  "peak": -1.4,
-  "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 151.85972
- },
- "l1_step13": {
-  "file": "shots1.mp3",
-  "sr": 32000,
-  "ch": 1,
-  "loop": 0,
-  "len": 0.21488,
-  "rms": -23.7,
-  "peak": -2.9,
-  "kind": "shot",
-  "note": "a footstep on concrete",
-  "at": 152.16184
+  "note": "a footstep on concrete (recorded)",
+  "at": 152.12969
  },
  "l1_scuff0": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21631,
-  "rms": -22.5,
-  "peak": -4.0,
+  "len": 0.25875,
+  "rms": -25.5,
+  "peak": -2.9,
   "kind": "shot",
-  "note": "a shoe turning on concrete",
-  "at": 152.49672
+  "note": "a shoe turning on concrete (recorded)",
+  "at": 152.48966
  },
  "l1_scuff1": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21606,
-  "rms": -22.8,
-  "peak": -4.0,
+  "len": 0.3,
+  "rms": -26.0,
+  "peak": -8.8,
   "kind": "shot",
-  "note": "a shoe turning on concrete",
-  "at": 152.83303
+  "note": "a shoe turning on concrete (recorded)",
+  "at": 152.86841
  },
  "l1_scuff2": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21669,
-  "rms": -22.7,
-  "peak": -4.0,
+  "len": 0.25997,
+  "rms": -24.9,
+  "peak": -5.1,
   "kind": "shot",
-  "note": "a shoe turning on concrete",
-  "at": 153.16909
+  "note": "a shoe turning on concrete (recorded)",
+  "at": 153.28841
  },
  "l1_scuff3": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21681,
-  "rms": -19.9,
-  "peak": -4.0,
+  "len": 0.17,
+  "rms": -24.4,
+  "peak": -3.1,
   "kind": "shot",
-  "note": "a shoe turning on concrete",
-  "at": 153.50578
+  "note": "a shoe turning on concrete (recorded)",
+  "at": 153.66837
  },
  "l1_scuff4": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21525,
-  "rms": -24.8,
-  "peak": -4.0,
+  "len": 0.3,
+  "rms": -28.7,
+  "peak": -6.5,
   "kind": "shot",
-  "note": "a shoe turning on concrete",
-  "at": 153.84259
+  "note": "a shoe turning on concrete (recorded)",
+  "at": 153.95837
  },
  "l1_scuff5": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.21663,
-  "rms": -18.8,
-  "peak": -4.0,
+  "len": 0.24003,
+  "rms": -28.9,
+  "peak": -1.9,
   "kind": "shot",
-  "note": "a shoe turning on concrete",
-  "at": 154.17784
+  "note": "a shoe turning on concrete (recorded)",
+  "at": 154.37838
  },
  "l1_door_push": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 1.24194,
-  "rms": -32.8,
-  "peak": -3.0,
+  "len": 0.84425,
+  "rms": -29.8,
+  "peak": -2.4,
   "kind": "shot",
-  "note": "a push bar, the latch, the leaf swinging",
-  "at": 154.51447
+  "note": "the handle and the latch letting go, the clang ringing out (recorded)",
+  "at": 154.73841
  },
  "l1_door_close": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 1.03056,
-  "rms": -26.6,
-  "peak": -3.0,
+  "len": 0.91075,
+  "rms": -21.9,
+  "peak": -2.2,
   "kind": "shot",
-  "note": "the closer bringing it home",
-  "at": 155.87641
+  "note": "the leaf hitting the frame, the latch going over (recorded)",
+  "at": 155.70266
  },
  "l1_door_rattle": {
   "file": "shots1.mp3",
   "sr": 32000,
   "ch": 1,
   "loop": 0,
-  "len": 0.40084,
-  "rms": -19.8,
-  "peak": -3.0,
+  "len": 0.6,
+  "rms": -21.7,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a locked door rattling in its frame",
-  "at": 157.02697
+  "note": "a locked door shaken against its latch: five knocks, dying away (recorded)",
+  "at": 156.73341
  },
  "l1_slip": {
   "file": "shots1.mp3",
@@ -597,7 +573,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "the floor stops being there",
-  "at": 157.54781
+  "at": 157.45341
  },
  "l1_fall": {
   "file": "shots1.mp3",
@@ -609,7 +585,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "falling",
-  "at": 158.66481
+  "at": 158.57041
  },
  "l1_land": {
   "file": "shots1.mp3",
@@ -621,7 +597,7 @@
   "peak": -1.0,
   "kind": "shot",
   "note": "landing on concrete",
-  "at": 161.18481
+  "at": 161.09041
  },
  "l1_hum_a": {
   "file": "l1_hum_a.mp3",
@@ -732,7 +708,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 163.21334
+  "at": 163.11894
  },
  "l1_drip1": {
   "file": "shots1.mp3",
@@ -744,7 +720,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 163.48906
+  "at": 163.39466
  },
  "l1_drip2": {
   "file": "shots1.mp3",
@@ -756,7 +732,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 163.76906
+  "at": 163.67466
  },
  "l1_drip3": {
   "file": "shots1.mp3",
@@ -768,7 +744,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 164.03612
+  "at": 163.94172
  },
  "l1_drip4": {
   "file": "shots1.mp3",
@@ -780,7 +756,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 164.28556
+  "at": 164.19116
  },
  "l1_drip5": {
   "file": "shots1.mp3",
@@ -792,7 +768,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 164.56262
+  "at": 164.46822
  },
  "l1_drip6": {
   "file": "shots1.mp3",
@@ -804,7 +780,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 164.81162
+  "at": 164.71722
  },
  "l1_drip7": {
   "file": "shots1.mp3",
@@ -816,7 +792,7 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a drop into a puddle",
-  "at": 165.07212
+  "at": 164.97772
  },
  "l1_tick0": {
   "file": "shots1.mp3",
@@ -828,7 +804,7 @@
   "peak": -4.0,
   "kind": "shot",
   "note": "a drop onto concrete",
-  "at": 165.35041
+  "at": 165.256
  },
  "l1_tick1": {
   "file": "shots1.mp3",
@@ -840,7 +816,7 @@
   "peak": -4.0,
   "kind": "shot",
   "note": "a drop onto concrete",
-  "at": 165.55028
+  "at": 165.45587
  },
  "l1_tick2": {
   "file": "shots1.mp3",
@@ -852,7 +828,7 @@
   "peak": -4.0,
   "kind": "shot",
   "note": "a drop onto concrete",
-  "at": 165.74934
+  "at": 165.65494
  },
  "l1_tick3": {
   "file": "shots1.mp3",
@@ -864,7 +840,7 @@
   "peak": -4.0,
   "kind": "shot",
   "note": "a drop onto concrete",
-  "at": 165.94934
+  "at": 165.85494
  },
  "l1_splash0": {
   "file": "shots1.mp3",
@@ -872,11 +848,11 @@
   "ch": 1,
   "loop": 0,
   "len": 0.42,
-  "rms": -17.8,
-  "peak": -2.0,
+  "rms": -21.7,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a footstep into a puddle",
-  "at": 166.14934
+  "note": "a footstep into a puddle (recorded)",
+  "at": 166.05494
  },
  "l1_splash1": {
   "file": "shots1.mp3",
@@ -884,11 +860,11 @@
   "ch": 1,
   "loop": 0,
   "len": 0.42,
-  "rms": -16.6,
-  "peak": -2.0,
+  "rms": -23.4,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a footstep into a puddle",
-  "at": 166.68934
+  "note": "a footstep into a puddle (recorded)",
+  "at": 166.59494
  },
  "l1_splash2": {
   "file": "shots1.mp3",
@@ -896,11 +872,11 @@
   "ch": 1,
   "loop": 0,
   "len": 0.42,
-  "rms": -14.9,
-  "peak": -2.0,
+  "rms": -23.1,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a footstep into a puddle",
-  "at": 167.22934
+  "note": "a footstep into a puddle (recorded)",
+  "at": 167.13494
  },
  "l1_splash3": {
   "file": "shots1.mp3",
@@ -908,11 +884,11 @@
   "ch": 1,
   "loop": 0,
   "len": 0.42,
-  "rms": -17.6,
-  "peak": -2.0,
+  "rms": -25.9,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a footstep into a puddle",
-  "at": 167.76934
+  "note": "a footstep into a puddle (recorded)",
+  "at": 167.67494
  },
  "l1_splash4": {
   "file": "shots1.mp3",
@@ -920,11 +896,11 @@
   "ch": 1,
   "loop": 0,
   "len": 0.42,
-  "rms": -17.4,
-  "peak": -2.0,
+  "rms": -23.9,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a footstep into a puddle",
-  "at": 168.30934
+  "note": "a footstep into a puddle (recorded)",
+  "at": 168.21494
  },
  "l1_splash5": {
   "file": "shots1.mp3",
@@ -932,11 +908,11 @@
   "ch": 1,
   "loop": 0,
   "len": 0.42,
-  "rms": -17.2,
-  "peak": -2.0,
+  "rms": -24.6,
+  "peak": -1.0,
   "kind": "shot",
-  "note": "a footstep into a puddle",
-  "at": 168.84934
+  "note": "a footstep into a puddle (recorded)",
+  "at": 168.75494
  },
  "l1_ir_hall": {
   "file": "l1_ir_hall.flac",
@@ -1014,6 +990,65 @@
   "peak": -3.0,
   "kind": "shot",
   "note": "a crate lid prised off and pushed aside",
-  "at": 169.38934
+  "at": 169.29494
+ },
+ "l1_drips": {
+  "file": "l1_drips.mp3",
+  "sr": 32000,
+  "ch": 1,
+  "loop": 768000,
+  "len": 30.0,
+  "rms": -30.0,
+  "peak": -8.1,
+  "kind": "loop",
+  "note": "water dripping all round a leak (recorded)"
+ },
+ "l1_creak0": {
+  "file": "shots1.mp3",
+  "sr": 32000,
+  "ch": 1,
+  "loop": 0,
+  "len": 0.59934,
+  "rms": -23.9,
+  "peak": -3.0,
+  "kind": "shot",
+  "note": "a wooden rocking chair creaking as it tips",
+  "at": 170.79513
+ },
+ "l1_creak1": {
+  "file": "shots1.mp3",
+  "sr": 32000,
+  "ch": 1,
+  "loop": 0,
+  "len": 0.6,
+  "rms": -21.4,
+  "peak": -3.0,
+  "kind": "shot",
+  "note": "a wooden rocking chair creaking as it tips",
+  "at": 171.51447
+ },
+ "l1_creak2": {
+  "file": "shots1.mp3",
+  "sr": 32000,
+  "ch": 1,
+  "loop": 0,
+  "len": 0.6,
+  "rms": -22.3,
+  "peak": -3.0,
+  "kind": "shot",
+  "note": "a wooden rocking chair creaking as it tips",
+  "at": 172.23447
+ },
+ "l1_creak3": {
+  "file": "shots1.mp3",
+  "sr": 32000,
+  "ch": 1,
+  "loop": 0,
+  "len": 0.59906,
+  "rms": -24.2,
+  "peak": -3.0,
+  "kind": "shot",
+  "note": "a wooden rocking chair creaking as it tips",
+  "at": 172.95447
  }
 }
