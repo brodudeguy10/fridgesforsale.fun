@@ -1,0 +1,7 @@
+gore.mp3 and gore.json: the guy's sounds (fridgesforsale.fun, version three of the guy)
+
+recordings: Kenney (kenney.nl), "Impact Sounds" and "RPG Audio", CC0 1.0 (public domain).
+  https://kenney.nl/assets/impact-sounds
+  https://kenney.nl/assets/rpg-audio
+everything else (flesh, blood, bone, the voices, dynamite, the heartbeat) was synthesized for this site.
+the build script and how to rebuild it: fridges-tools/gore-audio/README.md
