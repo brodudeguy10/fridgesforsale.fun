@@ -71,22 +71,24 @@
     }
     if (!runs.length) return;
     ctx.save();
+    /* each run of the pool by how old the blood in it is: wet red to dark brown as it dries, the shine going with it */
+    var ages = runs.map(function (run) { var a = 0; for (var i = 0; i < run.length; i++) a += G.blood.poolAge ? G.blood.poolAge(run[i][0]) : 0; return Math.min(1, a / run.length / 240); });
     for (var pass = 0; pass < 2; pass++) {
       var kk = pass ? 0.55 : 1;
-      ctx.beginPath();
       for (var r = 0; r < runs.length; r++) {
-        var run = runs[r];
+        var run = runs[r], a = ages[r];
+        ctx.beginPath();
         ctx.moveTo(run[0][0] - 1.5, H);
         for (var i = 0; i < run.length; i++) ctx.lineTo(run[i][0], H - run[i][1] * 0.32 * kk);
         ctx.lineTo(run[run.length - 1][0] + 1.5, H);
         for (i = run.length - 1; i >= 0; i--) ctx.lineTo(run[i][0], H + run[i][1] * 0.6 * kk);
         ctx.closePath();
+        ctx.fillStyle = pass ? 'rgba(' + Math.round(48 - a * 14) + ',' + Math.round(2 + a * 8) + ',2,0.5)' : 'rgba(' + Math.round(92 - a * 42) + ',' + Math.round(6 + a * 14) + ',' + Math.round(6 + a * 4) + ',0.92)'; ctx.fill();
       }
-      ctx.fillStyle = pass ? 'rgba(48,2,2,0.5)' : 'rgba(92,6,6,0.92)'; ctx.fill();
     }
-    ctx.strokeStyle = 'rgba(255,190,190,0.16)'; ctx.lineWidth = 0.5; ctx.beginPath();
-    for (r = 0; r < runs.length; r++) { var on = false; for (i = 0; i < runs[r].length; i++) { var p = runs[r][i]; if (p[1] > 2) { var y = H - p[1] * 0.18; on ? ctx.lineTo(p[0], y) : ctx.moveTo(p[0], y); on = true; } else on = false; } }
-    ctx.stroke(); ctx.restore();
+    ctx.lineWidth = 0.5;
+    for (r = 0; r < runs.length; r++) { if (ages[r] > 0.8) continue; ctx.strokeStyle = 'rgba(255,190,190,' + (0.16 * (1 - ages[r] / 0.8)).toFixed(3) + ')'; ctx.beginPath(); var on = false; for (i = 0; i < runs[r].length; i++) { var p = runs[r][i]; if (p[1] > 2) { var y = H - p[1] * 0.18; on ? ctx.lineTo(p[0], y) : ctx.moveTo(p[0], y); on = true; } else on = false; } ctx.stroke(); }
+    ctx.restore();
   }
   function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, view.width, view.height);

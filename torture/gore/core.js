@@ -35,8 +35,11 @@ G.srand = seed => { let s = (Math.floor(seed * 4294967296) >>> 0) || 1; return (
 G.bag = n => { let q = []; let last = -1; return () => { if (!q.length) { q = Array.from({ length: n }, (_, i) => i); for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [q[i], q[j]] = [q[j], q[i]]; } if (n > 1 && q[q.length - 1] === last) [q[0], q[q.length - 1]] = [q[q.length - 1], q[0]]; } last = q.pop(); return last; }; };
 
 /* rigid body helpers, in the body's own frame */
-G.toWorld = (b, lx, ly) => { const c = Math.cos(b.angle), s = Math.sin(b.angle); return { x: b.position.x + lx * c - ly * s, y: b.position.y + lx * s + ly * c }; };
-G.toLocal = (b, x, y) => { const c = Math.cos(-b.angle), s = Math.sin(-b.angle), dx = x - b.position.x, dy = y - b.position.y; return { x: dx * c - dy * s, y: dx * s + dy * c }; };
+/* a piece of a limb that broke in two (body.js, BODY.split) keeps everything in the whole limb's frame: fo is where the
+   middle of that frame sits along the piece's body, so a wound, a joint's pin or a rope keeps meaning the same place */
+const foOf = b => { const p = b.plugin && b.plugin.part; return p && p.fo ? p.fo : 0; };
+G.toWorld = (b, lx, ly) => { const c = Math.cos(b.angle), s = Math.sin(b.angle); ly += foOf(b); return { x: b.position.x + lx * c - ly * s, y: b.position.y + lx * s + ly * c }; };
+G.toLocal = (b, x, y) => { const c = Math.cos(-b.angle), s = Math.sin(-b.angle), dx = x - b.position.x, dy = y - b.position.y; return { x: dx * c - dy * s, y: dx * s + dy * c - foOf(b) }; };
 G.dirLocal = (b, dx, dy) => { const c = Math.cos(-b.angle), s = Math.sin(-b.angle); return { x: dx * c - dy * s, y: dx * s + dy * c }; };
 G.dirWorld = (b, dx, dy) => { const c = Math.cos(b.angle), s = Math.sin(b.angle); return { x: dx * c - dy * s, y: dx * s + dy * c }; };
 /* the velocity of a point on a body, in px per step */
@@ -72,7 +75,11 @@ G.ms = () => performance.now();
 /* ------------------------------------------------------------ events between the files */
 const subs = {};
 G.on = (name, fn) => { (subs[name] = subs[name] || []).push(fn); };
-G.emit = (name, a, b, c) => { const l = subs[name]; if (!l) return; for (let i = 0; i < l.length; i++) { try { l[i](a, b, c); } catch (e) { G.err(name, e); } } };
+/* up to six things go with an event (a 'hurt' carries the guy, the part, the hit, the region, the injuries and the
+   record; a 'split' the guy, both pieces, where it broke, the new joint and the old body). this used to pass three,
+   and every listener that wanted more got nothing: the spray off every hit never ran, and nothing on a broken limb
+   moved to the piece below the break */
+G.emit = (name, a, b, c, d, e, f) => { const l = subs[name]; if (!l) return; for (let i = 0; i < l.length; i++) { try { l[i](a, b, c, d, e, f); } catch (err) { G.err(name, err); } } };
 G.errs = [];
 G.err = (where, e) => { if (G.errs.length < 40) G.errs.push(where + ': ' + (e && e.stack || e)); if (G.errs.length < 6) console.warn('[gore]', where, e); };
 G.log = [];

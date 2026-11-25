@@ -94,7 +94,7 @@
       acc -= 1;
       var la = T.loc(part, sp.x - ax * 5, sp.y - ay * 5), lb = T.loc(part, sp.x + ax * 5, sp.y + ay * 5), l = T.loc(part, sp.x, sp.y);
       if (g.dm && !g.cleared) G.dmg.cut(g, part, { lx: l.x, ly: l.y, lx1: la.x, ly1: la.y, lx2: lb.x, ly2: lb.y, wx: sp.x, wy: sp.y, dir: { x: ax, y: ay }, len: 9 * S,
-        src: 'a chainsaw', srcKind: 'chainsaw', wound: 'saw', deep: 2, maxDepth: 6, painK: 1.4, bleedK: 1.5, jointR: 11 * S, severR: 30 * S, spotR: 6, cutType: 'sawn', quiet: Math.random() < 0.4, sprayK: 0.12 });
+        src: 'a chainsaw', srcKind: 'chainsaw', wound: 'saw', deep: 2, maxDepth: 6, painK: 1.4, bleedK: 1.5, jointR: 5.5 * S, boneK: 1, spotR: 6, cutType: 'sawn', quiet: Math.random() < 0.4, sprayK: 0.12 });
       /* the chain throws it off along the bar, the way the chain is running: a fine wet spray, not buckets */
       if (G.blood && !g.dusty) { var a = Math.atan2(ay, ax) + (Math.random() < 0.7 ? Math.PI : 0) + rnd(-0.35, 0.35); G.blood.spray(sp.x, sp.y, Math.cos(a), Math.sin(a) - 0.25, 6, 6.5, 0.7, 0.9, g, { wall: 5 }); }
       if (g.dusty && G.blood) G.blood.dustPuff(sp.x, sp.y, 12, g);

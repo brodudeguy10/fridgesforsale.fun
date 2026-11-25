@@ -58,11 +58,16 @@ BR.init = function (g) {
   BR.topology(g);
 };
 BR.topology = function (g) {
+  /* a break in a bone (a passive joint, see body.js) is where a group ends: a muscle above it can't swing what hangs
+     below it as if it were rigid, and one below it pushes against the piece it's on, not the rest of him */
+  const stop = k => k.broken || (k.def && k.def.passive);
+  const grow = (start, j, avoid) => { const side = new Set([start]); let grew = true; while (grew) { grew = false; for (const k of g.joints) { if (k === j || stop(k)) continue; if (side.has(k.a.id) !== side.has(k.b.id)) { if (k.a.id === avoid || k.b.id === avoid) continue; side.add(k.a.id); side.add(k.b.id); grew = true; } } } return side; };
+  g.br.par2 = g.br.par2 || {};
   for (const j of g.joints) {
-    const side = new Set([j.b.id]); let grew = true;
-    while (grew) { grew = false; for (const k of g.joints) { if (k.broken || k === j) continue; if (side.has(k.a.id) !== side.has(k.b.id)) { if (k.a === j.a || k.b === j.a) continue; side.add(k.a.id); side.add(k.b.id); grew = true; } } }
-    side.delete(j.a.id);
+    const side = grow(j.b.id, j, j.a.id); side.delete(j.a.id);
     g.br.sub2[j.id] = side;
+    const par = grow(j.a.id, j, j.b.id); par.delete(j.b.id); for (const id of side) par.delete(id);
+    g.br.par2[j.id] = par;
   }
 };
 
@@ -106,6 +111,7 @@ function sense(g, h) {
    way about the same pin, so no small part ever gets a kick sized for a big one */
 function muscle(g, j, t, k, h) {
   if (j.broken || !j.c) return;
+  if (j.def.passive) { passive(g, j); return; }                        /* a break in a bone: nothing pulls on it */
   const a = j.a.body, b = j.b.body, piv = BODY.pivot(j);
   const rel = BODY.rel(j), wr = b.angularVelocity - a.angularVelocity;
   const sub = g.br.sub2[j.id];
@@ -123,6 +129,16 @@ function muscle(g, j, t, k, h) {
   }
   j.tauLast = tau / (BODY.massU * GRAV() * L);                     /* in his weight times his height, for anyone watching */
   if (tau) { spin(g, sub, true, piv, tau / ib, j); spin(g, sub, false, piv, -tau / ia, j); }
+}
+/* a break in a bone has no muscle across it, but the flesh round it drags: the two pieces can't spin against each
+   other freely, the more so the more flesh is left (soft: how much of it is cut) */
+function passive(g, j) {
+  const a = j.a.body, b = j.b.body, piv = BODY.pivot(j), wr = b.angularVelocity - a.angularVelocity;
+  if (Math.abs(wr) < 1e-5) return;
+  const sub = g.br.sub2[j.id], ib = groupI(g, sub, true, piv, j), ia = groupI(g, sub, false, piv, j), ired = ia * ib / (ia + ib);
+  const dms = (b.deltaTime || 16.667), d2 = dms * dms, z = 0.12 + 0.3 * (1 - (j.soft || 0));
+  const tau = -wr * z * ired / d2;
+  spin(g, sub, true, piv, tau / ib, j); spin(g, sub, false, piv, -tau / ia, j);
 }
 /* the joints' own stops: ligament and bone, not muscle, so nothing weakens them. solved on velocities, one joint at
    a time and a few times over (Gauss-Seidel), so three joints sitting on their stops at once can't add up to a kick
@@ -169,8 +185,11 @@ function inGroup(g, p, sub, child, j) {
   if (p.gone) return false;
   const side = sub ? sub.has(p.id) : p === j.b;
   if (side !== child) return false;
-  /* the parent side is whatever is still joined to the parent: him, or the loose piece the joint is in */
-  return child || (p.attached === j.a.attached);
+  /* the parent side is whatever is still joined to the parent, short of a break in a bone: him, or the loose piece
+     the joint is in */
+  if (child) return true;
+  const par = g.br.par2 && g.br.par2[j.id];
+  return par ? par.has(p.id) && p.attached === j.a.attached : p.attached === j.a.attached;
 }
 function groupI(g, sub, child, piv, j) {
   let I = 0;
@@ -320,7 +339,10 @@ function stand(g, h) {
   rest(g, 0.9 * strength);
   /* arms: hang loose with a little life in them */
   for (const L2 of ['L', 'R']) { br.k['shoulder' + L2] = 0.35 * strength; br.k['elbow' + L2] = 0.3 * strength; br.k['wrist' + L2] = 0.25 * strength; }
-  const breathe = Math.sin(G.t * 1.6 + g.id) * 0.015;
+  /* breathing: slow and small, until a lung is filling or he's emptying, then fast and deep */
+  const dmB = g.dm || {}, lab = clamp(1 - (dmB.breath == null ? 1 : dmB.breath) + Math.max(0, 0.6 - (dmB.oxy == null ? 1 : dmB.oxy)) + Math.max(0, 1 - (dmB.blood == null ? G.TUNE.bloodMl : dmB.blood) / G.TUNE.bloodMl - 0.15), 0, 1);
+  br.bph = (br.bph || 0) + h * (1.6 + lab * 4.5);
+  const breathe = Math.sin(br.bph + g.id) * (0.015 + lab * 0.03);
   br.tgt.spine = breathe; br.tgt.neck = 0;
   const cx = (sup.x0 + sup.x1) / 2, hw = Math.max(3 * S, (sup.x1 - sup.x0) / 2);
   /* weak leg: lean onto the good one */
@@ -381,7 +403,7 @@ function stand(g, h) {
     const up = W * (0.75 + sag * 0.5);
     for (const id of ['pelvis', 'chest']) { const q = g.parts[id]; if (q.attached && !q.gone) q.body.force.y -= up * (id === 'pelvis' ? 0.6 : 0.4); }
   }
-  const lean = br.walkTo != null ? clamp((br.walkTo - s.com.x) / L, (br.dodgeUntil || 0) > G.t ? -0.14 : -0.06, (br.dodgeUntil || 0) > G.t ? 0.14 : 0.06) : 0;
+  const lean = (br.walkTo != null ? clamp((br.walkTo - s.com.x) / L, (br.dodgeUntil || 0) > G.t ? -0.14 : -0.06, (br.dodgeUntil || 0) > G.t ? 0.14 : 0.06) : 0) ;
   const thighs = ['ulegL', 'ulegR'].map(id => g.parts[id]).filter(p => p.attached && !p.gone);
   upright(g, g.parts.pelvis, lean, 0.9 * strength * cap.core, h, thighs, 8);
   br.tgt.waist = 0; br.tgt.spine = breathe; br.k.waist = br.k.spine = 1.1 * strength * cap.core;
@@ -440,35 +462,91 @@ function stepping(g, h, cx, hw, strength) {
   br.step = { foot: foot.id, x0: foot.body.position.x, x, t0: G.t, dur: (br.dodgeUntil || 0) > G.t ? 0.16 : need ? 0.22 : 0.3 };
 }
 
+/* ------------------------------------------------------------ a gun on him
+   he has to be awake and able to see it (one eye will do), and the gun has to be on him: the sight on his body, or
+   the line from the muzzle through the sight carrying on into him. the gun is drawn low and to one side of the sight,
+   so that line is the way it's pointing */
+function aimedAt(g) {
+  if (!g.alive || !G.tools || !G.tools.current || G.tools.current() !== 'gun') return false;
+  const P = G.tools.pointer; if (!P || P.over === false) return false;
+  const eo = g.eyeOut || [0, 0]; if (eo[0] && eo[1]) return false;
+  if (g.dm && (g.dm.cons < 0.45 || g.dm.stun > 0)) return false;
+  const body = [];
+  for (const p of g.list) if (p.attached && !p.gone && !p.removed && (A.TRUNK.has(p.kind) || p.kind === 'head' || p.kind === 'uarm' || p.kind === 'uleg')) body.push(p.body);
+  if (!body.length) return false;
+  if (G.M.Query.point(body, P).length) return true;
+  /* a near miss still counts as being aimed at: a few pixels off his outline */
+  for (const b of body) { const bb = b.bounds; if (P.x > bb.min.x - 5 && P.x < bb.max.x + 5 && P.y > bb.min.y - 5 && P.y < bb.max.y + 5 && G.M.Query.point([b], { x: P.x + clamp(b.position.x - P.x, -5, 5), y: P.y + clamp(b.position.y - P.y, -5, 5) }).length) return true; }
+  const mz = G.tools.muzzle ? G.tools.muzzle() : null;
+  if (mz) { const dx = P.x - mz.x, dy = P.y - mz.y; if (G.M.Query.ray(body, mz, { x: P.x + dx * 2.5, y: P.y + dy * 2.5 }, 3).length) return true; }
+  return false;
+}
+/* move joint id's target and strength toward (t, k) by w (0..1): the pose he's in blends into the new one */
+function blendTo(br, id, t, k, w) { br.tgt[id] = (br.tgt[id] || 0) + (t - (br.tgt[id] || 0)) * w; br.k[id] = (br.k[id] || 0) + (k - (br.k[id] || 0)) * w; }
+/* how far into the hands-up pose he is (0..1): it comes up after a moment's reaction, eases down when the gun leaves
+   him, and a shot or a hit knocks it out of him for a moment */
+function surrender(g, h) {
+  const br = g.br, aimed = aimedAt(g);
+  br.aimT = aimed ? br.aimT + h : Math.max(0, br.aimT - h * 2);
+  const flinch = G.t < (br.flinchUntil || 0);
+  const want = aimed && br.aimT > 0.22 && !flinch ? 1 : 0;
+  br.surr = (br.surr || 0) + (want - (br.surr || 0)) * Math.min(1, h * (want ? 3.4 : flinch ? 6 : 1.1));
+  if (br.surr < 0.002) br.surr = 0;
+  if (aimed) { const mz = G.tools.muzzle ? G.tools.muzzle() : G.tools.pointer; br.surrAway = Math.sign(br.s.com.x - (mz ? mz.x : br.s.com.x)) || 1; }
+  /* he begs, now and then, while it's on him */
+  if (want && br.surr > 0.6 && G.t - (br.said.plead || -9) > G.rnd(3.2, 5)) { br.said.plead = G.t; G.emit('voice', g, Math.random() < 0.7 ? 'plead' : 'whimper', 0.6); }
+  return aimed;
+}
 /* the hands: what they're doing while he stands */
 function hands(g, h, strength) {
-  const br = g.br, s = br.s, tool = G.tools ? G.tools.current() : 'hand';
+  const br = g.br, s = br.s;
   const hd = g.parts.head; if (hd.gone || !hd.attached) return;
-  const mouse = G.tools ? G.tools.pointer : null;
-  /* a gun on him: hands up */
-  const aimed = tool === 'gun' && mouse && Math.hypot(mouse.x - s.com.x, mouse.y - (hd.body.position.y + 20 * S)) < L * 0.55 && g.alive;
-  br.aimT = aimed ? br.aimT + h : Math.max(0, br.aimT - h * 2);
+  surrender(g, h);
   const threatK = br.threat ? clamp(1.2 - br.threat.t, 0, 1) : 0;
   if (threatK > 0.2) { cover(g, br.threat.x, threatK * strength); return; }
-  if (br.aimT > 0.35) {
-    const shake = Math.sin(G.t * 31 + g.id) * 0.05;
+  /* shot at, or just hit: he flinches and covers his head */
+  if (G.t < (br.flinchUntil || 0) && br.aimT > 0) { const mz = G.tools && G.tools.muzzle ? G.tools.muzzle() : null; cover(g, mz ? mz.x : hd.body.position.x + 1, 0.8 * strength); return; }
+  const k = br.surr || 0;
+  if (k > 0.01) {
+    /* both hands up beside his head: upper arms out and a little above level, forearms up, palms out at the gun.
+       a tremble in it that gets worse the longer it goes on */
+    const fear = clamp(0.5 + br.aimT * 0.15 + (g.dm ? g.dm.pain / 200 : 0), 0.5, 1.2);
+    const sh = (Math.sin(G.t * 29 + g.id) * 0.04 + Math.sin(G.t * 11.3 + g.id * 2) * 0.03) * fear;
     for (const L2 of ['L', 'R']) {
-      const sd = SIDE[L2];
-      br.tgt['shoulder' + L2] = -sd * (2.35 + shake); br.k['shoulder' + L2] = 0.9 * strength * (L2 === 'L' ? s.cap.armL : s.cap.armR);
-      br.tgt['elbow' + L2] = sd * 1.9; br.k['elbow' + L2] = 0.8 * strength;
-      br.tgt['wrist' + L2] = 0; br.k['wrist' + L2] = 0.4 * strength;
+      const sd = SIDE[L2], armCap = L2 === 'L' ? s.cap.armL : s.cap.armR;
+      blendTo(br, 'shoulder' + L2, -sd * (1.74 + sh), 1.0 * strength * Math.max(0.25, armCap), k);
+      blendTo(br, 'elbow' + L2, -sd * (1.42 + sh * 0.6), 0.9 * strength * Math.max(0.25, armCap), k);
+      blendTo(br, 'wrist' + L2, sd * 0.22, 0.5 * strength, k);
     }
-    if (br.aimT > 0.35 && br.aimT - h <= 0.35) G.emit('voice', g, 'plead', 0.6);
-    return;
+    /* chin down, head turned a little from it; knees soft, ready to go down */
+    const away = br.surrAway || 1;
+    blendTo(br, 'neck', -away * 0.14, 0.8 * strength * s.cap.neck, k);
+    for (const L2 of ['L', 'R']) { const lc = L2 === 'L' ? s.cap.legL : s.cap.legR; blendTo(br, 'knee' + L2, SIDE[L2] * 0.14, 1.1 * strength * lc, k); blendTo(br, 'hip' + L2, -SIDE[L2] * 0.06, 1.0 * strength * lc, k); }
+    if (k > 0.97) return;
   }
   /* holding what hurts */
-  if (g.dm && g.dm.worst && g.dm.worst.pain > 0.35 && strength > 0.3) {
+  if (g.dm && g.dm.worst && g.dm.worst.pain > 0.35 && strength > 0.3 && k < 0.5) {
     const w = g.dm.worst, p = g.parts[w.part];
     if (p && p.attached && !p.gone) {
       const at = G.toWorld(p.body, 0, 0);
       const use = p.side > 0 ? 'R' : p.side < 0 ? 'L' : (s.cap.armR > s.cap.armL ? 'R' : 'L');
-      if (!w.part.endsWith(use) || !A.ARM.has(p.kind)) setReach(g, 'a' + use, at.x, at.y, 0.55 * strength, false);
+      if (!w.part.endsWith(use) || !A.ARM.has(p.kind)) setReach(g, 'a' + use, at.x, at.y, 0.55 * strength * (1 - k), false);
     }
+  }
+}
+/* on the floor with a gun on him: both hands up toward it, palms out, between his face and the gun */
+function handsDown(g, h, strength) {
+  const br = g.br, s = br.s, hd = g.parts.head;
+  if (hd.gone || !hd.attached) return;
+  surrender(g, h);
+  const k = br.surr || 0; if (k < 0.05) return;
+  const P = G.tools.pointer, hp = hd.body.position;
+  for (const L2 of ['L', 'R']) {
+    const sh = g.jointById['shoulder' + L2]; if (!sh || sh.broken) continue;
+    const o = BODY.pivot(sh), dx = P.x - o.x, dy = P.y - o.y, d = Math.hypot(dx, dy) || 1, r = ARM * 0.62;
+    const tx = o.x + dx / d * r + (hp.x - o.x) * 0.25, ty = o.y + dy / d * r - 4 * S;
+    setReach(g, 'a' + L2, tx, ty, 0.8 * strength * k * (L2 === 'L' ? s.cap.armL : s.cap.armR), false);
+    br.tgt['wrist' + L2] = SIDE[L2] * 0.2; br.k['wrist' + L2] = 0.4 * strength * k;
   }
 }
 function cover(g, fromX, k) {
@@ -623,6 +701,7 @@ function lie(g, h) {
     for (const L2 of ['L', 'R']) { br.tgt['hip' + L2] = -SIDE[L2] * (0.35 + rock); br.k['hip' + L2] = 0.35 * strength; br.tgt['knee' + L2] = SIDE[L2] * 0.8; br.k['knee' + L2] = 0.35 * strength; }
     if (G.t - (br.said.writhe || -9) > G.rnd(2.5, 4.5)) { br.said.writhe = G.t; G.emit('voice', g, pain > 70 ? 'scream' : 'groan', clamp(pain / 90, 0.3, 1.2)); }
   }
+  handsDown(g, h, strength);
   guard(g, strength);
   if (down < 0.8) headGuard(g, strength);
   /* getting up: when the dizziness has passed, if there's anything to get up with */
@@ -744,9 +823,9 @@ function gather(g, k) {
 }
 
 /* ---- out cold, or worse */
-function limp(g, h) { rest(g, 0.06); }
+function limp(g, h) { rest(g, 0.06); g.br.surr = Math.max(0, (g.br.surr || 0) - h * 2); }
 function dead(g, h) {
-  rest(g, 0);
+  rest(g, 0); g.br.surr = 0;
   const since = G.t - (g.diedT || G.t);
   if (since < 3.5 && Math.random() < 0.03) { const p = G.pick(g.list.filter(q => q.attached && !q.gone && A.LIMB.has(q.kind))); if (p) B.setAngularVelocity(p.body, p.body.angularVelocity + G.rnd(-0.12, 0.12)); }
 }
@@ -822,6 +901,15 @@ BR.update = function (g, h) {
    back out as speed), eases that hold back to the end of the range, and lets go as soon as anything pulls the
    joint back into its range: the muscles, a hand dragging the limb, the way he lands */
 const STOP_STIFF = 0.4;
+/* how far one pass of the solver swings the hold's two ends, against the gap it's closing: Matter turns each body by
+   the lever times the push over its inertia, so a hold point far out from a small piece (the stub of a bone broken
+   near its end) would spin that stub further every pass than the gap it was meant to close, and the leg flies apart.
+   his own joints sit between 0.6 and 2.8; past STOP_X the hold point comes in toward the pin until it's back under */
+const STOP_X = 3.2;
+function holdX(a, b, qx, qy) {
+  const ax = qx - a.position.x, ay = qy - a.position.y, bx = qx - b.position.x, by = qy - b.position.y;
+  return ((ax * ax + ay * ay) * a.inverseInertia + (bx * bx + by * by) * b.inverseInertia) / (a.inverseMass + b.inverseMass + a.inverseInertia + b.inverseInertia);
+}
 function stops(g, h) {
   for (const j of g.joints) {
     const w = j.lc; if (!w) continue;
@@ -846,7 +934,9 @@ function stops(g, h) {
     /* the hold, re-aimed every step: a point out along the child, and where that point sits when the joint is at
        the held angle */
     const piv = BODY.pivot(j), dl = j.stopAt - rel;
-    const qx = piv.x + (b.position.x - piv.x) * 2, qy = piv.y + (b.position.y - piv.y) * 2;
+    let f = 2;
+    for (let i = 0; i < 8 && holdX(a, b, piv.x + (b.position.x - piv.x) * f, piv.y + (b.position.y - piv.y) * f) > STOP_X; i++) f *= 0.7;
+    const qx = piv.x + (b.position.x - piv.x) * f, qy = piv.y + (b.position.y - piv.y) * f;
     const c = Math.cos(dl), sn = Math.sin(dl), rx = qx - piv.x, ry = qy - piv.y;
     w.pointA = { x: piv.x + rx * c - ry * sn - a.position.x, y: piv.y + rx * sn + ry * c - a.position.y }; w.angleA = a.angle;
     w.pointB = { x: qx - b.position.x, y: qy - b.position.y }; w.angleB = b.angle;
@@ -872,4 +962,8 @@ BR.clamp = function (g) {
   }
 };
 BR.mode = g => g.br ? g.br.mode : 'stand';
+/* hit: whatever pose he was holding, he lets go of it for a moment */
+G.on('hurt', (g, p, h) => { if (g.br && g.alive && !(h && h.quiet && h.srcKind === 'staple')) g.br.flinchUntil = G.t + 0.65; });
+/* a gun going off near him: he jumps */
+G.on('gunfire', (x, y, tx, ty) => { for (const g of G.guys) { if (!g.br || !g.alive || g.cleared) continue; const c = g.br.s && g.br.s.com; if (c && Math.hypot(c.x - tx, c.y - ty) < L * 0.9) g.br.flinchUntil = Math.max(g.br.flinchUntil || 0, G.t + 0.35); } });
 })();

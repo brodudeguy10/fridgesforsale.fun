@@ -48,6 +48,78 @@ const K = D.K = {
   tear: 10                 /* px of pin stretch (x S) before a joint starts to give */
 };
 
+/* ------------------------------------------------------------ bleeding: every wound tells bleed.js what it opened */
+function bleedAt(g, p, o) { return G.bleed && !g.dusty ? G.bleed.add(g, p, o) : null; }
+function bleedIn(g, region, what, rate, o) { return G.bleed && !g.dusty ? G.bleed.internal(g, region, what, rate, o) : null; }
+/* an opened vessel: an artery pumps out through the wound; the heart and the aorta bleed mostly inside him, and what
+   gets out comes up through the hole */
+function openVessel(g, p, art, lx, ly, k, regId) {
+  const B = G.bleed; if (!B || g.dusty) return;
+  const rate = (B.VESSEL[art.name] || art.rate * 20) * k;
+  if (art.name === 'heart' || art.name === 'abdominal aorta') B.internal(g, art.name === 'heart' ? 'thorax' : 'abdomen', art.name, rate, { vent: { part: p, lx, ly }, max: true });
+  else B.add(g, p, { kind: B.VEINS.has(art.name) ? 'vein' : 'art', rate, lx, ly, name: art.name, region: regId });
+}
+
+/* ------------------------------------------------------------ the long bones, place by place along them
+   a thigh, a shin, an upper arm and a forearm keep their damage where it happened: sites along the bone, each with
+   how badly it's been hit there (dmg: hit after hit in the same place weakens it, so the next one breaks it sooner),
+   how far a blade has gone into it (cut, 0 to 1), what's broken there (frac: 0 whole, 1 cracked, 2 broken through,
+   3 shattered), and how much of the flesh round it has been cut or torn (soft, 0 to 1). broken through, the limb gets
+   a joint there that nothing drives (body.js, BODY.split): with the flesh still round it, it bends where it broke;
+   cut most of the way round, it hangs and swings; cut all the way, it comes off there, through the bone */
+const SOFT_DEPTH = [0, 0.06, 0.16, 0.4, 0.6, 0.8, 0.92];
+const BONE_THICK = { uleg: 0.75, uarm: 1, lleg: 0.85, larm: 1.25 };
+const MAIN_ART = { uleg: 'femoral artery', uarm: 'brachial artery', larm: 'radial artery', lleg: 'tibial artery' };
+const MARGIN = 5 * S;                    /* this close to a joint's pin it's the joint (cut there: the capsule; broken there: the end of the bone) */
+function boneSite(R, p, y) {
+  const hh = p.def.wh[1] * S / 2;
+  y = clamp(y, -hh + MARGIN, hh - MARGIN);
+  const L = R.sites = R.sites || [];
+  let s = L.find(q => Math.abs(q.y - y) < 3.5 * S);
+  if (!s) {
+    s = { y, dmg: 0, cut: 0, frac: 0, soft: 0, side: 0, t: G.t };
+    L.push(s);
+    if (L.length > 6) { let k = -1, lo = 1e9; for (let i = 0; i < L.length; i++) { const q = L[i], v = q.dmg + q.cut + q.soft + q.frac; if (q !== s && q !== R.secSite && v < lo) { lo = v; k = i; } } if (k >= 0) L.splice(k, 1); }
+  }
+  return s;
+}
+function boneSync(R) { let b = 0, f = 0; for (const q of R.sites || []) { b = Math.max(b, q.dmg + q.cut); f = Math.max(f, q.frac); } R.bone = Math.max(R.bone, b); R.frac = Math.max(R.frac, f); }
+D.boneSite = boneSite;
+/* broken (or cut) through at a site: once per limb, the limb gets its joint there. done between steps, never in the
+   middle of the engine's own (a hit lands inside it) */
+function section(g, p, R, st, why) {
+  if (st.frac < 2 && st.cut < 1) return;
+  if (R.secJ || R.secQ) { if (R.secSite === st) sectionUpdate(g, R, why); return; }
+  if (p.def.piece) return;
+  R.secQ = true; R.secSite = st;
+  (g.dm.splitQ = g.dm.splitQ || []).push({ p, R, st, why });
+}
+/* how the break behaves, from what's left round it: a closed break bends a little, a shattered one more, one cut most
+   of the way through swings, and with nothing left holding it, it's off */
+function sectionUpdate(g, R, why, ev) {
+  const j = R.secJ, st = R.secSite; if (!j || j.broken || !st) return;
+  const soft = st.soft, a = soft >= 0.35 ? 0.5 + soft * 2.2 : st.frac >= 3 ? 0.75 : 0.35;
+  /* the range it ends up with; it gets there over a moment (sectionStress), the ends of the bone grinding past each
+     other, not in one step with his weight on it */
+  j.limT = Math.min(a, 2.6); if (j.lim[1] > j.limT) j.lim = [-j.limT, j.limT];
+  j.hp = Math.min(j.hp, Math.max(3, (1 - soft) * 60));
+  j.soft = soft; j.frac = st.frac; j.cutB = st.cut; j.side = st.side;
+  if (soft >= 0.999) D.tear(g, j, why === 'broken' ? 'torn' : why || 'cut', ev);
+}
+function sectionNow(g) {
+  const q = g.dm.splitQ; if (!q || !q.length) return;
+  g.dm.splitQ = [];
+  for (const it of q) {
+    const { p, R, st } = it; R.secQ = false;
+    if (p.gone || p.removed || R.secJ) continue;
+    const j = G.body.split(g, p, st.y, { name: `${p.def.name}, through the ${R.def.bone}` });
+    if (!j) continue;
+    R.secJ = j; j.site = st;
+    sectionUpdate(g, R, it.why);
+  }
+}
+D.sectionNow = sectionNow;
+
 /* ------------------------------------------------------------ his state */
 D.init = function (g) {
   const regions = {};
@@ -64,6 +136,7 @@ D.init = function (g) {
 /* ------------------------------------------------------------ the record */
 D.record = function (g, ev) {
   const rec = g.rec; if (!rec || rec.closed) return null;
+  if (ev.part) ev.part = A.baseId(ev.part);
   ev.i = rec.events.length; ev.t = +(G.t - rec.born).toFixed(3);
   ev.post = !g.alive;
   ev.vit = g.dm ? { blood: Math.round(g.dm.blood), oxy: +g.dm.oxy.toFixed(2), cons: +g.dm.cons.toFixed(2), bpm: Math.round(g.dm.bpm) } : null;
@@ -183,8 +256,9 @@ function impact(g, p, h) {
   if (lacDose >= 1) {
     const cm = clamp(1.2 + Math.sqrt(h.E * c) * 0.45, 1, 14), deep = lacDose > 2.4;
     R.skin = Math.max(0, R.skin - 0.18 * Math.min(3, lacDose)); R.lac += cm;
-    const rate = alive ? cm * K.bleedLac * (regId === 'cranium' || regId === 'face' ? 2 : 1) * (deep ? 1.5 : 1) * 0.2 : 0;
-    R.bleed += rate;
+    /* a scalp bleeds like nothing else; a deep split has opened the veins under it, a shallow one oozes and stops */
+    const head = regId === 'cranium' || regId === 'face';
+    bleedAt(g, p, { kind: deep || head ? 'vein' : 'cap', rate: cm * K.bleedLac * (head ? 2 : 1) * (deep ? 1.5 : 1) * 0.3, lx: h.lx, ly: h.ly, region: regId });
     inj.push({ what: (deep ? 'deep ' : '') + `laceration, ${cm.toFixed(0)} cm`, sev: deep ? 2 : 1, tissue: 'skin' });
     G.emit('wound', g, p, { type: h.area === 'broad' ? 'split' : 'tear', lx: h.lx, ly: h.ly, dir: h.dir, size: cm, depth: deep ? 2 : 1, E: h.E });
   }
@@ -199,19 +273,32 @@ function impact(g, p, h) {
   const toBone = h.E * Math.pow(c, 0.75) * (1 - pad);
   const boneIn = toBone / def.frac;
   if (boneIn > 0.12) {
-    const b0 = R.bone, f0 = R.frac;
-    R.bone += boneIn * (1 + 0.45 * Math.min(1, R.bone));
-    R.frac = R.bone >= 1.8 ? 3 : R.bone >= 1 ? 2 : R.bone >= 0.5 ? 1 : 0;
-    if (boneIn >= 1.15 && R.frac < 2) { R.frac = 2; R.bone = Math.max(R.bone, 1); }
-    if (R.frac > f0) {
-      const name = def.bone, what = R.frac === 1 ? `${name}: cracked` : R.frac === 2 ? `${name}: fractured` : `${name}: shattered`;
-      if (R.frac >= 2 && R.skin < 0.55 && !R.compound && A.LONG.has(p.kind)) { R.compound = true; inj.push({ what: `${name}: compound, through the skin`, sev: 3, tissue: 'bone' }); G.emit('wound', g, p, { type: 'compound', lx: h.lx, ly: h.ly, dir: h.dir, size: 4, depth: 3, E: h.E }); R.bleed += alive ? 0.8 : 0; }
-      else inj.push({ what, sev: boneSev(regId, R.frac), tissue: 'bone' });
-      if (R.frac >= 2) dm.stats.fractures++;
-      if (A.LONG.has(p.kind) && R.frac >= 2 && alive) R.ibleed += regId.startsWith('uleg') ? 0.9 : 0.3;
-      if (regId === 'pelvis' && R.frac >= 2 && alive) R.ibleed += 1.6;
-      if (regId === 'thorax' && R.frac >= 2) inj.push({ what: R.frac === 3 ? 'flail chest' : 'rib fractures', sev: R.frac === 3 ? 4 : 3, tissue: 'bone' });
-      G.emit('fracture', g, p, { region: regId, frac: R.frac, lx: h.lx, ly: h.ly, E: h.E, compound: R.compound });
+    /* a long bone takes it where it landed (a site along it: hit the same place again and it gives sooner); anything
+       else takes it as a whole */
+    const long = A.LONG.has(p.kind), st = long ? boneSite(R, p, h.ly) : null, f0 = long ? st.frac : R.frac;
+    if (long) {
+      st.dmg += boneIn * (1 + 0.45 * Math.min(1, st.dmg));
+      st.frac = Math.max(st.frac, st.dmg >= 1.8 ? 3 : st.dmg >= 1 ? 2 : st.dmg >= 0.5 ? 1 : 0);
+      if (boneIn >= 1.15 && st.frac < 2) { st.frac = 2; st.dmg = Math.max(st.dmg, 1); }
+      boneSync(R);
+    } else {
+      R.bone += boneIn * (1 + 0.45 * Math.min(1, R.bone));
+      R.frac = Math.max(R.frac, R.bone >= 1.8 ? 3 : R.bone >= 1 ? 2 : R.bone >= 0.5 ? 1 : 0);
+      if (boneIn >= 1.15 && R.frac < 2) { R.frac = 2; R.bone = Math.max(R.bone, 1); }
+    }
+    const fr = long ? st.frac : R.frac, fy = long ? st.y : h.ly;
+    if (fr > f0) {
+      const name = def.bone, what = fr === 1 ? `${name}: cracked` + (long ? ' (a partial fracture)' : '') : fr === 2 ? `${name}: fractured` : `${name}: shattered`;
+      if (fr >= 2 && R.skin < 0.55 && !R.compound && long) { R.compound = true; inj.push({ what: `${name}: compound, through the skin`, sev: 3, tissue: 'bone' }); G.emit('wound', g, p, { type: 'compound', lx: h.lx, ly: fy, dir: h.dir, size: 4, depth: 3, E: h.E }); bleedAt(g, p, { kind: 'vein', rate: 2.2, lx: Math.sign(h.lx || 1) * p.def.wh[0] * S * 0.4, ly: fy, region: regId }); }
+      else inj.push({ what, sev: boneSev(regId, fr), tissue: 'bone' });
+      if (fr >= 2 && f0 < 2) dm.stats.fractures++;
+      /* a broken femur bleeds into the thigh, a broken pelvis into the belly: a litre or more, slowly, unseen */
+      if (long && fr >= 2) bleedIn(g, regId, 'fracture', regId.startsWith('uleg') ? 1.6 : 0.5, { vent: R.compound ? { part: p, lx: Math.sign(h.lx || 1) * p.def.wh[0] * S * 0.4, ly: fy } : null });
+      if (regId === 'pelvis' && fr >= 2) bleedIn(g, regId, 'fracture', 3.2);
+      if (regId === 'thorax' && fr >= 2) inj.push({ what: fr === 3 ? 'flail chest' : 'rib fractures', sev: fr === 3 ? 4 : 3, tissue: 'bone' });
+      G.emit('fracture', g, p, { region: regId, frac: fr, lx: h.lx, ly: fy, E: h.E, compound: R.compound });
+      /* broken through: it bends there now */
+      if (long && fr >= 2) section(g, p, R, st, 'broken');
     }
   }
   /* organs: what reaches them. broken ribs and a broken skull let more through */
@@ -223,7 +310,9 @@ function impact(g, p, h) {
       if (R.organ > 0.25 && o0 <= 0.25) inj.push({ what: organWhat(regId, 1), sev: 3, tissue: 'organ' });
       if (R.organ > 0.6 && o0 <= 0.6) inj.push({ what: organWhat(regId, 2), sev: 4, tissue: 'organ' });
       if (R.organ >= 1 && o0 < 1) inj.push({ what: organWhat(regId, 3), sev: 5, tissue: 'organ' });
-      if (alive && (regId === 'abdomen' || regId === 'thorax')) R.ibleed += toOrg * (regId === 'abdomen' ? 1.4 : 0.9);
+      /* a torn liver or spleen bleeds into the belly, a bruised lung into the chest (and the chest fills) */
+      if (regId === 'abdomen') bleedIn(g, 'abdomen', R.organ > 0.6 ? 'spleen' : 'liver', toOrg * 3);
+      else if (regId === 'thorax') bleedIn(g, 'thorax', 'lung', toOrg * 2.2);
     }
   }
   /* the head: knocked silly, knocked out */
@@ -251,6 +340,8 @@ function impact(g, p, h) {
   G.emit('hurt', g, p, h, R, inj, ev);
   if (h.otherGuy && h.otherGuy !== g && h.otherGuy.alive) { /* nothing: his own side of the collision does his part */ }
   if (alive && h.E > 4) G.emit('voice', g, h.E > 45 ? 'scream' : h.E > 14 ? 'hurt' : 'grunt', clamp(h.E / 40, 0.3, 1.3));
+  /* hard enough, concentrated enough, and it doesn't break: it bursts */
+  if (GIB_HIT[p.kind] && h.E * Math.sqrt(c) >= GIB_HIT[p.kind] * (R.frac >= 2 ? 0.7 : 1) && !p.gone) gibPart(g, p, h.dir, ev);
   checkDeath(g, ev);
 }
 D.impact = impact;
@@ -259,7 +350,7 @@ D.impact = impact;
 function belly(g, p, R, lx, ly, inj, alive) {
   if (R.id !== 'abdomen' || R.evisc) return;
   if (R.skin < 0.25 && R.soft > 0.85 && R.organ >= 0.6) {
-    R.evisc = true; if (alive) R.ibleed += 0.8;
+    R.evisc = true; bleedIn(g, 'abdomen', 'bowel', 2.4, { vent: { part: p, lx, ly } });
     inj.push({ what: 'eviscerated', sev: 4, tissue: 'organ' });
     G.emit('guts', g, p, { lx, ly });
   }
@@ -318,32 +409,55 @@ D.cut = function (g, p, h) {
   const cm = clamp(h.len / (S * 6.25), 1, 9);
   R.skin = Math.max(0, R.skin - 0.12 * cm / 4); R.lac += cm; R.soft = Math.min(1, R.soft + 0.07 * depth);
   const inj = [{ what: `incised wound, ${cm.toFixed(0)} cm` + (depth > 1 ? `, ${['', '', 'into the fat', 'into the muscle', 'to the bone', 'through the joint'][Math.min(5, depth)]}` : ''), sev: depth >= 3 ? 2 : 1, tissue: depth >= 3 ? 'soft' : 'skin' }];
-  if (alive) R.bleed += cm * 0.12 * depth * (h.bleedK || 1);
+  /* through the skin it oozes and stops; into the fat and the muscle it opens veins, and the deeper the more */
+  bleedAt(g, p, { kind: depth >= 2 ? 'vein' : 'cap', rate: cm * (depth >= 2 ? 0.16 : 0.1) * depth * (h.bleedK || 1), lx: h.lx2 != null ? (h.lx + h.lx2) / 2 : h.lx, ly: h.ly2 != null ? (h.ly + h.ly2) / 2 : h.ly, region: regId });
   /* an artery under the blade */
   const art = A.arteryAt(p.id, ud.x, ud.y, depth >= 2 ? 1 : 0);
-  if (art && depth >= 2 && !R['art_' + art.name]) { R['art_' + art.name] = 1; if (alive) R.bleed += art.rate * 6; inj.push({ what: art.name + ' cut', sev: art.rate > 3 ? 5 : 4, tissue: 'artery' }); G.emit('artery', g, p, { lx: h.lx, ly: h.ly, rate: art.rate, name: art.name }); }
+  if (art && depth >= 2 && !R['art_' + art.name]) { R['art_' + art.name] = 1; openVessel(g, p, art, h.lx, h.ly, 1, regId); inj.push({ what: art.name + ' cut', sev: art.rate > 3 ? 5 : 4, tissue: 'artery' }); G.emit('artery', g, p, { lx: h.lx, ly: h.ly, rate: art.rate, name: art.name }); }
   if (regId === 'neck' && depth >= 4) { dm.cord += 0.34; inj.push({ what: 'throat cut to the spine', sev: 5, tissue: 'organ' }); }
-  if ((regId === 'abdomen') && depth >= 3 && !R.evisc) { R.evisc = true; R.organ = Math.max(R.organ, 0.4); if (alive) R.ibleed += 0.8; inj.push({ what: 'eviscerated', sev: 4, tissue: 'organ' }); G.emit('guts', g, p, { lx: h.lx, ly: h.ly }); }
+  if ((regId === 'abdomen') && depth >= 3 && !R.evisc) { R.evisc = true; R.organ = Math.max(R.organ, 0.4); bleedIn(g, 'abdomen', 'bowel', 2.4, { vent: { part: p, lx: h.lx, ly: h.ly } }); inj.push({ what: 'eviscerated', sev: 4, tissue: 'organ' }); G.emit('guts', g, p, { lx: h.lx, ly: h.ly }); }
   if (alive) { const pk = h.painK || 1; R.pain = Math.min(100, R.pain + (9 + depth * 4) * pk); dm.pain = Math.min(220, dm.pain + (9 + depth * 4) * pk); dm.shock += 1.2 * pk; dm.jolt = Math.max(dm.jolt, 0.25 * Math.min(2, pk)); }
   G.emit('wound', g, p, { type: h.wound || 'cut', lx: h.lx, ly: h.ly, dir: h.dir, size: cm, depth, x2: h.lx2, y2: h.ly2, thin: h.thin });
   ais(g, R);
   const ev = D.record(g, { kind: 'cut', type: h.cutType || 'incised', region: regId, part: p.id, lx: +ud.x.toFixed(1), ly: +ud.y.toFixed(1), wx: Math.round(h.wx), wy: Math.round(h.wy), src: h.src || 'the knife', srcKind: h.srcKind || 'knife', depth, cm: +cm.toFixed(1), inj, after: snap(R) });
   G.emit('hurt', g, p, h, R, inj, ev);
   if (alive && !h.quiet) G.emit('voice', g, depth >= 3 ? 'scream' : 'hurt', 0.5 + depth * 0.15);
-  /* deep enough at a joint and it comes off there: the tendons and the capsule are cut */
-  if (depth >= 3) {
-    const j = nearJoint(g, p, h.wx, h.wy, h.jointR || 7.5 * S);
-    if (j && (j.id !== 'spine' && j.id !== 'waist' || depth >= 5) && (j.id !== 'neck' || depth >= 5)) { D.tear(g, j, 'cut', ev); }
-    else if ((A.TRUNK.has(p.kind) || p.kind === 'head') === false && depth >= 4 && A.LONG.has(p.kind)) {
-      /* the blade goes through the soft part of a limb near enough a joint */
-      const jj = nearJoint(g, p, h.wx, h.wy, h.severR || 11 * S); if (jj) D.tear(g, jj, 'cut', ev);
+  /* a chainsaw held in a hand or a foot doesn't cut it off, it grinds it apart */
+  if (h.srcKind === 'chainsaw' && (p.kind === 'hand' || p.kind === 'foot') && G.gibs) { p.shred = (p.shred || 0) + 1; if (p.shred > 16 && !p.gone) { G.gibs.blowApart(g, p, 'cut', { speed: 2.5, src: 'a chainsaw' }); checkDeath(g, ev); return; } }
+  /* deeper than the muscle at a joint: the capsule and the ligaments round it, a share more with each pass, and it
+     only comes off there when they're all cut. along a long bone, away from its joints: through the flesh round the
+     bone, into the bone, and through it, and only then, with nothing left holding it, off */
+  const jn = depth >= 3 ? nearJoint(g, p, h.wx, h.wy, h.jointR || MARGIN) : null;
+  if (jn) {
+    const need = jn.id === 'spine' || jn.id === 'waist' || jn.id === 'neck' ? 5 : 3;
+    if (depth >= need) {
+      const was = jn.cutT || 0;
+      jn.cutT = was + (depth - need + 1) * 0.22 * (h.jointK || 1);
+      if (jn.cutT >= 1) D.tear(g, jn, 'cut', ev);
+      else if (jn.cutT >= 0.5 && was < 0.5) { inj.push({ what: `${jn.def.name}: cut half through`, sev: 3, tissue: 'joint' }); if (jn.state === 'ok' || jn.state === 'sprain') jointState(g, jn, 'disloc', 'the joint cut half through'); }
     }
+  } else if (A.LONG.has(p.kind) && depth >= 2) {
+    const st = boneSite(R, p, h.ly), s0 = st.soft, c0 = st.cut;
+    if (!st.side) st.side = G.dirLocal(p.body, h.dir.x, h.dir.y).x > 0 ? -1 : 1;           /* the side the blade came in from */
+    /* the flesh round the bone, from the side the blade's on: the far side of it can't be got at past a whole bone */
+    st.soft = Math.min(st.cut >= 1 || st.frac >= 2 ? 1 : Math.max(st.soft, 0.75), Math.max(st.soft, SOFT_DEPTH[Math.min(6, depth)]) + (depth >= (h.maxDepth || 5) ? 0.09 * (h.deep || 1) : 0));
+    if (depth >= 4) {
+      st.cut = Math.min(1, st.cut + 0.2 * (h.boneK == null ? 1 : h.boneK) * (BONE_THICK[p.kind] || 1));
+      /* the limb's main artery runs down the middle of it: to the bone is through it */
+      const nm = (p.side > 0 ? 'left ' : 'right ') + MAIN_ART[p.kind];
+      if (!R['art_' + nm]) { R['art_' + nm] = 1; openVessel(g, p, { name: nm, rate: 1 }, h.lx, h.ly, 1, regId); inj.push({ what: nm + ' cut', sev: p.kind === 'uleg' ? 5 : 4, tissue: 'artery' }); G.emit('artery', g, p, { lx: h.lx, ly: h.ly, rate: 2, name: nm }); }
+    }
+    if (st.cut > 0 && c0 === 0) inj.push({ what: `${R.def.bone}: cut into`, sev: 2, tissue: 'bone' });
+    if (st.cut >= 1 && c0 < 1) { st.frac = Math.max(st.frac, 2); inj.push({ what: `${R.def.bone}: cut through`, sev: boneSev(regId, 2), tissue: 'bone' }); dm.stats.fractures++; G.emit('fracture', g, p, { region: regId, frac: 2, lx: h.lx, ly: st.y, E: 0, cut: true }); }
+    if (st.soft >= 0.6 && s0 < 0.6) inj.push({ what: `${R.def.name}: cut most of the way round`, sev: 3, tissue: 'soft' });
+    boneSync(R);
+    if (st.frac >= 2 || st.cut >= 1) section(g, p, R, st, 'cut');
   }
   checkDeath(g, ev);
 };
 function nearJoint(g, p, x, y, within) {
   let best = null, bd = within;
-  for (const j of p.joints) { if (j.broken) continue; const w = BODY.pivot(j), d = Math.hypot(w.x - x, w.y - y); if (d < bd) { bd = d; best = j; } }
+  for (const j of p.joints) { if (j.broken || j.section) continue; const w = BODY.pivot(j), d = Math.hypot(w.x - x, w.y - y); if (d < bd) { bd = d; best = j; } }
   return best;
 }
 
@@ -360,17 +474,28 @@ D.shot = function (g, p, h) {
   dm.stats.shots++; R.holes++;
   const inj = [{ what: h.what || 'gunshot wound, entry and exit', sev: hk >= 1.4 || E > 1500 ? 3 : 2, tissue: 'skin' }];
   R.skin = Math.max(0, R.skin - 0.08 * Math.min(2, hk)); R.soft = Math.min(1, R.soft + 0.35 * Math.min(2.2, hk) * (through ? 1 : 0.6));
-  if (alive) R.bleed += 1.4 * hk * bleedK * (through ? 1 : 0.6);
+  /* the hole bleeds, and so does the one out the back where you don't see it; a nail or a staple barely does */
+  bleedAt(g, p, { kind: hk * bleedK < 0.45 ? 'cap' : 'vein', rate: 1.6 * hk * bleedK * (through ? 1.6 : 0.6), lx: h.lx, ly: h.ly, region: regId });
   /* what's under the point, front to back: the bone goes if there was the energy to break it */
   const ctx = probe; const d = p.def;
   const inBone = hitShape(ctx, c => A.bone(c, d, S), h.lx, h.ly);
+  let shotSite = null;
   if (inBone && boneK > 0) {
-    const fr = boneK >= 0.7 && E >= 300 ? 3 : boneK >= 0.3 ? 2 : 1;
-    R.bone += 1.6 * boneK; const f0 = R.frac; R.frac = Math.max(R.frac, fr); if (fr >= 3) R.compound = A.LONG.has(p.kind);
+    const fr = boneK >= 0.7 && E >= 300 ? 3 : boneK >= 0.3 ? 2 : 1, long = A.LONG.has(p.kind);
+    let f0 = R.frac;
+    if (long) {
+      /* where it went through the bone, along it: broken there, and the flesh round it torn by what went through */
+      const st = shotSite = boneSite(R, p, h.ly); f0 = st.frac;
+      st.dmg += 1.6 * boneK; st.frac = Math.max(st.frac, fr);
+      st.soft = Math.min(1, st.soft + 0.2 * Math.min(2, hk) * (through ? 1 : 0.5) * Math.min(1, boneK) * clamp(Math.pow(E / 500, 0.3), 0.6, 1.8));
+      if (!st.side) st.side = G.dirLocal(p.body, h.dir.x, h.dir.y).x > 0 ? -1 : 1;
+      boneSync(R);
+    } else { R.bone += 1.6 * boneK; R.frac = Math.max(R.frac, fr); }
+    if (fr >= 3) R.compound = long;
     inj.push({ what: `${R.def.bone}: ${h.boneWord || (fr >= 3 ? 'shattered by the round' : fr === 2 ? 'broken' : 'chipped')}`, sev: boneSev(regId, fr), tissue: 'bone' });
     if (f0 < 2 && fr >= 2) dm.stats.fractures++;
-    if (alive && A.LONG.has(p.kind) && fr >= 2) R.ibleed += 0.8 * boneK;
-    G.emit('fracture', g, p, { region: regId, frac: R.frac, lx: h.lx, ly: h.ly, E, compound: R.compound });
+    if (long && fr >= 2) bleedIn(g, regId, 'fracture', 1.4 * boneK, { vent: { part: p, lx: h.lx, ly: h.ly } });
+    G.emit('fracture', g, p, { region: regId, frac: long ? shotSite.frac : R.frac, lx: h.lx, ly: long ? shotSite.y : h.ly, E, compound: R.compound });
   }
   const orgs = A.ORGANS[p.kind] || [];
   for (const o of orgs) {
@@ -378,11 +503,18 @@ D.shot = function (g, p, h) {
     const lethal = o.id === 'brain' || o.id === 'heart', ok = Math.min(1.3, 0.55 + 0.45 * hk);
     R.organ = Math.max(R.organ + (lethal ? 1.2 : 0.55) * ok, (lethal ? 1.05 : 0.6) * Math.min(1, ok + 0.1));
     inj.push({ what: `${o.name}: hit`, sev: lethal ? 6 : 4, tissue: 'organ' });
-    if (alive) { if (o.id.startsWith('lung')) { dm.lung = (dm.lung || 0) + 0.45 * ok; R.ibleed += 1.2 * ok; } else if (o.id === 'liver') R.ibleed += 3.2 * ok; else if (o.id === 'stomach' || o.id === 'bowel') R.ibleed += 0.9 * ok; else if (o.id === 'heart') R.ibleed += 25 * ok; }
+    /* what the organ bleeds, inside him, and up through the hole: a lung fills the chest (and it collapses some at
+       once), a liver pours, the heart is over in seconds */
+    const vent = { part: p, lx: h.lx, ly: h.ly };
+    if (o.id.startsWith('lung')) { if (alive) { dm.lung = (dm.lung || 0) + 0.4 * ok; dm.lungHit = (dm.lungHit || 0) + 0.4 * ok; } bleedIn(g, 'thorax', o.id, 7 * ok, { vent }); }
+    else if (o.id === 'liver') bleedIn(g, regId, 'liver', 12 * ok, { vent });
+    else if (o.id === 'stomach' || o.id === 'bowel') bleedIn(g, regId, o.id, 3 * ok, { vent });
+    else if (o.id === 'bladder') bleedIn(g, regId, 'bladder', 1.5 * ok, { vent });
+    else if (o.id === 'heart') bleedIn(g, 'thorax', 'heart', 150 * ok, { vent, max: true });
   }
   if (p.kind === 'head' && !inBone && !orgs.length) R.organ = Math.max(R.organ, 0.5);
   const art = A.arteryAt(p.id, ud.x, ud.y, 0.6);
-  if (art && !R['art_' + art.name]) { R['art_' + art.name] = 1; if (alive) R.bleed += art.rate * 5 * bleedK; inj.push({ what: art.name + ' hit', sev: art.rate > 3 ? 5 : 4, tissue: 'artery' }); G.emit('artery', g, p, { lx: h.lx, ly: h.ly, rate: art.rate, name: art.name }); }
+  if (art && !R['art_' + art.name]) { R['art_' + art.name] = 1; openVessel(g, p, art, h.lx, h.ly, Math.min(1, bleedK), regId); inj.push({ what: art.name + ' hit', sev: art.rate > 3 ? 5 : 4, tissue: 'artery' }); G.emit('artery', g, p, { lx: h.lx, ly: h.ly, rate: art.rate, name: art.name }); }
   if (regId === 'neck') { dm.cord += (inBone ? 0.6 : 0.2) * Math.min(1.5, hk); }
   if (alive) { R.pain = Math.min(100, R.pain + 40 * painK); dm.pain = Math.min(220, dm.pain + 40 * painK); dm.shock += 10 * painK; dm.jolt = Math.max(dm.jolt, 0.7 * Math.min(1.4, painK)); }
   G.emit('wound', g, p, { type: 'hole', lx: h.lx, ly: h.ly, dir: h.dir, size: 1.2 * hk, depth: 4, k: hk, powder: h.powder });
@@ -391,10 +523,28 @@ D.shot = function (g, p, h) {
   const ev = D.record(g, { kind: 'shot', type: sk === 'stab' ? 'stab' : sk === 'spike' ? 'impalement' : sk === 'nail' ? 'nail' : sk === 'staple' ? 'staple' : 'gunshot', region: regId, part: p.id, lx: +ud.x.toFixed(1), ly: +ud.y.toFixed(1), wx: Math.round(h.wx), wy: Math.round(h.wy), src: h.src || 'a .45 round from the six-shooter', srcKind: sk, E: Math.round(E), exit: through, k: +hk.toFixed(2), inj, after: snap(R) });
   G.emit('hurt', g, p, h, R, inj, ev);
   if (alive && !h.quiet) G.emit('voice', g, 'scream', 1.2 * Math.min(1.2, painK));
-  /* a limb with its bone shot out of it hangs by what's left */
-  if (inBone && A.LONG.has(p.kind) && R.bone > 2.8) { const j = nearJoint(g, p, h.wx, h.wy, 1e9); if (j && j.b === p) D.tear(g, j, 'shot', ev); }
+  /* a long bone shot through: it bends there now; shot through enough times in the same place, there's nothing
+     left round it, and it comes off there */
+  if (shotSite && (shotSite.frac >= 2 || shotSite.cut >= 1)) section(g, p, R, shotSite, 'shot');
+  /* enough force in one place at once (a slug, a load of buckshot point blank, a rifle at the muzzle): the part comes
+     apart instead of having holes in it. what's delivered in the same instant adds up; it's gone a moment later */
+  if (GIB_AT[p.kind] && !p.gone) {
+    const add = E * hk * (h.powder ? 1 : 0.3);
+    p.blastAcc = (p.blastAcc || 0) * Math.pow(0.02, Math.max(0, G.t - (p.blastT || G.t))) + add; p.blastT = G.t;
+    if (p.blastAcc >= GIB_AT[p.kind] * (p.kind === 'head' && R.frac >= 2 ? 0.7 : 1)) { p.blastAcc = 0; gibPart(g, p, h.dir, ev); }
+  }
   checkDeath(g, ev);
 };
+/* how much force at once takes a part apart (J, shots) and how hard a blow (J, concentrated) */
+const GIB_AT = { head: 1150, hand: 800, foot: 800, larm: 1400, lleg: 1600 };
+const GIB_HIT = { head: 3000, hand: 1600, foot: 1600, larm: 2600, lleg: 2900 };
+function gibPart(g, p, dir, ev) {
+  if (!G.gibs || p.gone || p.removed) return;
+  g.lastHeadDir = dir;
+  if (p.kind === 'head') { const R = g.dm.regions.cranium; R.organ = 1.3; R.frac = 3; G.emit('headBlown', g, dir); D.headGone(g, 'shot', ev); }
+  else G.gibs.blowApart(g, p, 'shot', { dir, speed: 7, src: ev && ev.src });
+}
+D.gibPart = gibPart;
 const probe = document.createElement('canvas').getContext('2d');
 function hitShape(ctx, draw, x, y) { ctx.setTransform(1, 0, 0, 1, 0, 0); draw(ctx); return ctx.isPointInPath(x, y, 'evenodd'); }
 
@@ -407,9 +557,16 @@ D.blast = function (g, p, h) {
   R.burn = Math.min(1, R.burn + k * 0.9); R.skin = Math.max(0, R.skin - k * 0.6); R.soft = Math.min(1, R.soft + k * 0.7);
   const inj = [];
   if (k > 0.15) inj.push({ what: k > 0.5 ? 'deep burns' : 'burns', sev: k > 0.5 ? 3 : 2, tissue: 'skin' });
-  if (k > 0.3) { inj.push({ what: 'fragment wounds', sev: 2, tissue: 'soft' }); if (alive) R.bleed += k * 2; G.emit('wound', g, p, { type: 'shred', lx: 0, ly: 0, dir: h.dir, size: 3 + k * 6, depth: 2, E }); }
-  if (k > 0.45) { R.bone += k * 1.2; const f0 = R.frac; R.frac = R.bone >= 1.8 ? 3 : R.bone >= 1 ? 2 : R.frac; if (R.frac > f0 && R.frac >= 2) { dm.stats.fractures++; inj.push({ what: `${R.def.bone}: broken by the blast`, sev: boneSev(regId, R.frac), tissue: 'bone' }); } }
-  if (regId === 'thorax' && k > 0.35) { dm.lung = (dm.lung || 0) + k * 0.6; R.organ = Math.min(1.3, R.organ + k * 0.8); inj.push({ what: 'blast lung', sev: k > 0.7 ? 5 : 4, tissue: 'organ' }); }
+  if (k > 0.3) { inj.push({ what: 'fragment wounds', sev: 2, tissue: 'soft' }); bleedAt(g, p, { kind: 'vein', rate: k * 3, lx: G.rnd(-0.3, 0.3) * (p.def.wh ? p.def.wh[0] : p.def.r) * S, ly: G.rnd(-0.3, 0.3) * (p.def.wh ? p.def.wh[1] : p.def.r) * S, region: regId }); G.emit('wound', g, p, { type: 'shred', lx: 0, ly: 0, dir: h.dir, size: 3 + k * 6, depth: 2, E }); }
+  let blastSite = null;
+  if (k > 0.45) {
+    if (A.LONG.has(p.kind)) {
+      const st = blastSite = boneSite(R, p, 0), f0 = st.frac;
+      st.dmg += k * 1.2; st.frac = Math.max(st.frac, st.dmg >= 1.8 ? 3 : st.dmg >= 1 ? 2 : st.frac); st.soft = Math.min(1, st.soft + k * 0.3); boneSync(R);
+      if (st.frac > f0 && st.frac >= 2) { dm.stats.fractures++; inj.push({ what: `${R.def.bone}: broken by the blast`, sev: boneSev(regId, st.frac), tissue: 'bone' }); G.emit('fracture', g, p, { region: regId, frac: st.frac, lx: 0, ly: st.y, E }); }
+    } else { R.bone += k * 1.2; const f0 = R.frac; R.frac = Math.max(R.frac, R.bone >= 1.8 ? 3 : R.bone >= 1 ? 2 : R.frac); if (R.frac > f0 && R.frac >= 2) { dm.stats.fractures++; inj.push({ what: `${R.def.bone}: broken by the blast`, sev: boneSev(regId, R.frac), tissue: 'bone' }); } }
+  }
+  if (regId === 'thorax' && k > 0.35) { dm.lung = (dm.lung || 0) + k * 0.6; dm.lungHit = (dm.lungHit || 0) + k * 0.6; R.organ = Math.min(1.3, R.organ + k * 0.8); inj.push({ what: 'blast lung', sev: k > 0.7 ? 5 : 4, tissue: 'organ' }); }
   if ((regId === 'cranium' || regId === 'face') && k > 0.4) { R.organ = Math.min(1.3, R.organ + k * 0.9); if (alive) dm.stun = Math.max(dm.stun, 3 + k * 4); }
   if (regId === 'abdomen' && k > 0.3) R.organ = Math.min(1.3, R.organ + k * 0.7);
   /* right up against it, the belly wall doesn't burn or tear so much as go */
@@ -420,6 +577,7 @@ D.blast = function (g, p, h) {
   ais(g, R);
   const ev = D.record(g, { kind: 'blast', type: 'blast', region: regId, part: p.id, lx: 0, ly: 0, wx: Math.round(p.body.position.x), wy: Math.round(p.body.position.y), src: `dynamite, ${(h.dist * g.mpp).toFixed(1)} m away`, srcKind: 'blast', E: Math.round(E), inj, after: snap(R) });
   G.emit('hurt', g, p, h, R, inj, ev);
+  if (blastSite && blastSite.frac >= 2 && k <= 0.62) section(g, p, R, blastSite, 'blast');
   /* close enough and the limb, or all of him there, goes */
   if (k > 0.62 && A.LIMB.has(p.kind)) { for (const j of p.joints) if (!j.broken && j.b === p) D.tear(g, j, 'blast', ev); }
   if (k > 0.85 && A.LIMB.has(p.kind)) G.emit('obliterate', g, p);
@@ -450,6 +608,7 @@ function jointStress(g, h) {
   const dm = g.dm;
   for (const j of g.joints) {
     if (j.broken || !j.c) continue;
+    if (j.section) { sectionStress(g, j, h); continue; }
     const type = j.id.replace(/[LR]$/, ''), te = JOINT_E[type] || [40, 90, 160], to = JOINT_OVER[type] || [0.3, 0.45, 0.65];
     const E = j.limE || 0, over = j.over || 0;
     /* hit after hit into the same stop wears it */
@@ -466,13 +625,30 @@ function jointStress(g, h) {
     /* pulled apart: the pin stretched (a yank on a limb, a fridge on one end) */
     const a = BODY.anchor(j, 'a'), b = BODY.anchor(j, 'b'), d = Math.hypot(a.x - b.x, a.y - b.y), lim = K.tear * S * (j.state === 'disloc' ? 0.75 : 1);
     j.stretch = d;
-    if (d > lim * 0.55 && (j.state === 'ok' || j.state === 'sprain') && d > 5 * S) jointState(g, j, 'disloc', 'pulled apart at the joint');
+    j.stretchT = d > lim * 0.55 && d > 5 * S ? (j.stretchT || 0) + h : 0;
+    if (j.stretchT > 0.05 && (j.state === 'ok' || j.state === 'sprain')) jointState(g, j, 'disloc', 'pulled apart at the joint');
     if (d > lim) {
       j.hp -= (d - lim) * 0.3 * (j.def.id === 'neck' ? 0.8 : 1);
       if (Math.random() < 0.05) G.emit('creak', g, j);
       if (d > lim * 1.6 && Math.random() < 0.3) G.emit('ooze', g, b.x, b.y);
       if (j.hp <= 0) { D.tear(g, j, 'torn'); if (g.alive) dm.pain += 40; }
     }
+  }
+}
+/* a break partway along a bone: bent hard past what the flesh round it allows, the flesh tears a little more; pulled,
+   what's left of it stretches and gives */
+function sectionStress(g, j, h) {
+  if (j.limT != null && j.lim[1] < j.limT) { const w = Math.min(j.limT, j.lim[1] + h * 1.8); j.lim = [-w, w]; }
+  const a = BODY.anchor(j, 'a'), b = BODY.anchor(j, 'b'), d = Math.hypot(a.x - b.x, a.y - b.y), lim = K.tear * S * 0.6;
+  j.stretch = d;
+  const st = j.site, R = g.dm.regions[A.regionAt(j.a.id, 0, 0)];
+  if (st && (j.over || 0) > 0.25) { st.soft = Math.min(1, st.soft + (j.over - 0.25) * h * 0.6); if (R) sectionUpdate(g, R, 'torn'); }
+  if (j.broken) return;
+  if (d > lim) {
+    j.hp -= (d - lim) * 0.3;
+    if (st) st.soft = Math.min(1, st.soft + (d - lim) * h * 0.02);
+    if (Math.random() < 0.05) G.emit('creak', g, j);
+    if (j.hp <= 0) { D.tear(g, j, 'torn'); if (g.alive) g.dm.pain += 40; }
   }
 }
 function jointState(g, j, st, why) {
@@ -506,12 +682,12 @@ D.tear = function (g, j, why, cause) {
   const amputee = j.id === 'neck' ? dm.regions.neck : regB;
   if (amputee) amputee.amp = true;
   const alive = g.alive && !g.dusty;
-  if (alive) { const R = j.id === 'neck' ? dm.regions.neck : (dm.regions[j.a.id] || regB); R.bleed += 0; dm.pain = Math.min(220, dm.pain + 60); dm.shock += 25; }
+  if (alive) { dm.pain = Math.min(220, dm.pain + 60); dm.shock += 25; }                 /* the stump's bleeding: bleed.js, on 'torn' */
   if (j.id === 'spine' || j.id === 'waist') { dm.regions.abdomen.halved = true; ais(g, dm.regions.abdomen); }
   const how = why === 'cut' ? 'cut off' : why === 'shot' ? 'shot off' : why === 'blast' ? 'blown off' : 'torn off';
-  const what = j.id === 'neck' ? `decapitated (${how.replace(' off', '')})` : j.id === 'spine' || j.id === 'waist' ? `cut in half at the ${j.def.name}` : `${A.byId[j.b.id].name} ${how} at the ${j.def.name.replace(/^(left|right) /, '')}`;
+  const whole = (j.a.def.whole || j.a.def), what = j.id === 'neck' ? `decapitated (${how.replace(' off', '')})` : j.id === 'spine' || j.id === 'waist' ? `cut in half at the ${j.def.name}` : j.section ? `${whole.name} ${how} partway down, through the ${(amputee && amputee.def.bone) || 'bone'}` : `${j.b.def.name} ${how} at the ${j.def.name.replace(/^(left|right) /, '')}`;
   if (amputee) ais(g, amputee);
-  const ev = D.record(g, { kind: 'sever', type: why, joint: j.id, region: amputee ? amputee.id : j.b.id, part: j.b.id, lx: +(j.lb.x / S).toFixed(1), ly: +(j.lb.y / S).toFixed(1), wx: Math.round(out.wa.x), wy: Math.round(out.wa.y), src: why === 'torn' ? (dm.lastPull || 'pulled apart') : cause && cause.src || why, srcKind: 'sever', inj: [{ what, sev: j.id === 'neck' || j.id === 'spine' || j.id === 'waist' ? 6 : A.byId[j.b.id].kind === 'uleg' ? 4 : 3, tissue: 'limb' }], after: amputee ? snap(amputee) : null });
+  const ev = D.record(g, { kind: 'sever', type: why, joint: j.id, region: amputee ? amputee.id : j.b.id, part: j.b.id, lx: +(j.lb.x / S).toFixed(1), ly: +(j.lb.y / S).toFixed(1), wx: Math.round(out.wa.x), wy: Math.round(out.wa.y), src: why === 'torn' ? (dm.lastPull || 'pulled apart') : cause && cause.src || why, srcKind: 'sever', inj: [{ what, sev: j.id === 'neck' || j.id === 'spine' || j.id === 'waist' ? 6 : j.b.kind === 'uleg' ? 4 : 3, tissue: 'limb' }], after: amputee ? snap(amputee) : null, sect: j.section ? +(j.lb.y / S).toFixed(1) : undefined });
   G.emit('torn', g, j, out, ev);
   if (alive) G.emit('voice', g, 'scream', 1.4);
   if (j.id === 'neck') { if (g.alive) die(g, 'decap', ev); }
@@ -521,7 +697,7 @@ D.tear = function (g, j, why, cause) {
 D.headGone = function (g, why, ev) {
   const h = g.parts.head; if (h.gone) return;
   const R = g.dm.regions.cranium; R.organ = 1.3; R.frac = 3; R.amp = true; ais(g, R); g.dm.regions.face.ais = 6;
-  G.emit('headGone', g, why);
+  G.emit('headGone', g, why, { dir: g.lastHeadDir, speed: why === 'shot' ? 8 : 6 });
   h.gone = true; BODY.removePart(h);
   for (const j of h.joints) if (!j.broken) { j.broken = true; j.state = 'torn'; if (j.c) { try { G.M.World.remove(G.world, j.c); } catch (e) {} j.c = null; } }
   BODY.connect(g);
@@ -557,10 +733,12 @@ function loads(g, h) {
       const k = (F - thr[0]) / (thr[1] - thr[0]);
       if (regId === 'thorax') dm.squeeze = Math.max(dm.squeeze || 0, clamp(F / (thr[0] * 2.4), 0, 1));
       if (k > 0) {
-        R.bone += k * h * 0.6; R.soft = Math.min(1, R.soft + k * h * 0.3);
-        const f0 = R.frac; R.frac = R.bone >= 1.8 ? 3 : R.bone >= 1 ? 2 : R.bone >= 0.5 ? 1 : R.frac;
+        R.soft = Math.min(1, R.soft + k * h * 0.3);
+        const f0 = R.frac;
+        if (A.LONG.has(p.kind)) { const st = boneSite(R, p, other && other.pt ? G.toLocal(p.body, other.pt.x, other.pt.y).y : 0); st.dmg += k * h * 0.6; st.frac = Math.max(st.frac, st.dmg >= 1.8 ? 3 : st.dmg >= 1 ? 2 : st.dmg >= 0.5 ? 1 : 0); boneSync(R); if (st.frac >= 2) section(g, p, R, st, 'broken'); }
+        else { R.bone += k * h * 0.6; R.frac = Math.max(R.frac, R.bone >= 1.8 ? 3 : R.bone >= 1 ? 2 : R.bone >= 0.5 ? 1 : R.frac); }
         if (R.def.org) R.organ = Math.min(1.3, R.organ + k * h * (regId === 'cranium' ? 0.35 : 0.25));
-        if (g.alive && !g.dusty && (regId === 'abdomen' || regId === 'pelvis')) R.ibleed = Math.max(R.ibleed, k * 2);
+        if (regId === 'abdomen' || regId === 'pelvis') bleedIn(g, regId, 'crush', k * 4, { max: true });
         if (R.frac > f0 || (R.organ >= 1 && !R.crushed)) {
           if (R.organ >= 1) R.crushed = true;
           const what = R.crushed ? (regId === 'cranium' ? 'skull crushed' : regId === 'thorax' ? 'chest crushed' : `${R.def.name} crushed`) : `${R.def.bone}: ${R.frac === 1 ? 'cracked' : R.frac === 2 ? 'fractured' : 'shattered'} under the weight`;
@@ -580,7 +758,8 @@ function loads(g, h) {
       const RR = dm.regions[A.regionAt(p.id, 0, 0)];
       if (RR && dose > 0.0004) {
         RR.abr = Math.min(1, RR.abr + dose); RR.skin = Math.max(0, RR.skin - dose * 0.4);
-        if (g.alive && !g.dusty) { RR.pain = Math.min(100, RR.pain + dose * 40); if (RR.abr > 0.3) RR.bleed = Math.max(RR.bleed, RR.abr * 0.3); }
+        if (g.alive && !g.dusty) RR.pain = Math.min(100, RR.pain + dose * 40);
+        if (RR.abr > 0.3 && G.bleed && !g.dusty) G.bleed.ooze(g, p, RR.id, RR.abr * 0.5);
         G.emit('abrade', g, p, { dose, dir: p.contacts[0] && p.contacts[0].tdir, pt: p.contacts[0] && p.contacts[0].pt });
         const key = 'abr|' + RR.id, a = dm.aggr[key];
         if (a && G.t - a.lastT < 1.2) { a.ev.dist = +(a.ev.dist + ms * h).toFixed(2); a.lastT = G.t; a.ev.after = snap(RR); }
@@ -598,7 +777,7 @@ function capOf(g, ids, joints) {
   for (const id of ids) {
     const p = g.parts[id]; if (!p || p.gone || !p.attached) return id.startsWith('hand') || id.startsWith('foot') ? c * 0.55 : 0;
     const R = dm.regions[id];
-    if (R) { c *= R.frac >= 2 ? 0.1 : R.frac === 1 ? 0.65 : 1; c *= 1 - R.soft * 0.45; c *= 1 - R.burn * 0.3; }
+    if (R) { c *= R.frac >= 2 ? 0.1 : R.frac === 1 ? 0.65 : 1; c *= 1 - R.soft * 0.45; c *= 1 - R.burn * 0.3; if (R.secSite && R.secSite.soft > 0.35) c *= 0.2; }
   }
   for (const jid of joints) { const j = g.jointById[jid]; if (!j || j.broken) return 0; c *= j.state === 'broken' ? 0.05 : j.state === 'disloc' ? 0.12 : j.state === 'sprain' ? 0.6 : 1; }
   return c;
@@ -606,7 +785,7 @@ function capOf(g, ids, joints) {
 function caps(g) {
   const dm = g.dm, cap = dm.cap, R = dm.regions;
   const cord = clamp(1 - dm.cord, 0, 1), para = clamp(1 - dm.paral, 0, 1);
-  const weak = clamp((dm.blood / T.bloodMl - 0.45) / 0.4, 0.15, 1) * clamp(dm.oxy * 1.25, 0.1, 1);
+  const weak = clamp((dm.blood / T.bloodMl - 0.52) / 0.33, 0.15, 1) * clamp(dm.oxy * 1.25, 0.1, 1);
   if (g.dusty) { cap.legL = capOf(g, ['ulegL', 'llegL', 'footL'], ['hipL', 'kneeL', 'ankleL']); cap.legR = capOf(g, ['ulegR', 'llegR', 'footR'], ['hipR', 'kneeR', 'ankleR']); cap.armL = capOf(g, ['uarmL', 'larmL', 'handL'], ['shoulderL', 'elbowL', 'wristL']); cap.armR = capOf(g, ['uarmR', 'larmR', 'handR'], ['shoulderR', 'elbowR', 'wristR']); cap.core = 1; cap.neck = 1; cap.cons = 1; cap.will = 0.8; return; }
   cap.legL = capOf(g, ['ulegL', 'llegL', 'footL'], ['hipL', 'kneeL', 'ankleL']) * cord * para * weak;
   cap.legR = capOf(g, ['ulegR', 'llegR', 'footR'], ['hipR', 'kneeR', 'ankleR']) * cord * para * weak;
@@ -631,6 +810,7 @@ function jointCap(g, j) {
 /* ------------------------------------------------------------ his body, every step */
 D.step = function (g, h) {
   const dm = g.dm; if (!dm) return;
+  if (dm.splitQ && dm.splitQ.length) sectionNow(g);
   loads(g, h);
   jointStress(g, h);
   /* in the air: remember where it started, for the fall */
@@ -643,30 +823,24 @@ D.step = function (g, h) {
   if (br && br.s && br.s.held) dm.wasHeld = G.t;
   else if (dm.wasHeld && G.t - dm.wasHeld < 0.05) { const c = BODY.com(g); if (Math.hypot(c.vx, c.vy) > 6) { dm.thrownT = G.t; G.emit('thrown', g); } dm.wasHeld = 0; }
   dm.jolt = Math.max(0, dm.jolt - h * 2.2);
-  if (!g.alive) { dm.bpm *= 0.985; dm.pulse *= 0.86; postBleed(g, h); return; }
-  if (g.dusty) { caps(g); return; }
-  /* ---- blood. every open place runs at the pressure he has left */
+  if (g.dusty) { if (g.alive) caps(g); else { dm.bpm *= 0.985; dm.pulse *= 0.86; } return; }
+  /* ---- blood. every open place on him, and in him, runs at what his heart can still push (bleed.js); dead, only
+     what can drain downhill does */
+  const fl = G.bleed ? G.bleed.step(g, h) : { ext: 0, int: 0 }, rate = fl.ext + fl.int;
+  dm.blood = Math.max(0, dm.blood - rate * h); dm.lost += rate * h; dm.rate = rate;
+  dm.lostExt = (dm.lostExt || 0) + fl.ext * h; dm.lostInt = (dm.lostInt || 0) + fl.int * h;
+  if (!g.alive) { dm.bpm *= 0.985; dm.pulse *= 0.86; return; }
+  for (const R of Object.values(dm.regions)) R.pain *= 1 - h * 0.02;
   const pressure = clamp(dm.blood / T.bloodMl, 0, 1);
-  let ext = 0, int = 0;
-  for (const R of Object.values(dm.regions)) {
-    R.bleed *= 1 - h * 0.012; if (R.bleed < 0.02) R.bleed = 0;            /* small things clot */
-    ext += R.bleed; int += R.ibleed;
-    R.pain *= 1 - h * 0.02;
-  }
-  let stumps = 0;
-  for (const j of g.joints) if (j.broken && (j.a.attached || j.id === 'neck')) stumps += j.def.art * 9;
-  const rate = (ext + int + stumps) * (0.25 + 0.75 * pressure);
-  dm.blood = Math.max(0, dm.blood - rate * h); dm.lost += rate * h; dm.rate = rate; dm.extRate = (ext + stumps) * (0.25 + 0.75 * pressure);
-  /* ---- the heart */
+  /* ---- the heart: racing as he empties, until there's too little left to race with */
   const lowB = 1 - dm.blood / T.bloodMl;
-  const target = 70 + Math.min(110, dm.pain * 0.6) + lowB * 80 - (lowB > 0.55 ? (lowB - 0.55) * 300 : 0) - (dm.oxy < 0.4 ? (0.4 - dm.oxy) * 180 : 0);
+  const target = 70 + Math.min(110, dm.pain * 0.6) + lowB * 90 - (lowB > 0.42 ? (lowB - 0.42) * 520 : 0) - (dm.oxy < 0.4 ? (0.4 - dm.oxy) * 180 : 0);
   dm.bpm += (target - dm.bpm) * Math.min(1, h * 1.2);
-  dm.beat += dm.bpm / 60 * h; if (dm.beat >= 1) { dm.beat -= 1; dm.pulse = 1; G.emit('beat', g); }
+  dm.beat += dm.bpm / 60 * h; if (dm.beat >= 1) { dm.beat -= 1; dm.pulse = 1; dm.beatN = (dm.beatN || 0) + 1; G.emit('beat', g); }
   dm.pulse *= Math.pow(0.86, h * 60);
-  /* ---- breathing: a weight on his chest, a crushed throat, a cut cord, a hole in a lung */
+  /* ---- breathing: a weight on his chest, a crushed throat, a cut cord, a hole in a lung, a chest filling with blood */
   const sq = dm.squeeze || 0; dm.squeeze = Math.max(0, sq - h * 3);
-  const neckLoad = g.parts.chest.load || 0;
-  const breath = clamp(1 - sq * 0.95 - (dm.lung || 0) * 0.55 - clamp(dm.cord - 0.75, 0, 1) * 4 - (dm.breathHit || 0) - (dm.regions.thorax.organ > 0.6 ? 0.3 : 0), 0, 1);
+  const breath = clamp(1 - sq * 0.95 - (dm.lung || 0) * 0.62 - clamp(dm.cord - 0.75, 0, 1) * 4 - (dm.breathHit || 0) - (dm.regions.thorax.organ > 0.6 ? 0.3 : 0), 0, 1);
   dm.breathHit = Math.max(0, (dm.breathHit || 0) - h * 0.15);
   dm.breath = breath;
   const want = breath * clamp(pressure * 1.6, 0, 1);
@@ -674,7 +848,8 @@ D.step = function (g, h) {
   if (dm.oxy < 0.2) dm.hypoxT += h; else dm.hypoxT = Math.max(0, dm.hypoxT - h * 2);
   /* ---- awake or not */
   dm.stun = Math.max(0, dm.stun - h); dm.daze = Math.max(0, (dm.daze || 0) - h);
-  const fromBlood = clamp((dm.blood - 2000) / 1200, 0, 1), fromOxy = clamp((dm.oxy - 0.3) / 0.35, 0, 1), fromBrain = clamp(1 - Math.max(0, dm.regions.cranium.organ - 0.45) * 1.6, 0, 1);
+  /* blood: fine to about a quarter gone, out by two fifths, dead a little past half (DEAD_AT) */
+  const fromBlood = clamp((dm.blood - T.bloodMl * 0.55) / (T.bloodMl * 0.21), 0, 1), fromOxy = clamp((dm.oxy - 0.3) / 0.35, 0, 1), fromBrain = clamp(1 - Math.max(0, dm.regions.cranium.organ - 0.45) * 1.6, 0, 1);
   const tgtC = Math.min(fromBlood, fromOxy, fromBrain, dm.stun > 0 ? 0 : 1);
   dm.cons += (tgtC - dm.cons) * Math.min(1, h * (tgtC < dm.cons ? 6 : 0.9));
   const wasOut = dm.out; dm.out = dm.cons < 0.25;
@@ -687,15 +862,17 @@ D.step = function (g, h) {
   caps(g);
   checkDeath(g, null);
 };
-/* a dead man barely bleeds: nothing is pushing it */
-function postBleed(g, h) { const dm = g.dm; if (!dm.extRate) return; dm.extRate *= 1 - h * 0.4; }
 
 /* ------------------------------------------------------------ death */
 const COD = {
   decap: 'decapitation', head: 'massive head trauma', halves: 'transection of the trunk', blast: 'blast injuries', lead: 'gunshot wound',
   bleed: 'exsanguination', asphyxia: 'asphyxia', cord: 'high cervical spinal cord transection', heart: 'cardiac rupture', brain: 'massive brain injury',
+  ibleed: 'internal haemorrhage', hemothorax: 'haemothorax (the chest filled with blood)',
   shock: 'traumatic shock', stab: 'stab wound', impale: 'impalement', nailed: 'penetrating injury from a nail', stapled: 'puncture wounds from staples', crushhead: 'crush injury of the head', crushchest: 'traumatic asphyxia from chest compression'
 };
+/* what's left when the bleeding kills him: half of what he had */
+const DEAD_AT = 0.5;
+D.DEAD_AT = DEAD_AT;
 const pierce = ev => ev.srcKind === 'stab' ? 'stab' : ev.srcKind === 'spike' ? 'impale' : ev.srcKind === 'nail' ? 'nailed' : ev.srcKind === 'staple' ? 'stapled' : 'lead';
 function checkDeath(g, ev) {
   if (!g.alive || g.dusty && !(g.parts.head.gone || g.dm.regions.cranium.organ >= 1.25)) return;
@@ -705,8 +882,8 @@ function checkDeath(g, ev) {
   if (R.cranium.organ >= 1) { die(g, ev && ev.kind === 'shot' ? pierce(ev) : 'brain', ev); return; }
   if (R.thorax.organ >= 1.05 && (ev ? ev.region === 'thorax' : true)) { die(g, ev && ev.kind === 'shot' ? pierce(ev) : ev && ev.kind === 'blast' ? 'blast' : 'heart', ev); return; }
   if (dm.cord >= 1 && !dm.cordT) { dm.cordT = G.t; D.record(g, { kind: 'vital', type: 'stopped breathing', src: 'the cord at his neck is cut', srcKind: 'vital' }); }
-  if (dm.blood < 1500) { die(g, 'bleed', ev); return; }
-  if (dm.hypoxT > 5) { die(g, dm.cordT ? 'cord' : (dm.squeeze > 0.3 || R.thorax.crushT > 1) ? 'crushchest' : 'asphyxia', ev); return; }
+  if (dm.blood < T.bloodMl * DEAD_AT) { die(g, (dm.lostInt || 0) > (dm.lostExt || 0) * 1.2 ? 'ibleed' : 'bleed', ev); return; }
+  if (dm.hypoxT > 5) { die(g, dm.cordT ? 'cord' : (dm.squeeze > 0.3 || R.thorax.crushT > 1) ? 'crushchest' : (dm.hemo || 0) > 350 ? 'hemothorax' : 'asphyxia', ev); return; }
   if (dm.shock > 160) { die(g, 'shock', ev); return; }
 }
 function die(g, code, ev) {
@@ -729,8 +906,13 @@ function causeChain(g, code, ev) {
   const due = [];
   const top = (pred, n = 2) => ev2.filter(pred).sort((a, b) => (b.inj || []).reduce((s, i) => Math.max(s, i.sev), 0) - (a.inj || []).reduce((s, i) => Math.max(s, i.sev), 0)).slice(0, n);
   if (code === 'bleed') {
-    const s = top(e => (e.inj || []).some(i => /artery|cut off|torn off|blown off|shot off|amputat|laceration|incised|gunshot|compound|liver|spleen|heart/.test(i.what)), 3);
+    const s = top(e => (e.inj || []).some(i => /artery|vein|cut off|torn off|blown off|shot off|amputat|laceration|incised|gunshot|compound|liver|spleen|heart/.test(i.what)), 3);
     for (const e of s) due.push(`${worstInj(e)} (${R[e.region] ? R[e.region].def.name : e.region}), ${e.src}`);
+  } else if (code === 'ibleed') {
+    const s = top(e => (e.inj || []).some(i => /liver|spleen|lung|heart|aorta|bowel|stomach|eviscerat|femur|pelvis|fractur|shattered|broken|crushed/.test(i.what)), 3);
+    for (const e of s) due.push(`${worstInj(e)} (${R[e.region] ? R[e.region].def.name : e.region}), ${e.src}`);
+  } else if (code === 'hemothorax') {
+    const s = top(e => e.region === 'thorax' || (e.inj || []).some(i => /lung/.test(i.what)), 2); for (const e of s) due.push(`${worstInj(e)}, ${e.src}`);
   } else if (code === 'crushchest' || code === 'asphyxia') {
     const s = top(e => e.kind === 'crush' || e.region === 'thorax' || e.region === 'neck', 2); for (const e of s) due.push(`${worstInj(e)}, ${e.src}`);
     if (!due.length) due.push('chest held down by a heavy weight');

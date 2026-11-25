@@ -16,6 +16,8 @@
   var ST = TR.ropeSettings = { tension: { rope: 0.45, chain: 0.9 } };
   try { var sv = JSON.parse(localStorage.getItem('ffs_torture_settings') || '{}'); if (sv.tension) { for (var k in ST.tension) if (typeof sv.tension[k] === 'number') ST.tension[k] = clamp(sv.tension[k], 0.1, 1); } } catch (e) {}
   var ropes = TR.ropes = [], loose = [], pending = null, sel = null, hover = null;
+  /* a limb that broke in two under a rope: the rope stays on whichever piece it was tied round (its pin moved with it) */
+  G.on('split', function (g, p, p2, ys) { ropes.forEach(function (r) { [r.a, r.b].forEach(function (e) { if (e && e.type === 'part' && e.p === p && e.l.y > ys) e.p = p2; }); }); if (pending && pending.type === 'part' && pending.p === p && pending.l.y > ys) pending.p = p2; });
   var MAX = 30;
 
   /* ---------------- the ends */
@@ -37,6 +39,7 @@
     var p = T.partAt(x, y, 3);
     if (p) {
       var l = T.loc(p, x, y), d = p.def, hw = (d.wh ? d.wh[0] : d.r * 2) * G.S / 2, hh = (d.wh ? d.wh[1] : d.r * 2) * G.S / 2;
+      if (d.piece) l = { x: l.x, y: Math.max(d.piece.y0 + 2 * G.S, Math.min(d.piece.y1 - 2 * G.S, l.y)) };
       /* tied round the limb: on its middle line across, wherever along it you clicked */
       return { type: 'part', p: p, l: { x: clamp(l.x, -hw * 0.35, hw * 0.35), y: clamp(l.y, -hh * 0.85, hh * 0.85) } };
     }

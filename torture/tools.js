@@ -63,8 +63,11 @@
   };
 
   /* ---------------- the hand */
-  var grab = null;
+  var grab = null, flap = null;
   function handDown(x, y, strong) {
+    /* a flap of his skin hanging loose: take hold of that, not the part (skin.js peels it) */
+    var fl = G.skin && G.skin.pick(x, y);
+    if (fl) { flap = fl; G.skin.grab(fl, x, y); if (TR.sfx) TR.sfx.play('cloth', { x: x, gain: 0.2, rate: 1.3 }); return true; }
     var p = T.partAt(x, y, 3), body = p ? p.body : T.thingAt(x, y);
     if (!body || body.isStatic) { if (TR.sfx) TR.sfx.play('whoosh', { x: x, gain: 0.08, rate: 1.6 }); return false; }
     var off = { x: x - body.position.x, y: y - body.position.y };
@@ -77,8 +80,11 @@
   /* how hard the hand holds: a light part (a hand, a forearm) gets a firmer grip, or the weight of the rest of him
      on the other end of the arm leaves it trailing far behind the cursor */
   T.grabK = function (p, strong) { if (strong) return 0.55; if (!p || !p.def.mass) return 0.2; return clamp(0.2 * Math.sqrt(0.1 / p.def.mass), 0.2, 0.6); };
-  function handMove(x, y) { if (grab) { grab.c.pointA.x = x; grab.c.pointA.y = y; } }
+  function handMove(x, y) { if (flap) { if (G.skin.alive(flap)) G.skin.move(flap, x, y); else flap = null; } if (grab) { grab.c.pointA.x = x; grab.c.pointA.y = y; } }
+  /* the part in the hand broke in two: the hand has whichever piece it was holding (body.js moved the grip already) */
+  G.on('split', function () { if (grab && grab.c && grab.c.bodyB !== grab.body) { grab.body = grab.c.bodyB; grab.part = grab.body.plugin && grab.body.plugin.part || grab.part; } });
   function handUp() {
+    if (flap) { G.skin.release(flap); flap = null; }
     if (!grab) return;
     var was = grab, sp = Math.hypot(P.vx, P.vy), moving = performance.now() - P.t < 90;
     try { M.World.remove(engine.world, grab.c); } catch (e) {}
@@ -108,7 +114,9 @@
 
   /* ---------------- the stand-in for the fridge page's tool bar: the guy's brain asks it what you're holding */
   var V3 = { hand: 'hand', rope: 'hand', chain: 'hand', pistol: 'gun', shotgun: 'gun', rifle: 'gun', razor: 'knife', scalpel: 'knife', knife: 'knife', chainsaw: 'knife', spike: 'hand', staple: 'knife' };
-  G.tools = { pointer: P, current: function () { return P.right ? 'hand' : (T.cur ? V3[T.cur.id] || 'hand' : 'hand'); }, set: function (id) { T.select(id); }, step: function () {}, drawFx: function () {}, partAt: T.partAt };
+  G.tools = { pointer: P, current: function () { return P.right ? 'hand' : (T.cur ? V3[T.cur.id] || 'hand' : 'hand'); }, set: function (id) { T.select(id); }, step: function () {}, drawFx: function () {}, partAt: T.partAt,
+    /* where the gun's muzzle is, when a gun's in hand: his brain works out from it whether it's pointed at him */
+    muzzle: function () { return TR.gunMuzzle ? TR.gunMuzzle() : null; } };
 
   /* ---------------- taking things back out: shift-click, or a tool's remove variant */
   T.removers = [];

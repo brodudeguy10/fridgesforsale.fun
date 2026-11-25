@@ -16,7 +16,7 @@
 
   var KIND = {
     razor: { src: 'a straight razor', srcKind: 'razor', wound: 'slice', maxDepth: 2, deep: 1, painK: 0.7, bleedK: 0.55, cool: 0.09, spotR: 4.2, minV: 10, cutType: 'incised, shallow' },
-    scalpel: { src: 'a scalpel', srcKind: 'scalpel', wound: 'cut', thin: 0.42, maxDepth: 4, deep: 1, painK: 0.55, bleedK: 0.75, cool: 0.07, spotR: 2.4, minV: 3, cutType: 'incised' },
+    scalpel: { src: 'a scalpel', srcKind: 'scalpel', wound: 'cut', thin: 0.42, maxDepth: 4, deep: 1, boneK: 0.25, painK: 0.55, bleedK: 0.75, cool: 0.07, spotR: 2.4, minV: 3, cutType: 'incised' },
     knife: { src: 'a knife', srcKind: 'knife', wound: 'cut', maxDepth: 5, deep: 1, painK: 1, bleedK: 1, cool: 0.15, spotR: 3.2, minV: 60, cutType: 'incised' }
   };
   /* one stroke of a blade, from a to b: every part it crosses gets a cut where it crossed */
@@ -35,7 +35,7 @@
       var mid = G.toWorld(p.body, (x1 + x2) / 2, (y1 + y2) / 2);
       var deep = id === 'knife' ? (sp > 420 ? 2 : 1) : 1;
       if (g.dm && !g.cleared) G.dmg.cut(g, p, { lx: (x1 + x2) / 2, ly: (y1 + y2) / 2, lx1: x1, ly1: y1, lx2: x2, ly2: y2, wx: mid.x, wy: mid.y, dir: dir, len: Math.max(5 * S, Math.hypot(x2 - x1, y2 - y1)),
-        src: K.src, srcKind: K.srcKind, wound: K.wound, thin: K.thin, maxDepth: K.maxDepth, deep: deep, painK: K.painK, bleedK: K.bleedK, spotR: K.spotR, cutType: K.cutType, quiet: id !== 'knife' && Math.random() < 0.55 });
+        src: K.src, srcKind: K.srcKind, wound: K.wound, thin: K.thin, maxDepth: K.maxDepth, deep: deep, painK: K.painK, bleedK: K.bleedK, spotR: K.spotR, cutType: K.cutType, boneK: K.boneK, quiet: id !== 'knife' && Math.random() < 0.55 });
       G.emit('sfx', 'cut', { x: mid.x, part: p.kind });
       if (id === 'knife') B.setVelocity(p.body, { x: p.body.velocity.x + dir.x * 0.5, y: p.body.velocity.y + dir.y * 0.5 });
       if (p.kind === 'head' && id !== 'razor' && Math.random() < 0.12 && G.gibs) G.gibs.popEye(g, (x1 + x2) / 2 < 0 ? 0 : 1);

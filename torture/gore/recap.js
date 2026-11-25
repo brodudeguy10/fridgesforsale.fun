@@ -49,7 +49,9 @@ RC.close = function (g) {
 RC.final = function (g) { if (!g.case) return; g.case.pose2 = pose(g); g.case.parts2 = Object.fromEntries(g.list.map(p => [p.id, { gone: !!p.gone, attached: p.attached }])); if (g.rec) g.rec.closed = true; };
 function pose(g) {
   const ref = g.parts.chest.body, out = {};
-  for (const p of g.list) { if (p.gone || p.removed) continue; const b = p.body; out[p.id] = { x: b.position.x - ref.position.x, y: b.position.y - ref.position.y, a: b.angle }; }
+  /* where the middle of each part's own frame is (for a limb broken in two, where the whole limb's middle would be,
+     going by its upper piece) */
+  for (const p of g.list) { if (p.gone || p.removed) continue; const b = p.body, o = G.toWorld(b, 0, 0); out[p.id] = { x: o.x - ref.position.x, y: o.y - ref.position.y, a: b.angle }; }
   return out;
 }
 
@@ -228,10 +230,17 @@ function placement(id) {
 function partMissing(id, t) {
   const p = (cur.parts2 || cur.parts)[id];
   if (view.pose === 'found') return !p || p.gone;
-  /* on the chart, a limb that came off by time t is drawn as a ghost */
-  for (const e of cur.events) { if (e.t > t) break; if (e.kind === 'sever' && (e.part === id || chainOff(e.joint, id))) return true; }
+  /* on the chart, a limb that came off by time t is drawn as a ghost (off partway down a bone: what was below it) */
+  for (const e of cur.events) {
+    if (e.t > t) break; if (e.kind !== 'sever') continue;
+    const sec = /~cut$/.test(e.joint || '');
+    if (sec ? below(A.baseId(e.joint), id) : (e.part === id || chainOff(e.joint, id))) return true;
+  }
   return false;
 }
+/* off partway down a bone by time t: where along it (units), or null */
+function sectionCut(id, t) { for (const e of cur.events) { if (e.t > t) break; if (e.kind === 'sever' && /~cut$/.test(e.joint || '') && A.baseId(e.joint) === id && e.sect != null) return e.sect; } return null; }
+function below(base, id) { let p = id; const seen = new Set(); while (p && !seen.has(p)) { seen.add(p); const up = A.JOINTS.find(q => q.b === p); p = up ? up.a : null; if (p === base) return true; } return false; }
 function chainOff(jid, id) {
   if (!jid) return false;
   const j = A.jointById[jid]; if (!j) return false;
@@ -251,8 +260,14 @@ function draw() {
   /* the soft tissue, faint; the bones, bright; the organs, between */
   for (const d of order) {
     const pl = placement(d.id); if (!pl) continue;
-    const miss = partMissing(d.id, view.t);
+    const miss = partMissing(d.id, view.t), sc = miss || view.pose === 'found' ? null : sectionCut(d.id, view.t);
     ctx.save(); ctx.translate(pl.x, pl.y); ctx.rotate(pl.a);
+    if (sc != null) {
+      /* the rest of the limb below where it came off, as a ghost, and the bone's cut end */
+      ctx.save(); ctx.beginPath(); ctx.rect(-60 * S, sc * S, 120 * S, 120 * S); ctx.clip(); A.outline(ctx, d, S); ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(160,200,220,0.55)'; ctx.lineWidth = 1.2 * S / k; ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+      ctx.strokeStyle = '#ff6a4a'; ctx.lineWidth = 1.6 * S / k; ctx.beginPath(); ctx.moveTo(-d.wh[0] * S * 0.6, sc * S); ctx.lineTo(d.wh[0] * S * 0.6, sc * S); ctx.stroke();
+      ctx.beginPath(); ctx.rect(-60 * S, -120 * S, 120 * S, 120 * S + sc * S); ctx.clip();
+    }
     A.outline(ctx, d, S);
     if (miss) { ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(160,200,220,0.55)'; ctx.lineWidth = 1.2 * S / k; ctx.stroke(); ctx.setLineDash([]); ctx.restore(); continue; }
     ctx.fillStyle = view.mode === 'surface' ? surfaceCol(d) : 'rgba(120,170,200,0.13)'; ctx.fill();

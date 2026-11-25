@@ -9,7 +9,7 @@
 (function () {
   'use strict';
   var here = (document.currentScript && document.currentScript.src) || location.href;
-  var GAME = new URL('index.html?v=1.0.0', here).href;
+  var GAME = new URL('index.html?v=1.1.0', here).href;
   var wrap = null, musicWasOn = false, prevActive = false;
 
   function button() {

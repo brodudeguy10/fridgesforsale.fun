@@ -43,7 +43,7 @@ F.init = function (g) {
   for (const p of g.list) {
     const [w, h] = sizeOf(p.def);
     const cloth = A.clothOf(g, p.kind);
-    const t = p.tex = { w, h, cx: w / 2, cy: h / 2, cloth, dirty: true, lastPale: -1, bruises: [], openings: [], ends: [], frac: [], soak: [], lastComp: 0 };
+    const t = p.tex = { w, h, cx: w / 2, cy: h / 2, cloth, dirty: true, lastPale: -1, bruises: [], openings: [], ends: [], frac: [], soak: [], lastComp: 0, def: p.def, cut: false };
     for (const k of ['mCloth', 'mSkin', 'mFat', 'mMuscle', 'stain', 'comp']) t[k] = canvas(w, h);
     if (p.kind === 'head') t.over = canvas(w, h);
     /* every mask starts whole inside the outline */
@@ -63,6 +63,7 @@ const LAYERS = ['mCloth', 'mSkin', 'mFat', 'mMuscle'];
 /* shape(ctx, scale) draws the opening; scale shrinks it for deeper layers so a wound narrows going in */
 function open(p, upto, shape, rim = 1, opts = {}) {
   const t = p.tex; if (!t) return;
+  t.cut = true;
   for (let i = 0; i < LAYERS.length && i <= upto; i++) {
     const k = LAYERS[i]; if (k === 'mCloth' && !t.cloth) continue;
     const x = ctxOf(t[k], p); x.save(); x.globalCompositeOperation = 'destination-out'; x.globalAlpha = opts.alpha || 1;
@@ -118,7 +119,7 @@ G.on('wound', (g, p, w) => {
     }
     case 'cut': {         /* a knife: each layer slit a little narrower than the last, deeper each pass */
       const x2 = w.x2 != null ? w.x2 : w.lx + Math.cos(ang) * w.size * cmPx, y2 = w.y2 != null ? w.y2 : w.ly + Math.sin(ang) * w.size * cmPx;
-      const wd = (0.7 + w.depth * 0.55) * S * 0.7 * (w.thin || 1);
+      const wd = (0.7 + w.depth * (isDummy(p) ? 0.72 : 0.55)) * S * 0.7 * (w.thin || 1);
       open(p, Math.min(3, w.depth), slitShape(w.lx, w.ly, x2, y2, wd), 0.6, { narrow: 0.22, clothK: 1.3 });
       t.openings.push({ x: (w.lx + x2) / 2, y: (w.ly + y2) / 2, r: Math.hypot(x2 - w.lx, y2 - w.ly) / 2, bleed: 0.6 + w.depth * 0.3, t: G.t, kind: 'cut', x1: w.lx, y1: w.ly, x2, y2, depth: w.depth });
       break;
@@ -154,6 +155,11 @@ G.on('wound', (g, p, w) => {
       x.restore();
       t.openings.push({ x: w.lx, y: w.ly, r, bleed: 1.6, t: G.t, kind: 'hole' });
       t.dirty = true;
+      break;
+    }
+    case 'peel': {        /* skin peeled up off what's under it, a strip at a time: the fat shows, and the muscle where it went deep */
+      open(p, 2, slitShape(w.x1, w.y1, w.x2, w.y2, w.w || 3 * S), 0.7, { narrow: 0.45, clothK: 1.25 });
+      t.openings.push({ x: w.lx, y: w.ly, r: Math.max(w.w || 3 * S, Math.hypot(w.x2 - w.x1, w.y2 - w.y1)) / 2, bleed: 0.5, t: G.t, kind: 'peel' });
       break;
     }
     case 'compound': {
@@ -210,15 +216,25 @@ G.on('abrade', (g, p, a) => {
 G.on('torn', (g, j, out) => {
   for (const [p, side] of [[j.a, 'a'], [j.b, 'b']]) {
     if (!p.tex || p.gone) continue;
-    const l = side === 'a' ? j.la : j.lb, t = p.tex, why = out.why;
+    const l0 = side === 'a' ? j.la : j.lb, l = j.section ? { x: 0, y: l0.y } : l0, t = p.tex, why = out.why;
     const seed = Math.random();
     const rag = why === 'cut' ? 0.15 : why === 'blast' ? 0.9 : 0.6;
     /* the end of the part, eaten back a little so it isn't a straight box edge */
     open(p, 3, (x, k) => { const R = G.srand(seed); x.beginPath(); const n = 10, rr = Math.max(p.def.wh ? p.def.wh[0] : p.def.r, 6) * S * 0.62; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, r = rr * k * (1 - rag * 0.35 + R() * rag * 0.5); const px = l.x + Math.cos(a) * r, py = l.y + Math.sin(a) * r * 0.55; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.closePath(); x.fill(); }, 1);
-    t.ends.push({ x: l.x, y: l.y, why, side, t: G.t, seed, joint: j.id, nx: l.x, ny: l.y });
+    /* a break partway along a bone: the end faces along the limb, toward where the rest of it was */
+    t.ends.push({ x: l.x, y: l.y, why, side, t: G.t, seed, joint: j.id, nx: j.section ? 0 : l.x, ny: j.section ? (side === 'a' ? 1 : -1) : l.y });
     if (why === 'blast') { const x = ctxOf(t.stain, p); x.save(); x.globalAlpha = 0.7; x.fillStyle = '#140a06'; x.beginPath(); x.arc(l.x, l.y, 5 * S, 0, Math.PI * 2); x.fill(); x.restore(); }
   }
 });
+/* a limb that broke in two: the lower piece gets its own copy of every layer, in the same frame, and from now on
+   each keeps its own wounds */
+F.clone = function (t) {
+  const n = Object.assign({}, t);
+  for (const k of ['mCloth', 'mSkin', 'mFat', 'mMuscle', 'stain', 'comp', 'over']) { if (!t[k]) continue; const c = document.createElement('canvas'); c.width = t[k].width; c.height = t[k].height; c.getContext('2d', CPU).drawImage(t[k], 0, 0); n[k] = c; }
+  for (const k of ['bruises', 'openings', 'ends', 'frac', 'soak']) n[k] = (t[k] || []).map(o => Object.assign({}, o));
+  n.dirty = true; return n;
+};
+G.on('split', (g, p, p2) => { if (p.tex) p2.tex = F.clone(p.tex); });
 /* blood that lands on him from anywhere */
 F.splash = function (p, wx, wy, r, col) {
   if (!p.tex || p.guy.dusty) return;
@@ -233,6 +249,16 @@ F.splash = function (p, wx, wy, r, col) {
   } else { x.globalAlpha = 0.75; x.fillStyle = col || '#6a0808'; x.beginPath(); x.arc(l.x, l.y, r, 0, Math.PI * 2); x.fill(); }
   x.restore();
   t.dirty = true;
+};
+/* lying in blood, dragged through it: a wet smear on whatever's touching the floor, drawn out along the way it moved */
+F.smear = function (p, wx, wy, r, dir) {
+  if (!p.tex || p.guy.dusty) return;
+  const l = G.toLocal(p.body, wx, wy), t = p.tex; if (Math.abs(l.x) > t.w / 2 + r || Math.abs(l.y) > t.h / 2 + r) return;
+  const d = dir ? G.dirLocal(p.body, dir.x, dir.y) : { x: 1, y: 0 }, sp = Math.hypot(d.x, d.y), a = Math.atan2(d.y, d.x);
+  const x = ctxOf(t.stain, p); x.save(); A.outline(x, p.def, S); x.clip();
+  x.globalAlpha = G.rnd(0.22, 0.42); x.fillStyle = G.pick(['#4a0303', '#5a0505', '#3c0202']);
+  x.translate(l.x, l.y); x.rotate(a); x.beginPath(); x.ellipse(-r * 0.3, 0, r * (1 + Math.min(1.5, sp * 0.4)), r * 0.6, 0, 0, Math.PI * 2); x.fill();
+  x.restore(); t.dirty = true;
 };
 /* his clothes soak up what comes out of him */
 F.soak = function (p, lx, ly, r) {
@@ -251,14 +277,16 @@ const MUSCLE = '#8e1c18', FAT = '#e2c27a', CAVITY = '#2a0303', BONE = '#ece4d2';
 function pattern(c, p, kind, g) {
   const x = c; const d = p.def, w = p.tex.w, h = p.tex.h;
   const dm = g.look && g.look.style === 'dummy';
+  const dk = F.decay(g);
   if (kind === 'muscle') {
     x.fillStyle = dm ? '#741511' : MUSCLE; x.fillRect(-w, -h, w * 2, h * 2);
+    if (dk > 0) { x.fillStyle = `rgba(48,22,14,${(0.6 * dk).toFixed(3)})`; x.fillRect(-w, -h, w * 2, h * 2); }
     x.strokeStyle = 'rgba(190,60,50,0.35)'; x.lineWidth = 0.7; const R = G.srand(p.tex.seed);
     for (let i = 0; i < 9; i++) { const ox = (R() - 0.5) * w; x.beginPath(); x.moveTo(ox, -h); x.quadraticCurveTo(ox + (R() - 0.5) * 4, 0, ox + (R() - 0.5) * 3, h); x.stroke(); }
     x.fillStyle = 'rgba(40,0,0,0.25)'; for (let i = 0; i < 6; i++) { x.beginPath(); x.arc((R() - 0.5) * w, (R() - 0.5) * h, 1 + R() * 2, 0, 6.3); x.fill(); }
-  } else if (kind === 'fat') { x.fillStyle = dm ? '#c4a265' : FAT; x.fillRect(-w, -h, w * 2, h * 2); x.fillStyle = dm ? 'rgba(255,230,170,0.22)' : 'rgba(255,240,180,0.4)'; const R = G.srand(p.tex.seed + 1); for (let i = 0; i < 10; i++) { x.beginPath(); x.arc((R() - 0.5) * w, (R() - 0.5) * h, 0.8 + R() * 1.4, 0, 6.3); x.fill(); } }
+  } else if (kind === 'fat') { x.fillStyle = dm ? '#c4a265' : FAT; x.fillRect(-w, -h, w * 2, h * 2); x.fillStyle = dm ? 'rgba(255,230,170,0.22)' : 'rgba(255,240,180,0.4)'; const R = G.srand(p.tex.seed + 1); for (let i = 0; i < 10; i++) { x.beginPath(); x.arc((R() - 0.5) * w, (R() - 0.5) * h, 0.8 + R() * 1.4, 0, 6.3); x.fill(); } if (dk > 0) { x.fillStyle = `rgba(110,84,40,${(0.5 * dk).toFixed(3)})`; x.fillRect(-w, -h, w * 2, h * 2); } }
   else if (kind === 'skin' && g.look.style === 'dummy' && !g.dusty) skinReal(x, p, g, w, h);
-  else if (kind === 'skin') { x.fillStyle = g.dusty ? '#e8e0cc' : hsl(g.look.skin, paleOf(g)); x.fillRect(-w, -h, w * 2, h * 2); if (g.dusty && d.wh) { x.strokeStyle = '#c8bca0'; x.lineWidth = 1; for (let y = -h / 2 + 2; y < h / 2; y += 4) { x.beginPath(); x.moveTo(-w / 2, y + Math.sin(y) * 0.8); x.lineTo(w / 2, y - Math.sin(y) * 0.8); x.stroke(); } } }
+  else if (kind === 'skin') { x.fillStyle = F.skinCol(g); x.fillRect(-w, -h, w * 2, h * 2); if (!g.dusty) decayOver(x, p, g, w, h); if (g.dusty && d.wh) { x.strokeStyle = '#c8bca0'; x.lineWidth = 1; for (let y = -h / 2 + 2; y < h / 2; y += 4) { x.beginPath(); x.moveTo(-w / 2, y + Math.sin(y) * 0.8); x.lineTo(w / 2, y - Math.sin(y) * 0.8); x.stroke(); } } }
   else if (kind === 'cloth') {
     const lk = g.look, isBoot = p.kind === 'foot', base = g.dusty ? '#8a7a60' : isBoot ? lk.boots : (p.tex.cloth === 'shirt' ? lk.shirt : lk.pants);
     x.fillStyle = base; x.fillRect(-w, -h, w * 2, h * 2);
@@ -268,7 +296,7 @@ function pattern(c, p, kind, g) {
       x.strokeStyle = 'rgba(0,0,0,0.08)'; x.lineWidth = 0.6; for (let y = -h; y < h; y += 2.2) { x.beginPath(); x.moveTo(-w, y); x.lineTo(w, y + 1); x.stroke(); }
       if (p.kind === 'pelvis' && p.tex.cloth === 'briefs') { x.fillStyle = 'rgba(255,255,255,0.10)'; x.fillRect(-w, -h / 2 + PAD, w * 2, 1.6 * S); x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(-w, -h / 2 + PAD + 1.6 * S, w * 2, 0.5); x.strokeStyle = 'rgba(0,0,0,0.22)'; x.lineWidth = 0.6; x.beginPath(); x.moveTo(-w / 2, h / 2 - PAD - 1.5 * S); x.quadraticCurveTo(0, h / 2 - PAD - 4.5 * S, w / 2, h / 2 - PAD - 1.5 * S); x.stroke(); }
       else if (p.kind === 'pelvis') { x.fillStyle = '#2a1a0e'; x.fillRect(-w, -h / 2 + PAD, w * 2, 2.4 * S); x.fillStyle = '#c8a040'; x.fillRect(-1.6 * S, -h / 2 + PAD + 0.2, 3.2 * S, 2 * S); }
-      if (p.kind === 'chest') { x.fillStyle = hsl(lk.skin, paleOf(g)); x.beginPath(); x.moveTo(-3 * S, -h / 2 + PAD); x.lineTo(0, -h / 2 + PAD + 4 * S); x.lineTo(3 * S, -h / 2 + PAD); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(0, -h / 2 + PAD + 4 * S); x.lineTo(0, h / 2); x.stroke(); for (let i = 0; i < 2; i++) { x.fillStyle = 'rgba(240,240,230,0.7)'; x.beginPath(); x.arc(0.9 * S, -h / 2 + PAD + (6.5 + i * 4) * S, 0.5 * S, 0, 6.3); x.fill(); } }
+      if (p.kind === 'chest') { x.fillStyle = F.skinCol(g); x.beginPath(); x.moveTo(-3 * S, -h / 2 + PAD); x.lineTo(0, -h / 2 + PAD + 4 * S); x.lineTo(3 * S, -h / 2 + PAD); x.fill(); x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(0, -h / 2 + PAD + 4 * S); x.lineTo(0, h / 2); x.stroke(); for (let i = 0; i < 2; i++) { x.fillStyle = 'rgba(240,240,230,0.7)'; x.beginPath(); x.arc(0.9 * S, -h / 2 + PAD + (6.5 + i * 4) * S, 0.5 * S, 0, 6.3); x.fill(); } }
       if (p.kind === 'abdomen') { x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 0.8; x.beginPath(); x.moveTo(0, -h); x.lineTo(0, h); x.stroke(); x.fillStyle = 'rgba(240,240,230,0.7)'; x.beginPath(); x.arc(0.9 * S, 0, 0.5 * S, 0, 6.3); x.fill(); }
       if (lk.stripe && p.tex.cloth === 'shirt') { x.fillStyle = 'rgba(255,255,255,0.13)'; for (let y = -h; y < h; y += 4 * S) x.fillRect(-w, y, w * 2, 1.4 * S); }
       if (p.kind === 'uarm') { x.fillStyle = 'rgba(0,0,0,0.18)'; x.fillRect(-w, h / 2 - PAD - 1.2 * S, w * 2, 1.2 * S); }
@@ -280,13 +308,13 @@ function pattern(c, p, kind, g) {
    seeded per part, so it looks the same every time it's redrawn */
 function skinReal(x, p, g, w, h) {
   const d = p.def, pale = paleOf(g), sk = g.look.skin, R = G.srand(p.tex.seed + 7);
-  x.fillStyle = hsl(sk, pale); x.fillRect(-w, -h, w * 2, h * 2);
+  x.fillStyle = F.skinCol(g); x.fillRect(-w, -h, w * 2, h * 2);
   /* blotches: a little redder here, a little sallower there */
   for (let i = 0; i < 7; i++) { const bx = (R() - 0.5) * w, by = (R() - 0.5) * h, br = (2.5 + R() * 5) * S, gr = x.createRadialGradient(bx, by, 0, bx, by, br);
     gr.addColorStop(0, R() < 0.5 ? `rgba(170,70,60,${0.05 * (1 - pale)})` : `rgba(120,110,70,${0.05})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(bx - br, by - br, br * 2, br * 2); }
   /* pores and fine hair, too small to see unless you look */
   for (let i = 0; i < 90; i++) { x.fillStyle = R() < 0.6 ? 'rgba(60,30,20,0.07)' : 'rgba(255,240,225,0.06)'; x.fillRect((R() - 0.5) * w, (R() - 0.5) * h, 0.45, 0.45); }
-  if (d.r) { const gr = x.createRadialGradient(-d.r * S * 0.25, -d.r * S * 0.3, d.r * S * 0.2, 0, 0, d.r * S * 1.05); gr.addColorStop(0, 'rgba(255,240,225,0.07)'); gr.addColorStop(0.75, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(40,15,10,0.3)'); x.fillStyle = gr; x.fillRect(-w, -h, w * 2, h * 2); return; }
+  if (d.r) { const gr = x.createRadialGradient(-d.r * S * 0.25, -d.r * S * 0.3, d.r * S * 0.2, 0, 0, d.r * S * 1.05); gr.addColorStop(0, 'rgba(255,240,225,0.07)'); gr.addColorStop(0.75, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(40,15,10,0.3)'); x.fillStyle = gr; x.fillRect(-w, -h, w * 2, h * 2); decayOver(x, p, g, w, h); return; }
   /* round: the limb turns away from you at both edges */
   const hw = d.wh[0] * S / 2, gr = x.createLinearGradient(-hw, 0, hw, 0);
   gr.addColorStop(0, 'rgba(40,15,10,0.32)'); gr.addColorStop(0.3, 'rgba(0,0,0,0)'); gr.addColorStop(0.55, 'rgba(255,240,225,0.05)'); gr.addColorStop(0.75, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(40,15,10,0.36)');
@@ -297,9 +325,64 @@ function skinReal(x, p, g, w, h) {
   if (p.kind === 'uleg' || p.kind === 'uarm') { x.beginPath(); x.moveTo(-hw * 0.2, -h * 0.3); x.quadraticCurveTo(hw * 0.15, 0, -hw * 0.05, h * 0.3); x.stroke(); }
   if (p.kind === 'lleg') { x.beginPath(); x.moveTo(hw * 0.1, -h * 0.35); x.quadraticCurveTo(hw * 0.5, -h * 0.1, hw * 0.25, h * 0.15); x.stroke(); }
   if (p.kind === 'foot') { x.strokeStyle = 'rgba(60,25,18,0.25)'; for (let i = 1; i < 4; i++) { const tx = hw * (0.3 + i * 0.17) * (p.side || 1); x.beginPath(); x.moveTo(tx, h * 0.05); x.lineTo(tx, h * 0.45); x.stroke(); } }
+  decayOver(x, p, g, w, h);
 }
 function paleOf(g) { if (g.dusty || !g.dm) return 0; return clamp((1 - g.dm.blood / G.TUNE.bloodMl) * 1.35 + (g.alive ? 0 : 0.3), 0, 1); }
 F.pale = paleOf;
+
+/* ------------------------------------------------------------ after he dies: what time does to him
+   it starts when he dies and goes on while he's there, slowly, all of it laid over whatever was done to him (nothing
+   heals, nothing is wiped): pallor at once; the blood settling into whatever was lowest (livor, purple-red, that
+   moves if he's turned until, after a while, it's fixed where it settled); the eyes clouding and the lips going
+   grey-blue; a green tinge over the belly that spreads; the veins showing through dark (marbling); the skin
+   darkening, and in the end blistering and slipping in loose patches. what's open dries dark, and the blood on him
+   goes brown. it's still him the whole time: every bit of this is paint on the same body */
+const DECAY_T = 540;                     /* s from his death to as far as it goes here */
+F.DECAY_T = DECAY_T;
+F.decay = g => (!g || g.alive || g.dusty || g.diedT == null) ? 0 : clamp((G.t - g.diedT) / DECAY_T, 0, 1);
+/* his skin's colour now: pale with what he's lost, then grey-green and darker as he goes */
+F.skinCol = function (g, dl = 0) {
+  if (g.dusty) return '#e8e0cc';
+  const a = g.look.skin, k = paleOf(g), dk = F.decay(g);
+  return `hsl(${(a[0] + dk * 36).toFixed(1)},${(a[1] * (1 - k * 0.75) * (1 - dk * 0.35) + dk * 9).toFixed(1)}%,${(a[2] + (84 - a[2]) * k * 0.45 - dk * 20 - dl).toFixed(1)}%)`;
+};
+function decayOver(x, p, g, w, h) {
+  const dk = F.decay(g), t = p.tex; if (dk <= 0 || !t) return;
+  /* every random number drawn in the same order every time, used or not, so nothing moves between redraws */
+  const R = G.srand(t.seed + 31), veins = [], spots = [];
+  for (let i = 0; i < 5; i++) { const v = { x: (R() - 0.5) * w * 0.8, y: (R() - 0.5) * h * 0.9, a: R() * 6.28, s: [] }; for (let k = 0; k < 7; k++) v.s.push([R() - 0.5, R()]); veins.push(v); }
+  for (let i = 0; i < 5; i++) spots.push({ x: (R() - 0.5) * w * 0.7, y: (R() - 0.5) * h * 0.8, r: (1.4 + R() * 2.6) * S, on: R(), e: 0.6 + R() * 0.5, a: R() * 3 });
+  /* livor: the blood settling in what's lowest. until it fixes, it follows whatever's down now */
+  if (dk > 0.015) {
+    if (!t.livor || dk < 0.2) { const dn = G.dirLocal(p.body, 0, 1); t.livor = { x: dn.x, y: dn.y }; }
+    const k = clamp((dk - 0.015) / 0.2, 0, 1), L = t.livor, ext = Math.max(w, h) * 0.5;
+    const gr = x.createLinearGradient(-L.x * ext * 0.15, -L.y * ext * 0.15, L.x * ext, L.y * ext);
+    gr.addColorStop(0, 'rgba(110,40,90,0)'); gr.addColorStop(0.55, `rgba(112,40,92,${(0.26 * k).toFixed(3)})`); gr.addColorStop(1, `rgba(92,28,78,${(0.5 * k).toFixed(3)})`);
+    x.fillStyle = gr; x.fillRect(-w, -h, w * 2, h * 2);
+  }
+  /* green: the belly first, the rest of the trunk, then all of him */
+  const start = p.kind === 'abdomen' ? 0.16 : A.TRUNK.has(p.kind) ? 0.32 : 0.5, gk = clamp((dk - start) / 0.35, 0, 1);
+  if (gk > 0) { x.fillStyle = `rgba(80,104,54,${(0.32 * gk).toFixed(3)})`; x.fillRect(-w, -h, w * 2, h * 2); }
+  /* marbling: the veins under the skin, dark, branching */
+  const mk = clamp((dk - 0.4) / 0.3, 0, 1);
+  if (mk > 0) {
+    x.strokeStyle = `rgba(46,52,62,${(0.38 * mk).toFixed(3)})`; x.lineWidth = 0.45; x.lineCap = 'round';
+    for (const v of veins) { let px = v.x, py = v.y, a = v.a; x.beginPath(); x.moveTo(px, py); for (const [da, b] of v.s) { a += da * 1.3; px += Math.cos(a) * 2.1 * S; py += Math.sin(a) * 2.1 * S; x.lineTo(px, py); if (b < 0.3) { x.lineTo(px + Math.cos(a + 1) * 1.4 * S, py + Math.sin(a + 1) * 1.4 * S); x.moveTo(px, py); } } x.stroke(); }
+  }
+  /* slipping: blisters, and patches where the top of the skin has come loose */
+  const sk = clamp((dk - 0.7) / 0.25, 0, 1);
+  if (sk > 0) for (const sp of spots) {
+    if (sp.on > sk) continue;
+    x.save(); x.translate(sp.x, sp.y); x.rotate(sp.a);
+    x.fillStyle = `rgba(196,176,146,${(0.34 * sk).toFixed(3)})`; x.beginPath(); x.ellipse(0, 0, sp.r * sp.e, sp.r * 0.62, 0, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = `rgba(110,60,44,${(0.45 * sk).toFixed(3)})`; x.lineWidth = 0.45; x.stroke();
+    x.fillStyle = `rgba(150,66,56,${(0.3 * sk).toFixed(3)})`; x.beginPath(); x.ellipse(sp.r * 0.2, sp.r * 0.1, sp.r * 0.45, sp.r * 0.26, 0, 0, Math.PI * 2); x.fill();
+    x.restore();
+  }
+  /* and all of it darker */
+  x.fillStyle = `rgba(32,22,16,${(0.16 * dk).toFixed(3)})`; x.fillRect(-w, -h, w * 2, h * 2);
+}
+F.decayOver = decayOver;
 /* one layer: its colour, cut to its mask, onto the composite */
 function layer(dst, p, mask, kind, g) {
   const t = p.tex;
@@ -309,6 +392,26 @@ function layer(dst, p, mask, kind, g) {
   tctx.setTransform(1, 0, 0, 1, 0, 0);
   tctx.globalCompositeOperation = 'destination-in'; tctx.drawImage(mask, 0, 0); tctx.globalCompositeOperation = 'source-over';
   dst.drawImage(tmp, 0, 0);
+}
+/* the edge of a layer's mask, inside the part: the mask, less the mask shrunk a little (kept only away from the part's
+   own outline, so the silhouette doesn't get a rim) */
+const eA = document.createElement('canvas'), eAx = eA.getContext('2d', CPU), eB = document.createElement('canvas'), eBx = eB.getContext('2d', CPU);
+function erode(dst, dx, src, d) {
+  dx.globalCompositeOperation = 'copy'; dx.drawImage(src, 0, 0);
+  dx.globalCompositeOperation = 'destination-in'; for (const [x, y] of [[d, 0], [-d, 0], [0, d], [0, -d]]) dx.drawImage(src, x, y);
+  dx.globalCompositeOperation = 'source-over';
+}
+function edge(c, t, mask, col, alpha, wk) {
+  const W = mask.width, H = mask.height, d = Math.max(1, Math.round(RES * wk));
+  if (eA.width !== W || eA.height !== H) { eA.width = eB.width = W; eA.height = eB.height = H; }
+  if (!t.inner || t.inner.width !== W) { t.inner = document.createElement('canvas'); t.inner.width = W; t.inner.height = H; const ix = t.inner.getContext('2d', CPU), full = document.createElement('canvas'); full.width = W; full.height = H; const fx = full.getContext('2d', CPU); fx.setTransform(RES, 0, 0, RES, W / 2, H / 2); A.outline(fx, t.def || t.d, S); fx.fillStyle = '#fff'; fx.fill(); erode(t.inner, ix, full, Math.max(2, Math.round(RES * 1.3))); }
+  erode(eA, eAx, mask, d);
+  eBx.globalCompositeOperation = 'copy'; eBx.drawImage(mask, 0, 0);
+  eBx.globalCompositeOperation = 'destination-out'; eBx.drawImage(eA, 0, 0);
+  eBx.globalCompositeOperation = 'destination-in'; eBx.drawImage(t.inner, 0, 0);
+  eBx.globalCompositeOperation = 'source-in'; eBx.fillStyle = col; eBx.fillRect(0, 0, W, H);
+  eBx.globalCompositeOperation = 'source-over';
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = alpha; c.drawImage(eB, 0, 0); c.restore();
 }
 function bruiseColour(b, now) {
   const age = now - b.t;                                     /* game seconds: the colours of days, in a minute */
@@ -352,7 +455,13 @@ F.compose = function (g, p) {
     top.drawImage(tmp, 0, 0);
   }
   /* soot, dirt, blood in the cloth, the bloody edges of every opening */
-  top.save(); top.setTransform(RES, 0, 0, RES, t.comp.width / 2, t.comp.height / 2); A.outline(top, p.def, S); top.clip(); top.setTransform(1, 0, 0, 1, 0, 0); top.drawImage(t.stain, 0, 0); top.restore();
+  let stain = t.stain; const dkS = F.decay(g);
+  if (dkS > 0.02) { tmp.width = stain.width; tmp.height = stain.height; tctx.setTransform(1, 0, 0, 1, 0, 0); tctx.drawImage(stain, 0, 0); tctx.globalCompositeOperation = 'source-atop'; tctx.fillStyle = `rgba(46,26,14,${(0.55 * Math.min(1, dkS * 2)).toFixed(3)})`; tctx.fillRect(0, 0, tmp.width, tmp.height); tctx.globalCompositeOperation = 'source-over'; stain = tmp; }
+  top.save(); top.setTransform(RES, 0, 0, RES, t.comp.width / 2, t.comp.height / 2); A.outline(top, p.def, S); top.clip(); top.setTransform(1, 0, 0, 1, 0, 0); top.drawImage(stain, 0, 0); top.restore();
+  /* where the skin was cut or torn: its edge, the pale underside of it showing as a thin line through the blood, and a
+     shadow inside where it stands up off the fat (the part's own outline isn't an edge: only openings get this) */
+  if (!g.dusty && t.cut) { edge(top, t, t.mSkin, 'rgb(236,176,160)', 0.7, 0.55); edge(top, t, t.mFat, 'rgba(60,8,4,1)', 0.3, 0.5); }
+  if (t.cloth && t.cut) edge(top, t, t.mCloth, 'rgba(235,230,220,1)', 0.35, 0.5);
   t.dirty = false; t.lastPale = paleOf(g); t.lastComp = G.t;
 };
 /* once a frame: anything that changed, and the slow things (bruises turning, him going pale) now and then */
@@ -363,6 +472,7 @@ F.tick = function (g) {
     const skinShows = !t.cloth || p.kind === 'chest';
     if (!t.dirty && skinShows && Math.abs(pale - t.lastPale) > 0.05) t.dirty = true;
     if (!t.dirty && t.bruises.length && G.t - t.lastComp > 1.5) t.dirty = true;
+    if (!t.dirty && !g.alive && !g.dusty && G.t - g.diedT < DECAY_T + 10 && G.t - t.lastComp > 2.5 + t.seed * 2) t.dirty = true;
     if (t.dirty) F.compose(g, p);
   }
 };

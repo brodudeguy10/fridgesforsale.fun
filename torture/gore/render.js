@@ -20,18 +20,22 @@ function capColour(g, p, atTop) {
   if (g.dusty) return '#e8e0cc';
   const c = A.clothOf(g, p.kind), pale = G.flesh ? G.flesh.pale(g) : 0;
   if (p.kind === 'lleg' && !atTop && A.clothOf(g, 'foot') === 'boot') return g.look.boots;
-  if (!c) return hsl(g.look.skin, pale);
+  if (!c) return G.flesh ? G.flesh.skinCol(g) : hsl(g.look.skin, pale);
   return c === 'shirt' ? g.look.shirt : c === 'boot' ? g.look.boots : g.look.pants;
 }
 const dummy = g => g.look.style === 'dummy' && !g.dusty;
 
 /* ------------------------------------------------------------ a part */
 function drawPart(ctx, g, p) {
-  const b = p.body, t = p.tex, d = p.def;
+  const b = p.body, t = p.tex, d = p.def, pc = d.piece;
   ctx.save(); ctx.translate(b.position.x, b.position.y); ctx.rotate(b.angle);
+  /* a piece of a limb broken in two: drawn in the whole limb's frame, only its own length of it */
+  if (p.fo) ctx.translate(0, p.fo);
+  ctx.save();
+  if (pc) { const big = (d.wh[0] + d.wh[1]) * S * 2, y0 = Math.max(pc.y0, -big), y1 = Math.min(pc.y1, big); ctx.beginPath(); ctx.rect(-big, y0, big * 2, y1 - y0); ctx.clip(); }
   if (t) {
-    /* a broken long bone that stayed inside: the limb bends where it broke */
-    const kink = t.frac.find(f => !f.out && f.bend);
+    /* a broken long bone that stayed inside (and didn't get a joint of its own, see body.js): it bends where it broke */
+    const kink = !pc && !(p.guy.dm && p.guy.dm.regions[p.id] && p.guy.dm.regions[p.id].secJ) && t.frac.find(f => !f.out && f.bend);
     if (kink && A.LONG.has(p.kind)) {
       ctx.save(); ctx.beginPath(); ctx.rect(-t.cx, -t.cy, t.w, t.cy + kink.y); ctx.clip(); blit(ctx, t.comp); ctx.restore();
       ctx.save(); ctx.translate(0, kink.y); ctx.rotate(kink.bend * (g.alive ? 0.8 : 1)); ctx.translate(0, -kink.y); ctx.beginPath(); ctx.rect(-t.cx, kink.y, t.w, t.h); ctx.clip(); blit(ctx, t.comp); ctx.restore();
@@ -67,8 +71,9 @@ function drawPart(ctx, g, p) {
       }
       if (clip) ctx.restore();
     }
-    for (const e of t.ends) (dummy(g) ? drawEndReal : drawEnd)(ctx, e, g, p);
   }
+  ctx.restore();
+  if (t) for (const e of t.ends) (dummy(g) ? drawEndReal : drawEnd)(ctx, e, g, p);
   if (p.kind === 'head') { if (dummy(g)) drawFaceReal(ctx, g, p); else drawFace(ctx, g, p); if (t && t.over) blit(ctx, t.over); if (g.hatOn && g.look.hat) drawHat(ctx, d.r * S, g.look.hatCol); }
   if (p.kind === 'hand') drawFingers(ctx, g, p);
   ctx.restore();
@@ -125,15 +130,23 @@ function drawFingers(ctx, g, p) {
   ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 0.7;
   for (let i = 1; i < 4; i++) { const x = -w / 2 + w * i / 4; ctx.beginPath(); ctx.moveTo(x, h * 0.05); ctx.lineTo(x, h / 2 - 0.5); ctx.stroke(); }
   /* the thumb, on the inside */
-  ctx.fillStyle = g.dusty ? '#e8e0cc' : hsl(g.look.skin, G.flesh ? G.flesh.pale(g) : 0); ctx.strokeStyle = dummy(g) ? 'rgba(14,8,6,0.6)' : '#0b0806'; ctx.lineWidth = dummy(g) ? 0.6 : 1;
+  ctx.fillStyle = g.dusty ? '#e8e0cc' : G.flesh ? G.flesh.skinCol(g) : hsl(g.look.skin, 0); ctx.strokeStyle = dummy(g) ? 'rgba(14,8,6,0.6)' : '#0b0806'; ctx.lineWidth = dummy(g) ? 0.6 : 1;
   ctx.beginPath(); ctx.ellipse(-s * w * 0.55, -h * 0.05, w * 0.18, h * 0.26, s * 0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  /* hands up: the palm toward you, its creases showing */
+  const su = g.br && g.br.surr || 0;
+  if (su > 0.3 && dummy(g)) {
+    ctx.strokeStyle = `rgba(90,40,30,${(0.35 * su).toFixed(3)})`; ctx.lineWidth = 0.4;
+    ctx.beginPath(); ctx.moveTo(-w * 0.38, -h * 0.12); ctx.quadraticCurveTo(0, -h * 0.02, w * 0.4, -h * 0.2);
+    ctx.moveTo(-w * 0.4, h * 0.02); ctx.quadraticCurveTo(-w * 0.05, h * 0.1, w * 0.32, h * 0.0);
+    ctx.moveTo(-s * w * 0.15, -h * 0.4); ctx.quadraticCurveTo(-s * w * 0.3, -h * 0.15, -s * w * 0.2, h * 0.1); ctx.stroke();
+  }
 }
 /* the dummy's face: a person's, not a cartoon's. lids, irises, brows that move, a nose, a mouth that opens
    when he screams, lids half down and the eyes gone flat when he's dead */
 function drawFaceReal(ctx, g, p) {
   const r = p.def.r * S, dead = !g.alive, dm = g.dm || {}, out = dm.cons < 0.3 && !dead, br = g.br || {};
   const pain = dm.pain || 0, k = clamp(pain / 90, 0, 1), eyeOut = g.eyeOut || [0, 0];
-  const pale = G.flesh ? G.flesh.pale(g) : 0, skin = hsl(g.look.skin, pale), skinDark = hsl([g.look.skin[0], g.look.skin[1], g.look.skin[2] - 14], pale);
+  const pale = G.flesh ? G.flesh.pale(g) : 0, skin = G.flesh ? G.flesh.skinCol(g) : hsl(g.look.skin, pale), skinDark = G.flesh ? G.flesh.skinCol(g, 14) : hsl([g.look.skin[0], g.look.skin[1], g.look.skin[2] - 14], pale), dk = G.flesh ? G.flesh.decay(g) : 0;
   const eye = br.eye || { x: 0, y: 0 }, gx = clamp(eye.x, -1, 1) * r * 0.05, gy = clamp(eye.y, -1, 1) * r * 0.035;
   const regs = g.dm && g.dm.regions, face = regs ? regs.face : null, cran = regs ? regs.cranium : null;
   const soft = 'rgba(14,8,6,0.6)';
@@ -146,7 +159,7 @@ function drawFaceReal(ctx, g, p) {
   /* the sockets: a little shadow the eyes sit in */
   for (let e = 0; e < 2; e++) {
     const ex = (e ? 0.36 : -0.36) * r, ey = -0.12 * r;
-    const sg = ctx.createRadialGradient(ex, ey, r * 0.05, ex, ey, r * 0.3); sg.addColorStop(0, 'rgba(70,30,22,0.28)'); sg.addColorStop(1, 'rgba(70,30,22,0)');
+    const sg = ctx.createRadialGradient(ex, ey, r * 0.05, ex, ey, r * 0.3); sg.addColorStop(0, `rgba(70,30,22,${(0.28 + dk * 0.4).toFixed(3)})`); sg.addColorStop(1, 'rgba(70,30,22,0)');
     ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(ex, ey, r * 0.3, r * 0.22, 0, 0, Math.PI * 2); ctx.fill();
   }
   /* the eyes: white, iris, pupil, a wet glint; the upper lid comes down with pain, closes when he's out, sits
@@ -167,6 +180,8 @@ function drawFaceReal(ctx, g, p) {
     ctx.fillStyle = dead ? '#5d5650' : '#4a3122'; ctx.beginPath(); ctx.arc(ix, iy, r * 0.072, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#120b08'; ctx.beginPath(); ctx.arc(ix, iy, r * (dead ? 0.045 : pain > 90 ? 0.022 : 0.033), 0, Math.PI * 2); ctx.fill();
     if (!dead) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(ix - r * 0.025, iy - r * 0.03, r * 0.017, 0, Math.PI * 2); ctx.fill(); }
+    /* dead a while: the cornea clouds over, milky, the white of the eye going dull and brownish where it's open */
+    if (dead && dk > 0) { ctx.fillStyle = `rgba(214,212,200,${Math.min(0.75, 0.2 + dk * 2.2).toFixed(3)})`; ctx.beginPath(); ctx.arc(ix, iy, r * 0.085, 0, Math.PI * 2); ctx.fill(); if (dk > 0.15) { ctx.fillStyle = `rgba(90,60,40,${Math.min(0.4, (dk - 0.15) * 1.2).toFixed(3)})`; ctx.fillRect(ex - ew, iy - eh * 0.1, ew * 2, eh * 0.5); } }
     /* the upper lid, skin, over the top of the eye */
     ctx.fillStyle = skin; ctx.fillRect(ex - ew, ey - eh, ew * 2, eh * 2 * lid);
     ctx.restore();
@@ -196,10 +211,18 @@ function drawFaceReal(ctx, g, p) {
     ctx.fillStyle = '#2a0707'; ctx.beginPath(); ctx.ellipse(0, my, mw, mh, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#7a2a2a'; ctx.beginPath(); ctx.ellipse(0, my + mh * 0.55, mw * 0.6, mh * 0.35, 0, 0, Math.PI * 2); ctx.fill();
     if (open > 0.2) { ctx.save(); ctx.beginPath(); ctx.ellipse(0, my, mw, mh, 0, 0, Math.PI * 2); ctx.clip(); ctx.fillStyle = '#ece4d2'; const lost = g.teeth || 0; for (let i = 0; i < 6; i++) { if (i < lost * 1.5 && i % 2 === 0) continue; ctx.fillRect(-mw * 0.7 + i * mw * 0.24, my - mh, mw * 0.2, mh * 0.42); } ctx.restore(); }
-    ctx.strokeStyle = '#7a4038'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.ellipse(0, my, mw, mh, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = dead ? (dk > 0.05 ? '#5a4c5a' : '#6a4048') : '#7a4038'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.ellipse(0, my, mw, mh, 0, 0, Math.PI * 2); ctx.stroke();
   } else {
-    ctx.strokeStyle = '#6a3830'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + r * 0.03 - k * r * 0.05, mw, my); ctx.stroke();
+    ctx.strokeStyle = dead ? (dk > 0.05 ? '#5a4c5a' : '#6a4048') : '#6a3830'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + r * 0.03 - k * r * 0.05, mw, my); ctx.stroke();
     ctx.strokeStyle = 'rgba(110,60,50,0.35)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(-mw * 0.6, my + r * 0.09); ctx.quadraticCurveTo(0, my + r * 0.12, mw * 0.6, my + r * 0.09); ctx.stroke();
+  }
+  /* blood coming up from his chest: out of the corner of his mouth and down his chin */
+  const mb = dm.mouthBlood || 0;
+  if (mb > 0.05 && !g.dusty) {
+    ctx.strokeStyle = `rgba(110,6,6,${(0.55 + 0.35 * mb).toFixed(2)})`; ctx.lineCap = 'round'; ctx.lineWidth = (0.6 + mb * 0.7) * S;
+    const sx = -mw * 0.7; ctx.beginPath(); ctx.moveTo(sx, my + mh * 0.3); ctx.quadraticCurveTo(sx - r * 0.04, my + r * 0.25, sx - r * 0.02, my + r * (0.3 + mb * 0.25)); ctx.stroke();
+    if (mb > 0.4) { ctx.beginPath(); ctx.moveTo(mw * 0.5, my + mh * 0.4); ctx.quadraticCurveTo(mw * 0.55, my + r * 0.2, mw * 0.45, my + r * (0.22 + mb * 0.18)); ctx.stroke(); }
+    if (open > 0.06) { ctx.fillStyle = 'rgba(90,4,4,0.6)'; ctx.beginPath(); ctx.ellipse(0, my + mh * 0.3, mw * 0.8, mh * 0.6, 0, 0, Math.PI * 2); ctx.fill(); }
   }
   /* a nosebleed, and a split lip, once his face has been hit */
   if (face && (face.ais >= 1 || (cran && cran.organ > 0.2))) {
@@ -239,19 +262,66 @@ R.hat = drawHat;
 /* the round caps over each joint, so a bent elbow doesn't show a gap */
 function drawCaps(ctx, g, layer) {
   for (const j of g.joints) {
-    if (j.broken || j.b.gone || j.a.gone || j.id === 'neck') continue;
+    if (j.broken || j.b.gone || j.a.gone || j.id === 'neck' || j.section) continue;
     if (j.b.def.layer !== layer) continue;
     const pv = G.body.pivot(j), w = Math.min(j.b.def.wh ? j.b.def.wh[0] : 8, j.a.def.wh ? j.a.def.wh[0] : 8) * S * 0.47;
     ctx.fillStyle = capColour(g, j.b, true); ctx.beginPath(); ctx.arc(pv.x, pv.y, w, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = dummy(g) ? 'rgba(14,8,6,0.4)' : 'rgba(0,0,0,0.35)'; ctx.lineWidth = dummy(g) ? 0.6 : 0.8; ctx.stroke();
   }
 }
+/* a limb broken partway along, still on: the flesh across the break. whole round it, it's the limb bent where it
+   shouldn't bend, swollen and dark there; cut most of the way round, it's a strap of skin and meat on the side the
+   blade never reached, the cut faces either side of the gap with the bone's ends in them */
+const TAPER = { uarm: [1, 0.82], larm: [1, 0.72], uleg: [1, 0.78], lleg: [0.98, 0.7] };
+function halfW(d, y) { const tp = TAPER[d.kind] || [1, 1], h = d.wh[1] * S, u = G.clamp((y + h / 2) / h, 0, 1); return d.wh[0] * S / 2 * (tp[0] + (tp[1] - tp[0]) * u); }
+function drawSection(ctx, g, j) {
+  const pa = j.a, pb = j.b; if (pa.gone || pb.gone || pa.removed || pb.removed) return;
+  const d = pa.def, ys = j.ys != null ? j.ys : j.la.y, hw = halfW(d, ys), soft = j.soft || 0, side = j.side || 1;
+  const A1 = G.toWorld(pa.body, -hw, ys), A2 = G.toWorld(pa.body, hw, ys), B1 = G.toWorld(pb.body, -hw, ys), B2 = G.toWorld(pb.body, hw, ys);
+  const skin = g.dusty ? '#e8e0cc' : G.flesh ? G.flesh.skinCol(g) : hsl(g.look.skin, 0), line = dummy(g) ? 'rgba(14,8,6,0.62)' : '#0b0806';
+  const lerp = (P, Q, k) => ({ x: P.x + (Q.x - P.x) * k, y: P.y + (Q.y - P.y) * k });
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (soft < 0.35) {
+    /* whole round it: the skin bridges the bend, swollen, bruising */
+    const mA = lerp(A1, A2, 0.5), mB = lerp(B1, B2, 0.5), nx = (A2.x - A1.x) / (2 * hw), ny = (A2.y - A1.y) / (2 * hw), sw = (1.2 + (j.frac || 2) * 0.35) * S;
+    ctx.beginPath(); ctx.moveTo(A1.x, A1.y); ctx.lineTo(A2.x, A2.y);
+    ctx.quadraticCurveTo((A2.x + B2.x) / 2 + nx * sw, (A2.y + B2.y) / 2 + ny * sw, B2.x, B2.y); ctx.lineTo(B1.x, B1.y);
+    ctx.quadraticCurveTo((A1.x + B1.x) / 2 - nx * sw, (A1.y + B1.y) / 2 - ny * sw, A1.x, A1.y); ctx.closePath();
+    ctx.fillStyle = skin; ctx.fill();
+    if (!g.dusty) { const c = lerp(mA, mB, 0.5), gr = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, hw * 1.5); gr.addColorStop(0, 'rgba(70,20,40,0.45)'); gr.addColorStop(0.6, 'rgba(90,30,50,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fill(); }
+    ctx.strokeStyle = line; ctx.lineWidth = dummy(g) ? 0.7 : 1.3;
+    ctx.beginPath(); ctx.moveTo(A2.x, A2.y); ctx.quadraticCurveTo((A2.x + B2.x) / 2 + nx * sw, (A2.y + B2.y) / 2 + ny * sw, B2.x, B2.y); ctx.moveTo(A1.x, A1.y); ctx.quadraticCurveTo((A1.x + B1.x) / 2 - nx * sw, (A1.y + B1.y) / 2 - ny * sw, B1.x, B1.y); ctx.stroke();
+    ctx.restore(); return;
+  }
+  /* most of the way through: what's left holding it is on the far side from where the blade came in */
+  const keep = Math.max(0.12, 1 - soft), Aout = side > 0 ? A1 : A2, Aoth = side > 0 ? A2 : A1, Bout = side > 0 ? B1 : B2, Both = side > 0 ? B2 : B1;
+  const Ain = lerp(Aout, Aoth, keep), Bin = lerp(Bout, Both, keep);
+  /* the strap: meat inside, skin on the outside of it */
+  ctx.beginPath(); ctx.moveTo(Aout.x, Aout.y); ctx.lineTo(Ain.x, Ain.y); ctx.lineTo(Bin.x, Bin.y); ctx.lineTo(Bout.x, Bout.y); ctx.closePath();
+  ctx.fillStyle = g.dusty ? '#8a7a60' : '#6a0f0c'; ctx.fill();
+  ctx.strokeStyle = skin; ctx.lineWidth = 1.1 * S; ctx.beginPath(); ctx.moveTo(Aout.x, Aout.y); ctx.lineTo(Bout.x, Bout.y); ctx.stroke();
+  ctx.strokeStyle = line; ctx.lineWidth = dummy(g) ? 0.6 : 1.1; ctx.stroke();
+  /* the cut faces either side of the gap: the meat, the fat under the skin at the edge, the bone's end standing out of it */
+  for (const [P0, P1, body, dir] of [[Ain, Aoth, pa.body, 1], [Bin, Both, pb.body, -1]]) {
+    const fn = G.dirWorld(body, 0, dir), fx = fn.x * 1.1 * S, fy = fn.y * 1.1 * S;
+    ctx.beginPath(); ctx.moveTo(P0.x, P0.y); ctx.lineTo(P1.x, P1.y); ctx.lineTo(P1.x + fx * 0.6, P1.y + fy * 0.6); ctx.lineTo(P0.x + fx, P0.y + fy); ctx.closePath();
+    ctx.fillStyle = g.dusty ? '#6a5a40' : '#5e0d0a'; ctx.fill();
+    ctx.fillStyle = 'rgba(160,40,32,0.45)'; ctx.beginPath(); ctx.moveTo(P0.x + fx * 0.3, P0.y + fy * 0.3); ctx.lineTo(P1.x + fx * 0.2, P1.y + fy * 0.2); ctx.lineTo(P1.x + fx * 0.45, P1.y + fy * 0.45); ctx.lineTo(P0.x + fx * 0.7, P0.y + fy * 0.7); ctx.closePath(); ctx.fill();
+    if ((j.cutB || 0) >= 1 || (j.frac || 0) >= 2) {
+      const bc = G.toWorld(body, d.kind === 'larm' ? 0 : 0.2 * S * (d.side || 1), ys), bw = (d.kind === 'uleg' ? 1.1 : d.kind === 'uarm' ? 0.95 : 0.8) * S, ex = fn.x * (1.4 + (j.frac >= 3 ? 1 : 0)) * S, ey = fn.y * (1.4 + (j.frac >= 3 ? 1 : 0)) * S, tx = -fn.y * bw, ty = fn.x * bw;
+      ctx.fillStyle = '#ddd2bc'; ctx.strokeStyle = 'rgba(70,20,14,0.7)'; ctx.lineWidth = 0.45;
+      ctx.beginPath(); ctx.moveTo(bc.x - tx, bc.y - ty); ctx.lineTo(bc.x - tx + ex, bc.y - ty + ey); ctx.lineTo(bc.x + ex * (j.frac >= 3 ? 0.6 : 1), bc.y + ey * (j.frac >= 3 ? 0.6 : 1)); ctx.lineTo(bc.x + tx + ex, bc.y + ty + ey); ctx.lineTo(bc.x + tx, bc.y + ty); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#6a1a12'; ctx.beginPath(); ctx.arc(bc.x + ex * 0.95, bc.y + ey * 0.95, bw * 0.35, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
 /* his neck: skin between his collar and his jaw */
 function drawNeck(ctx, g) {
   const j = g.jointById.neck; if (!j || j.broken || g.parts.head.gone) return;
   const a = G.toWorld(g.parts.chest.body, 0, -7.5 * S), b = G.toWorld(g.parts.head.body, 0, 7.2 * S), dm = dummy(g);
   ctx.strokeStyle = dm ? 'rgba(14,8,6,0.62)' : '#0b0806'; ctx.lineCap = 'round'; ctx.lineWidth = (dm ? 5.6 : 6.6) * S; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  ctx.strokeStyle = g.dusty ? '#e8e0cc' : hsl(g.look.skin, G.flesh ? G.flesh.pale(g) : 0); ctx.lineWidth = (dm ? 5.6 : 6.6) * S - (dm ? 1.4 : 2.6); ctx.stroke();
+  ctx.strokeStyle = g.dusty ? '#e8e0cc' : G.flesh ? G.flesh.skinCol(g) : hsl(g.look.skin, 0); ctx.lineWidth = (dm ? 5.6 : 6.6) * S - (dm ? 1.4 : 2.6); ctx.stroke();
   /* close up: the shadow under the jaw and a tendon down each side */
   if (dm) { ctx.strokeStyle = 'rgba(60,25,18,0.22)'; ctx.lineWidth = 0.6; const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; ctx.beginPath(); ctx.moveTo(b.x - 2.2 * S, b.y + 0.5); ctx.lineTo(mx - 1.2 * S, my + 2); ctx.moveTo(b.x + 2.2 * S, b.y + 0.5); ctx.lineTo(mx + 1.2 * S, my + 2); ctx.stroke(); }
   const R0 = g.dm && g.dm.regions && g.dm.regions.neck;
@@ -283,6 +353,8 @@ G.draw = function (ctx) {
       if (layer === 1) drawNeck(ctx, g);
       drawCaps(ctx, g, layer);
       for (const p of g.list) if (!p.gone && !p.removed && p.def.layer === layer) drawPart(ctx, g, p);
+      for (const j of g.joints) if (j.section && !j.broken && j.a.def.layer === layer) drawSection(ctx, g, j);
+      if (G.skin) { G.skin.creases(ctx, g, layer); G.skin.draw(ctx, g, layer); }
     }
     ctx.globalAlpha = 1;
   }

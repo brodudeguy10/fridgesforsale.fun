@@ -45,6 +45,16 @@ function sizePool() {
 sizePool(); window.addEventListener('resize', sizePool);
 BL.poolAt = x => { const i = Math.floor(x / CELL); return i >= 0 && i < pv.length ? pv[i] : 0; };
 function toPool(x, ml) { const i = Math.floor(x / CELL); if (i < 1 || i >= pv.length - 1) return; const tot = pv[i] + ml; pa[i] = tot > 0 ? (pa[i] * pv[i]) / tot : 0; pv[i] = tot; poolDirty = true; }
+BL.toPool = toPool;
+BL.poolAge = x => { const i = Math.floor(x / CELL); return i >= 0 && i < pa.length ? pa[i] : 0; };
+/* something dragged through the pool: it pushes some of it along with it, the way a hand pushes water */
+function dragPool(x, dir, sp) {
+  const i = Math.floor(x / CELL); if (i < 2 || i >= pv.length - 2) return;
+  const s = dir > 0 ? 1 : -1, j = i + s, m = Math.min(pv[i] * clamp(sp * 0.035, 0.02, 0.22), 6);
+  if (m <= 0.01) return;
+  const tot = pv[j] + m; pa[j] = tot > 0 ? (pa[j] * pv[j] + pa[i] * m) / tot : 0; pv[j] = tot; pv[i] -= m; poolDirty = true;
+}
+BL.dragPool = dragPool;
 
 /* a stain on the wall: stretched by how fast and which way the drop was going */
 BL.stamp = function (x, y, r, vx = 0, vy = 0, col, alpha = 0.85, floor = false) {
@@ -125,7 +135,8 @@ G.on('hurt', (g, p, h, R, inj, ev) => {
   const opened = (inj || []).some(i => i.tissue !== 'soft' && i.tissue !== 'joint') && R.skin < 1;
   const k = ev.post ? 0.25 : 1;
   if (ev.kind === 'impact') {
-    if (!opened && h.E < 40) return;
+    /* a slam that didn't open him has nothing to throw: no blood off an unbroken skin, however hard */
+    if (!opened) return;
     /* squeezed out sideways from where it landed, more the harder it hit */
     const nn = Math.round(clamp(h.E * 0.6, 4, 60) * k), nx = h.n ? h.n.x : 0, ny = h.n ? h.n.y : -1;
     BL.spray(wx, wy, -ny, nx, nn / 2, 2.5 + Math.sqrt(h.E) * 0.4, 1.0, 1.6, g, { vel: { x: p.body.velocity.x * 0.4, y: p.body.velocity.y * 0.4 } });
@@ -229,21 +240,24 @@ BL.step = function (h) {
     vy[i] += d ? 0.12 : grav; vx[i] *= d ? 0.96 : 0.99; vy[i] *= d ? 0.96 : 0.995;
     px[i] += vx[i]; py[i] += vy[i]; life[i]--;
     /* some drops are heading for the wall behind him: they get there */
-    if (wall[i] > 0) { wall[i]--; if (wall[i] <= 0) { kill(i, true); continue; } }
+    if (wall[i] > 0) { wall[i]--; if (wall[i] <= 0) { if (!d && (!T.wallBase || py[i] < T.wallBase)) toPool(px[i], vol[i] * 0.5); kill(i, true); continue; } }
     if (py[i] >= Hh - 1) { if (!d) { if (T.wallBase) floorStain(i); else BL.stamp(px[i], Hh - 1.5, pr[i] * 1.2, vx[i], 0, COLS[col[i]], 0.8, true); toPool(px[i], vol[i] + 0.15); if (pr[i] > 1.6 && Math.random() < 0.04) G.emit('sfx', 'drop', { x: px[i], k: pr[i] / 3 }); } kill(i, false); continue; }
     if (px[i] <= 1 || px[i] >= W - 1 || py[i] <= 1) { if (!d) { BL.stamp(clamp(px[i], 1, W - 1), Math.max(1, py[i]), pr[i] * 1.3, vx[i], vy[i], COLS[col[i]]); if (pr[i] > 1.7 && Math.random() < 0.3 && !(T.wallBase && py[i] > T.wallBase - 3)) drip(clamp(px[i], 2, W - 2), py[i], pr[i] * 0.7, COLS[col[i]]); } kill(i, false); continue; }
+    if (life[i] <= 0 && !d && py[i] > Hh - 70 && vy[i] > 0) { toPool(px[i], vol[i]); if (T.wallBase) floorStain(i); kill(i, false); continue; }
     if (life[i] <= 0) { const onWall = !(T.wallBase && py[i] > T.wallBase - 3); kill(i, !d); if (!d && onWall && pr[i] > 2 && Math.random() < 0.12) drip(px[i], py[i], pr[i] * 0.55); continue; }
     if (d) continue;
     /* a fridge in the way */
     const cell = grid.get(Math.floor(px[i] / 96) * 1000 + Math.floor(py[i] / 96));
     if (cell) { let hit = null; for (const f of cell) if (inBody(f, px[i], py[i])) { hit = f; break; } if (hit) { BL.onFridge(hit, px[i], py[i], pr[i] * 1.1); kill(i, false); continue; } }
-    /* somebody in the way: it lands on his clothes */
+    /* somebody in the way: it lands on his clothes. on himself it marks him and carries on down (the picture is flat:
+       what falls past an arm in front of him is running down him), on anyone else it stays where it landed */
     if (G.flesh && (i & 3) === (Math.floor(G.t * 60) & 3)) {
       for (const g of guysNow) {
-        if (g.id === owner[i] && G.t - born[i] < 0.12) continue;
+        const own = g.id === owner[i];
+        if (own && G.t - born[i] < 0.12) continue;
         let landed = false;
-        for (const p of g.list) { if (p.gone || p.removed || !p.tex) continue; if (inBody(p.body, px[i], py[i])) { G.flesh.splash(p, px[i], py[i], pr[i] * 1.1, COLS[col[i]]); landed = true; break; } }
-        if (landed) { kill(i, false); break; }
+        for (const p of g.list) { if (p.gone || p.removed || !p.tex) continue; if (inBody(p.body, px[i], py[i])) { if (!own || Math.random() < 0.3) G.flesh.splash(p, px[i], py[i], pr[i] * 1.1, COLS[col[i]]); landed = true; break; } }
+        if (landed) { if (own) { born[i] = G.t + 0.2; vx[i] *= 0.6; vy[i] = Math.min(vy[i], 1.5); } else kill(i, false); break; }
       }
     }
   }
@@ -259,7 +273,11 @@ BL.step = function (h) {
   /* the pool creeps outward and dries from the edges in */
   poolTick++;
   if (poolTick % 6 === 0) spread(h * 6);
+  /* what's on the walls and the floor dries: every so often all of it goes a shade darker and browner (only where
+     there's blood: what lands later starts red and catches up) */
+  if (dctx && G.t - dryT > 8) { dryT = G.t; dctx.save(); dctx.setTransform(1, 0, 0, 1, 0, 0); dctx.globalCompositeOperation = 'source-atop'; dctx.fillStyle = 'rgba(40,18,8,0.05)'; dctx.fillRect(0, 0, dried.width, dried.height); dctx.restore(); }
 };
+let dryT = 0;
 let poolTick = 0;
 function spread(dt) {
   const L = pv.length; let any = false;
@@ -272,52 +290,78 @@ function spread(dt) {
   }
   if (any) poolDirty = true;
 }
-/* the open places on him: an artery pumps on the beat, a wound runs, a stump spurts until he's empty */
+/* the open places on him: bleed.js knows what each one is losing and lets it out (an artery pumps on the beat, a
+   vein runs, a scrape oozes, a stump spurts until he's empty, a lung comes up as a cough). then what's on him goes
+   onto whatever he touches, and what he's lying in comes up onto him */
 function bleedOut(g, h) {
   if (g.dusty || !g.dm) return;
-  const dm = g.dm, alive = g.alive, pressure = clamp(dm.blood / T.bloodMl, 0, 1) * (alive ? 1 : 0.12);
-  for (const p of g.list) {
-    if (p.gone || p.removed || !p.tex) continue;
-    const t = p.tex, b = p.body;
-    /* stumps */
-    for (const e of t.ends) {
-      const age = G.t - e.t, mine = p.attached && e.side === 'a';
-      const k = mine ? 1 : Math.max(0, 1 - age / 6);
-      if (k <= 0) continue;
-      const at = G.toWorld(b, e.x, e.y), nd = Math.hypot(e.nx, e.ny) || 1, nw = G.dirWorld(b, e.nx / nd, e.ny / nd);
-      const art = (A.jointById[e.joint] || { art: 0.5 }).art * (mine ? 1 : 0.35);
-      const jet = art * pressure * dm.pulse * (alive ? 1 : 0.4);
-      if (jet > 0.08 && G.t - (e.lastJet || 0) > 0.03) { e.lastJet = G.t; const nn = Math.ceil(jet * 3); for (let i = 0; i < nn; i++) { const sp = 2 + 9 * jet * rnd(0.7, 1.1); add(at.x, at.y, nw.x * sp + b.velocity.x + rnd(-0.6, 0.6), nw.y * sp + b.velocity.y + rnd(-0.6, 0.6), rnd(1.1, 2.3), rnd(50, 110), 1.6, g, 0); } if (dm.pulse > 0.95 && jet > 0.5 && Math.random() < 0.3) G.emit('sfx', 'spurt', { x: at.x, k: jet }); }
-      else if (Math.random() < 0.25 * k * (0.3 + pressure)) add(at.x, at.y, b.velocity.x + rnd(-0.3, 0.3), b.velocity.y + rnd(0, 0.6), rnd(0.9, 1.9), rnd(30, 80), 1.2, g, 0);
-    }
-    /* open wounds: drops in proportion to what they're losing */
-    if (!t.openings.length) continue;
-    const reg = dm.regions[A.regionAt(p.id, 0, 0)];
-    const rate = reg ? reg.bleed * (0.25 + 0.75 * pressure) : 0;
-    if (rate <= 0.02) continue;
-    const want = rate * h / 1.4;
-    if (Math.random() < want) {
-      const o = G.pick(t.openings), at = G.toWorld(b, o.x, o.y), down = G.dirLocal(b, 0, 1);
-      add(at.x + down.x, at.y + 1, b.velocity.x * 0.5 + rnd(-0.3, 0.3), b.velocity.y * 0.5 + rnd(0, 0.5), rnd(0.8, 1.8), rnd(30, 70), 1.4, g, 0);
-    }
-  }
+  if (G.bleed) G.bleed.emit(g, h, add);
   /* soaking into his clothes, now and then */
   if (G.flesh && Math.floor(G.t * 2) !== Math.floor((G.t - h) * 2)) G.flesh.bleedTick(g);
-  /* a bloody hand on a wall leaves a print; a bleeding part dragged along the floor leaves a smear */
-  for (const id of ['handL', 'handR', 'footL', 'footR']) {
-    const p = g.parts[id]; if (!p || p.gone || p.removed) continue;
-    const wet = (p.wet || 0);
-    if (id.startsWith('foot') && p.contacts.some(c => c.n.y < -0.5) && BL.poolAt(p.body.position.x) > 2) p.wet = Math.min(1, wet + h * 2);
-    if (id.startsWith('hand')) { const near = g.list.some(q => q.tex && q.tex.openings.some(o => o.bleed > 0.2 && Math.hypot(G.toWorld(q.body, o.x, o.y).x - p.body.position.x, G.toWorld(q.body, o.x, o.y).y - p.body.position.y) < 9 * S)); if (near || (p.contacts.some(c => c.n.y < -0.5) && BL.poolAt(p.body.position.x) > 2)) p.wet = Math.min(1, wet + h * 1.5); }
-    if (wet > 0.25) for (const c of p.contacts) {
-      if (G.t - (p.printT || 0) < 0.6) break;
-      const w = G.walls(), isWall = c.other === w.leftWall || c.other === w.rightWall || c.other === w.ceiling, fr = c.other.plugin && c.other.plugin.fv;
-      if (!isWall && !fr) continue;
-      p.printT = G.t; p.wet = wet - 0.22;
-      if (isWall) BL.print(c.pt.x, c.pt.y, (id.startsWith('hand') ? 4.5 : 4) * S, p.body.angle, id.startsWith('foot'));
-      else { const l = G.toLocal(c.other, c.pt.x, c.pt.y); const pl = c.other.plugin, gl = pl.gore = pl.gore || []; gl.push({ x: l.x, y: l.y, r: 4.5 * S, a: p.body.angle - c.other.angle, c: G.pick(COLS), hand: true, foot: id.startsWith('foot') }); if (gl.length > 32) gl.splice(0, gl.length - 32); pl.goreDirty = true; }
+  contactBlood(g, h);
+}
+/* blood by contact, both ways. lying in the pool soaks a part (and shows on it); dragged through the pool, the pool
+   comes along and the floor behind gets a smear; a bloody part touching a wall, the floor or a fridge leaves a mark
+   (a hand or a foot leaves a print) until it's wiped itself dry */
+const PRINTS = { handL: 1, handR: 1, footL: 2, footR: 2 };
+/* a wet part dragged along the floor: a streak along it, at the depth it's lying at, broken where it lifted */
+function floorStroke(p, x, wet, print) {
+  if (!dctx) return;
+  const fy = G.floorY(), off = p.smearOff != null ? p.smearOff : (p.smearOff = rnd(-3, 4)), L = p.smearLast;
+  if (L && Math.abs(L.x - x) < 28 && G.t - L.t < 0.2 && Math.abs(L.x - x) > 0.3) {
+    dctx.save(); dctx.lineCap = 'round'; dctx.strokeStyle = G.pick(COLS);
+    dctx.globalAlpha = 0.16 + wet * 0.3; dctx.lineWidth = (0.9 + wet * 2.4) * (print ? 0.7 : 1);
+    dctx.beginPath(); dctx.moveTo(L.x, fy + off + L.j); const j = rnd(-0.35, 0.35); dctx.lineTo(x, fy + off + j); dctx.stroke();
+    /* the streaks inside a smear, where something dragged through it unevenly */
+    if (wet > 0.4) { dctx.globalAlpha = 0.18; dctx.lineWidth = 0.4; dctx.strokeStyle = '#3a0202'; dctx.beginPath(); dctx.moveTo(L.x, fy + off + L.j + 0.8); dctx.lineTo(x, fy + off + j + 0.8); dctx.stroke(); }
+    dctx.restore();
+    p.smearLast = { x, t: G.t, j };
+  } else p.smearLast = { x, t: G.t, j: 0 };
+}
+function contactBlood(g, h) {
+  const w = G.walls(), fy = G.floorY();
+  for (const p of g.list) {
+    if (p.gone || p.removed) continue;
+    let wet = p.wet || 0;
+    const print = PRINTS[p.id];
+    for (const c of p.contacts) {
+      const o = c.other, floor = o === w.ground, wall = o === w.leftWall || o === w.rightWall || o === w.ceiling, fr = o.plugin && o.plugin.fv;
+      if (floor) {
+        const pv0 = BL.poolAt(c.pt.x);
+        if (pv0 > 0.8) {
+          wet = Math.min(1, wet + h * clamp(pv0 / 10, 0.3, 3));
+          /* it shows on him where he's lying in it, more the longer and the more he moves in it */
+          if (p.tex && G.flesh && Math.random() < h * (1.5 + c.tv * 2)) G.flesh.smear(p, c.pt.x + rnd(-1.5, 1.5), c.pt.y - rnd(0, 1.2) * S, rnd(2.5, 4.5) * S, c.tdir);
+          if (c.tv > 0.35) dragPool(c.pt.x, c.tdir.x, c.tv);
+        }
+        /* moving over the floor wet: a smear behind it, a streak from where it was to where it is, thinner as it dries */
+        if (wet > 0.12 && c.tv > 0.45 && G.t - (p.smearT || 0) > 0.045) {
+          p.smearT = G.t;
+          floorStroke(p, c.pt.x, wet, print);
+          if (Math.random() < 0.35) BL.stamp(c.pt.x - c.tdir.x * 0.6, fy + (p.smearOff || 0) + rnd(-1, 1.5), (1.1 + wet * 1.5) * (print ? 0.8 : 1), clamp(c.tdir.x * 1.6, -9, 9), 0, null, 0.2 + wet * 0.3, true);
+          if (pv0 < 1.5) toPool(c.pt.x, 0.04 * wet);
+          wet -= 0.01;
+        }
+        else if (print === 2 && wet > 0.3 && c.n.y < -0.5 && G.t - (p.printT || 0) > 0.5 && c.tv < 0.6) { p.printT = G.t; wet -= 0.12; BL.stamp(c.pt.x, fy + rnd(0, 2), 2.2 * S / 1.9, 0, 0, null, 0.45, true); }
+      } else if ((wall || fr || (o.isStatic && !o.isSensor)) && wet > 0.22) {
+        if (G.t - (p.printT || 0) < (c.tv > 1 ? 0.07 : 0.4)) continue;
+        p.printT = G.t;
+        if (print === 1 && c.tv < 1.2 && (wall || fr)) {
+          /* a hand flat on it: a print */
+          wet -= 0.2;
+          if (wall) BL.print(c.pt.x, c.pt.y, 4.5 * S, p.body.angle, false);
+          else { const l = G.toLocal(o, c.pt.x, c.pt.y), pl = o.plugin, gl = pl.gore = pl.gore || []; gl.push({ x: l.x, y: l.y, r: 4.5 * S, a: p.body.angle - o.angle, c: G.pick(COLS), hand: true, foot: false }); if (gl.length > 32) gl.splice(0, gl.length - 32); pl.goreDirty = true; }
+        } else {
+          /* anything else of his: a smear along the way it was moving, or a blot where it pressed */
+          wet -= c.tv > 1 ? 0.025 : 0.08;
+          if (fr) BL.onFridge(o, c.pt.x, c.pt.y, (1.8 + wet * 1.5) * S, c.tv > 1);
+          else BL.stamp(c.pt.x, c.pt.y, (1.2 + wet * 1.8) * S / 1.9 * 1.6, c.tdir.x * (c.tv > 1 ? 2.5 : 0), c.tdir.y * (c.tv > 1 ? 2.5 : 0), null, 0.3 + wet * 0.35);
+        }
+      }
     }
-    p.wet = Math.max(0, (p.wet || 0) - h * 0.02);
+    /* a bleeding hand near an open wound picks it up (holding what hurts) */
+    if (print === 1 && G.t - (p.nearT || 0) > 0.25) { p.nearT = G.t; const pp = p.body.position; for (const q of g.list) { if (!q.tex || q.gone || q === p) continue; for (const op of q.tex.openings) { if (op.bleed < 0.25) continue; const ow = G.toWorld(q.body, op.x, op.y); if (Math.hypot(ow.x - pp.x, ow.y - pp.y) < 9 * S) { wet = Math.min(1, wet + 0.2); break; } } } }
+    p.wet = Math.max(0, wet - h * 0.015);
   }
 }
 G.on('abrade', (g, p, a) => {

@@ -121,6 +121,81 @@ BODY.sever = function (g, j, why) {
   return out;
 };
 
+/* a long bone broken (or cut) through partway along: the part becomes two, joined by a pin where it broke, that no
+   muscle drives. the upper piece keeps the part's id, the lower one is that id with a '~' after it. both keep the
+   whole limb's frame for everything already on them (their wounds, the pins at their ends, the ropes on them: p.fo
+   says where the limb's middle sits on each piece's body), so nothing moves when it happens. the joint's range and
+   how much it takes to tear it are the damage code's (damage.js, sections) */
+function pieceBody(old, d, len, x, y, ang, mass) {
+  const w = d.wh[0] * S;
+  const b = M.Bodies.rectangle(x, y, w, len, { collisionFilter: Object.assign({}, old.collisionFilter), frictionAir: old.frictionAir, restitution: old.restitution, friction: old.friction, frictionStatic: old.frictionStatic, slop: old.slop, chamfer: { radius: Math.min(w, len) * 0.44 }, render: { visible: false }, label: 'guy' });
+  B.setMass(b, mass); B.setAngle(b, ang);
+  /* each piece turns as hard as the whole bone did for its weight: the stub left above a break near the hip, with a
+     pin at both ends, would otherwise be a washer between two heavy parts, and the solver can't keep that still */
+  B.setInertia(b, Math.max(b.inertia, old.inertia * mass / old.mass));
+  const v = G.pointVel(old, x, y); B.setVelocity(b, v); B.setAngularVelocity(b, old.angularVelocity);
+  return b;
+}
+BODY.split = function (g, p, ys, o = {}) {
+  const d = p.def;
+  if (!d.wh || d.piece || p.gone || p.removed || !A.LONG.has(p.kind)) return null;
+  const h = d.wh[1] * S, y0 = -h / 2, y1 = h / 2;
+  ys = Math.max(y0 + 4 * S, Math.min(y1 - 4 * S, ys));
+  const old = p.body, ang = old.angle;
+  const c0 = (y0 + ys) / 2, c1 = (ys + y1) / 2, f0 = (ys - y0) / h, f1 = (y1 - ys) / h;
+  const w0 = G.toWorld(old, 0, c0), w1 = G.toWorld(old, 0, c1);
+  const bA = pieceBody(old, d, ys - y0, w0.x, w0.y, ang, old.mass * f0), bB = pieceBody(old, d, y1 - ys, w1.x, w1.y, ang, old.mass * f1);
+  /* the old body's frame, for whatever was pinned to it: before the parts change hands */
+  const oc = Math.cos(-ang), os = Math.sin(-ang), ox = old.position.x, oy = old.position.y;
+  const oldLocal = (wx, wy) => { const dx = wx - ox, dy = wy - oy; return { x: dx * oc - dy * os, y: dx * os + dy * oc }; };
+  const dA = Object.assign({}, d, { mass: d.mass * f0, piece: { y0: -1e4, y1: ys, base: d.id }, whole: d.whole || d });
+  const dB = Object.assign({}, d, { id: d.id + '~', mass: d.mass * f1, name: d.name + ' below the break', piece: { y0: ys, y1: 1e4, base: d.id }, whole: d.whole || d });
+  const p2 = { def: dB, id: dB.id, kind: p.kind, side: p.side, body: bB, guy: g, attached: p.attached, loose: p.loose, looseT: p.looseT, detachedAt: p.detachedAt, gone: false, joints: [], contacts: [], cut: p.cut, fo: -c1, wet: p.wet || 0 };
+  p.def = dA; p.fo = -c0; p.body = bA; p.contacts = [];
+  bA.plugin = { guy: g, part: p }; bB.plugin = { guy: g, part: p2 };
+  old.plugin = {};
+  /* his own pins: the ones at the far end go with the lower piece */
+  for (const j of p.joints.slice()) {
+    const mineA = j.a === p, l = mineA ? j.la : j.lb;
+    if (l.y > ys) { if (mineA) j.a = p2; else j.b = p2; p.joints.splice(p.joints.indexOf(j), 1); p2.joints.push(j); }
+  }
+  const rebind = BODY.rebind = j => {
+    if (!j.c) return;
+    const a = j.a.body, b = j.b.body, pa = G.toWorld(a, j.la.x, j.la.y), pb = G.toWorld(b, j.lb.x, j.lb.y);
+    j.c.bodyA = a; j.c.pointA = { x: pa.x - a.position.x, y: pa.y - a.position.y }; j.c.angleA = a.angle;
+    j.c.bodyB = b; j.c.pointB = { x: pb.x - b.position.x, y: pb.y - b.position.y }; j.c.angleB = b.angle;
+    if (j.lc) { j.lc.bodyA = a; j.lc.bodyB = b; j.lc.stiffness = 0; j.lc.damping = 0; j.stop = 0; }
+  };
+  for (const j of p.joints) rebind(j);
+  for (const j of p2.joints) rebind(j);
+  /* the new pin, where it broke */
+  const jd = { id: d.id + '~cut', a: p.id, b: p2.id, name: o.name || d.name, section: true, passive: true, kindOf: p.kind, cap: 0, hp: 60, art: 1, lim: [-0.06, 0.06] };
+  const wp = G.toWorld(bA, 0, ys);
+  const c = M.Constraint.create({ bodyA: bA, bodyB: bB, pointA: { x: wp.x - bA.position.x, y: wp.y - bA.position.y }, pointB: { x: wp.x - bB.position.x, y: wp.y - bB.position.y }, length: 0, stiffness: 1, damping: 0.08, render: { visible: false } });
+  const js = { def: jd, id: jd.id, a: p, b: p2, c, la: { x: 0, y: ys }, lb: { x: 0, y: ys }, lim: jd.lim.slice(), state: 'broken', broken: false, hp: jd.hp, stretch: 0, hyper: 0, ease: 1, stop: 0, section: true, ys };
+  js.lc = M.Constraint.create({ bodyA: bA, bodyB: bB, pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 }, length: 0, render: { visible: false } });
+  js.lc.stiffness = 0; js.lc.damping = 0; js.lc.plugin = { gStop: js };
+  g.joints.push(js); g.jointById[js.id] = js; p.joints.push(js); p2.joints.push(js);
+  /* into the world in the old one's place */
+  try { M.World.remove(G.world, old); } catch (e) {}
+  M.World.add(G.world, [bA, bB, c, js.lc]);
+  /* anything else pinned to the old body (a rope, a nail, a spike, the hand holding it): whichever piece that point is on */
+  for (const k of M.Composite.allConstraints(G.world)) {
+    for (const s of ['A', 'B']) {
+      if (k['body' + s] !== old) continue;
+      const pt = M.Vector.rotate(k['point' + s], ang - (k['angle' + s] || ang)), wx = ox + pt.x, wy = oy + pt.y;
+      const l = oldLocal(wx, wy), nb = l.y > ys ? bB : bA;
+      k['body' + s] = nb; k['point' + s] = { x: wx - nb.position.x, y: wy - nb.position.y }; k['angle' + s] = nb.angle;
+    }
+  }
+  g.parts[p2.id] = p2;
+  g.list.splice(g.list.indexOf(p) + 1, 0, p2);
+  BODY.connect(g);
+  if (G.brain && G.brain.topology && g.br) G.brain.topology(g);
+  G.emit('split', g, p, p2, ys, js, old);
+  return js;
+};
+
 /* the parts that are still him, by mass */
 BODY.com = function (g, all = false) {
   let m = 0, x = 0, y = 0, vx = 0, vy = 0;

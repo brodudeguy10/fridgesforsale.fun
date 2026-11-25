@@ -16,6 +16,13 @@
   var dctx = document.getElementById('driedBloodCanvas').getContext('2d');
   var SPIKE_L = 44, SPIKE_W = 6;
   var spikes = TR.spikes = [], nails = TR.nails = [], staples = TR.staples = [];
+  /* a limb that broke in two with a spike, a nail or a staple in it: it stays in whichever piece it went into */
+  G.on('split', function (g, p, p2, ys) {
+    var mv = function (o, k) { if (o && o[k] === p && o.l && o.l.y > ys) o[k] = p2; };
+    spikes.forEach(function (sp) { sp.on.forEach(function (e) { mv(e, 'part'); }); });
+    nails.forEach(function (nl) { mv(nl, 'part'); });
+    staples.forEach(function (st) { mv(st.a, 'p'); mv(st.b, 'p'); });
+  });
   var flyNails = [], firstStaple = null, press = {}, hits = [];
   var preview = { a: -Math.PI / 2, free: -Math.PI / 2 };
 

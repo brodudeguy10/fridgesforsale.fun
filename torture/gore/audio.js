@@ -139,7 +139,7 @@ G.on('creak', (g, j) => { const pv = G.body.pivot(j); AU.play('crunch', { x: pv.
 G.on('step', (g, f) => { const c = f.contacts.find(q => q.n.y < -0.5); const metal = c && c.other.plugin && c.other.plugin.fv; AU.play(metal ? 'step_metal' : 'step', { x: f.body.position.x, gain: metal ? 0.35 : 0.28, rate: rnd(0.92, 1.08), key: 'step' + g.id, gap: 0.08 }); });
 G.on('abrade', (g, p, a) => { if (G.t - (p.scrapeT || 0) < 0.22) return; p.scrapeT = G.t; AU.play('scrape', { x: p.body.position.x, gain: clamp(a.dose * 900, 0.08, 0.45), key: 'scrape' + g.id, gap: 0.2 }); if (Math.random() < 0.4) AU.play('cloth', { x: p.body.position.x, gain: 0.2, key: 'cloth' + g.id, gap: 0.25 }); });
 G.on('thrown', g => { const c = G.body.com(g); AU.play('whoosh', { x: c.x, gain: 0.45, rate: 0.75 }); });
-G.on('beat', g => { if (!g.dm || g.dusty || g.dm.blood > 2900 || !g.alive) return; AU.play('heart', { gain: 0.35 * clamp((3000 - g.dm.blood) / 1200, 0.3, 1), key: 'heart' + g.id, gap: 0.25, rate: 0.95 }); });
+G.on('beat', g => { if (!g.dm || g.dusty || g.dm.blood > 3800 || !g.alive) return; AU.play('heart', { gain: 0.35 * clamp((3900 - g.dm.blood) / 1100, 0.3, 1), key: 'heart' + g.id, gap: 0.25, rate: 0.95 }); });
 G.on('artery', (g, p, a) => { AU.play('spurt', { x: p.body.position.x, gain: 0.6 }); });
 G.on('ko', g => { const c = G.body.com(g); AU.play('body_med', { x: c.x, gain: 0.25, rate: 0.8 }); });
 G.on('death', (g, code) => {
@@ -178,8 +178,8 @@ G.on('sfx', (name, o = {}) => {
 });
 
 /* ------------------------------------------------------------ his voice: one thing at a time, louder things first */
-const VOICE = { fall: 'v_panic', air: 'v_scream', hurt: 'v_hurt', grunt: 'v_grunt', scream: 'v_scream', groan: 'v_groan', strain: 'v_effort', effort: 'v_effort', fail: 'v_groan', lifted: 'v_panic', plead: 'v_plead', alarm: 'v_gasp', stagger: 'v_grunt', whimper: 'v_whimper' };
-const RANK = { v_scream: 5, v_hurt: 4, v_panic: 4, v_choke: 5, v_gasp: 2, v_effort: 2, v_groan: 2, v_grunt: 1, v_whimper: 1, v_plead: 3, v_cough: 2 };
+const VOICE = { fall: 'v_panic', air: 'v_scream', hurt: 'v_hurt', grunt: 'v_grunt', scream: 'v_scream', groan: 'v_groan', strain: 'v_effort', effort: 'v_effort', fail: 'v_groan', lifted: 'v_panic', plead: 'v_plead', alarm: 'v_gasp', stagger: 'v_grunt', whimper: 'v_whimper', cough: 'v_cough', pant: 'v_pant' };
+const RANK = { v_scream: 5, v_hurt: 4, v_panic: 4, v_choke: 5, v_gasp: 2, v_effort: 2, v_groan: 2, v_grunt: 1, v_whimper: 1, v_plead: 3, v_cough: 2, v_pant: 1 };
 G.on('voice', (g, kind, k = 1) => {
   if (!g || !g.alive || g.dusty || !g.dm || g.dm.cons < 0.3) return;
   const hd = g.parts.head; if (hd.gone || !hd.attached) return;
@@ -187,6 +187,7 @@ G.on('voice', (g, kind, k = 1) => {
   const neck = g.dm.regions.neck, chest = g.dm.regions.thorax;
   /* a cut throat or a hole in the lungs changes what comes out */
   if ((neck.lac > 2 || g.dm.cord > 0.5 || neck.organ > 0.3) && (name === 'v_scream' || name === 'v_hurt')) name = 'v_choke';
+  else if ((g.dm.hemo || 0) > 250 && (name === 'v_scream' || name === 'v_hurt') && Math.random() < 0.5) name = 'v_cough';
   else if (chest.organ > 0.5 && Math.random() < 0.4 && name !== 'v_scream') name = 'v_cough';
   if (g.dm.oxy < 0.5) { if (name === 'v_scream' || name === 'v_hurt') name = 'v_gasp'; }
   const A = ac(); if (!A) return;

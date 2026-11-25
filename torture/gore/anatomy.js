@@ -97,7 +97,10 @@ for (const s of [1, -1]) {
 }
 A.regionById = {}; for (const r of A.REGIONS) A.regionById[r.id] = r;
 /* which region a point on a part belongs to (local rest units) */
+/* a piece of a limb that broke in two is still that limb: 'ulegL~' is the left thigh below the break */
+A.baseId = id => { const i = id.indexOf('~'); return i < 0 ? id : id.slice(0, i); };
 A.regionAt = (partId, lx, ly) => {
+  partId = A.baseId(partId);
   if (partId === 'head') return ly > 2.5 && Math.atan2(Math.abs(lx), ly) < 0.95 ? 'face' : 'cranium';
   if (partId === 'chest') return ly < -5.2 && Math.abs(lx) < 5.5 ? 'neck' : 'thorax';
   return partId;   /* every other part is one region of its own */
@@ -121,7 +124,7 @@ for (const s of [1, -1]) {
   );
 }
 A.arteryAt = (partId, lx, ly, reach = 0) => {
-  let best = null, bd = 1e9;
+  let best = null, bd = 1e9; partId = A.baseId(partId);
   for (const a of A.ARTERIES) { if (a.part !== partId) continue; const d = Math.hypot(lx - a.x, ly - a.y) - a.r - reach; if (d < 0 && d < bd) { bd = d; best = a; } }
   return best;
 };

@@ -41,6 +41,7 @@
     lastShot = G.t;
     var P = T.pointer, mz = muzzle(P, kind);
     if (TR.sfx) TR.sfx.gun(L.snd, x);
+    G.emit('gunfire', mz.x, mz.y, x, y);
     kick = Math.min(1.6, kick + (kind === 'shotgun' ? 1.2 : kind === 'rifle' ? 0.45 : 0.7));
     if (TR.cam) TR.cam.kick(kind === 'shotgun' ? (v === 'slug' ? 3.5 : 2.6) : kind === 'rifle' ? 1.1 : 1.4);
     if (!L.noFlash) { TR.room.flash(mz.x, mz.y, kind === 'shotgun' ? 1.4 : kind === 'rifle' ? 0.8 : 1); fx.push({ k: 'muzzle', x: mz.x, y: mz.y, a: gunAt(P).a, t: 0, life: 3, big: kind === 'shotgun' }); }
@@ -285,5 +286,6 @@
   gun('shotgun', 'SHOTGUN', 'click to fire. it pumps itself between shots. R loads shells one at a time.', [{ id: 'buck', name: 'BUCKSHOT', help: 'nine pellets in a spread, the size of the circle.' }, { id: 'slug', name: 'SLUG', help: 'one heavy round. it knocks him over.' }, { id: 'bird', name: 'BIRDSHOT', help: 'a cloud of small pellets: a lot of small holes, nothing deep.' }]);
   gun('rifle', 'RIFLE', 'hold to fire. it climbs and spreads the longer you hold it. R reloads.', [{ id: 'auto', name: 'FULL AUTO', help: 'eleven rounds a second while you hold.' }, { id: 'burst', name: 'BURST', help: 'three rounds a click.' }, { id: 'semi', name: 'SEMI', help: 'one round a click.' }]);
   TR.setInfAmmo = function (on) { AM.inf = !!on; if (AM.inf) reload = null; try { var sv = JSON.parse(localStorage.getItem('ffs_torture_settings') || '{}'); sv.infAmmo = AM.inf; localStorage.setItem('ffs_torture_settings', JSON.stringify(sv)); } catch (e) {} if (TR.ui) TR.ui.onAmmo(); };
+  TR.gunMuzzle = function () { return T.cur && AM[T.cur.id] && !T.pointer.right ? muzzle(T.pointer, T.cur.id) : null; };
   TR.gunState = function () { var k = T.cur && AM[T.cur.id] ? T.cur.id : null; return k ? { kind: k, n: AM[k].n, mag: AM[k].mag, inf: AM.inf, reloading: !!(reload && reload.kind === k) } : null; };
 })();

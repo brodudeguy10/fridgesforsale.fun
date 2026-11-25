@@ -40,7 +40,7 @@
   var cond = el('div', null); cond.id = 'tr-cond';
   cond.innerHTML = '<div class="nm"><b class="who">SUBJECT 1</b><span class="iss"></span></div><div class="st">conscious</div>' +
     '<div class="row"><canvas class="map" width="116" height="208" aria-label="where he\'s hurt"></canvas><div class="bars">' +
-    '<div class="bar">BLOOD<i class="b-blood"></i></div><div class="bar">PAIN<i class="b-pain"></i></div><div class="bar">AWARE<i class="b-cons"></i></div><div class="worst"></div></div></div>' +
+    '<div class="bar">BLOOD<i class="b-blood"></i></div><div class="bar">PAIN<i class="b-pain"></i></div><div class="bar">AWARE<i class="b-cons"></i></div><div class="bl"></div><div class="worst"></div></div></div>' +
     '<button class="xr" type="button" disabled title="after he\'s dead">X-RAY ▸</button>';
   root.appendChild(cond);
   var top = el('div'); top.id = 'tr-top';
@@ -184,6 +184,15 @@
     var stE = cond.querySelector('.st'); stE.textContent = st; stE.classList.toggle('dead', !g.alive);
     setBar('b-blood', blood, blood > 0.6 ? '#8a2a22' : blood > 0.4 ? '#b8501c' : '#e0412f'); setBar('b-pain', pain, '#c79a34'); setBar('b-cons', cons, '#6a9ab0');
     var iss = G.dmg && G.dmg.iss ? G.dmg.iss(g) : 0; cond.querySelector('.iss').textContent = iss ? 'ISS ' + iss : '';
+    /* what the bleeding is doing right now: a pumping artery, a steady run, an ooze, something inside, his breathing */
+    var bs = G.bleed && g.dm && g.alive && !g.dusty ? G.bleed.summary(g) : null, bl = [];
+    if (bs) {
+      if (bs.art > 4) bl.push('arterial bleeding'); else if (bs.ext > 2.5) bl.push('bleeding heavily'); else if (bs.ext > 0.4) bl.push('bleeding'); else if (bs.ext > 0.05) bl.push('oozing');
+      if (bs.int > 0.6) bl.push('bleeding inside');
+      if (dm.breath < 0.6) bl.push('can\'t breathe right');
+    }
+    var blE = cond.querySelector('.bl'), blT = bl.join(' · '); if (blE.textContent !== blT) blE.textContent = blT;
+    blE.classList.toggle('bad', !!(bs && (bs.art > 4 || bs.ext > 2.5 || bs.int > 4)));
     var ev = g.rec && g.rec.events, last = null; if (ev) for (var i = ev.length - 1; i >= 0 && i > ev.length - 30; i--) { if (ev[i].inj && ev[i].inj.length && !ev[i].minor) { last = ev[i]; break; } }
     cond.querySelector('.worst').textContent = last ? last.inj[last.inj.length - 1].what + ' (' + (g.dm.regions[last.region] ? g.dm.regions[last.region].def.name : last.region) + ')' : '';
     var xr = cond.querySelector('.xr'); xr.disabled = !(g.case && !g.alive); xr.title = xr.disabled ? 'after he\'s dead' : 'every recorded injury, and what killed him';

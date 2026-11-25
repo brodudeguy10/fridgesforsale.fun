@@ -25,6 +25,8 @@ button { font-family: var(--mono); }
 #tr-cond .bar { font-size: 9px; color: var(--ink2); letter-spacing: 1px; }
 #tr-cond .bar i { display: block; height: 4px; background: #232527; margin-top: 2px; position: relative; overflow: hidden; }
 #tr-cond .bar i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--v, 0%); background: var(--c, #8a8a84); transition: width .25s; }
+#tr-cond .bl { font-size: 9px; color: #c9785c; letter-spacing: 0.4px; min-height: 12px; margin-top: 1px; }
+#tr-cond .bl.bad { color: #ff5a44; }
 #tr-cond .worst { font-size: 9px; color: var(--ink3); margin-top: 2px; min-height: 24px; }
 #tr-cond .xr { margin-top: 7px; width: 100%; padding: 4px 0; background: #0b2230; color: #bfefff; border: 1px solid #3a8ab0; font-size: 10px; letter-spacing: 2px; cursor: pointer; }
 #tr-cond .xr:disabled { background: #141516; color: var(--ink3); border-color: var(--line); cursor: default; }
